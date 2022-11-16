@@ -1,29 +1,43 @@
 #!/usr/bin/env Rscript
 
 # Load packages
-library()
-
-
-pacman::p_load(optparse, phylotools, tidyverse, readxl, stringr, lubridate)
+library(optparse)
+library(phylotools)
+library(tidyverse)
+library(stringr)
+library(lubridate)
 
 # Load metadata
 args = commandArgs(trailingOnly=TRUE)
-metadata <- read_xlsx(args[1]) 
+if (length(args) < 2) {
+    stop("Usage: fasta.R <metadata_raw> <BN>", call.=FALSE)
+}
+
+sample_sheet <- read_xlsx(args[1]) %>% 
+  # Remove rows starting with "#"
+  filter(str_detect(platform, "^#", negate = TRUE))
+
+metadata <- read_csv(args[2]) 
+
+FHI_files_1 <- args[3]
+FHI_files_2 <- args[4]
+MIK_files <- args[5]
+Artic_files_1 <- args[6]
+Artic_files_2 <- args[7]
+Nano_files_1 <- args[8]
+Nano_files_2 <- args[9]
+
+# Get oppsett_details_final object
+load(args[10])
 
 # Open connection to log file
-log_file <- file(paste0(Sys.Date(), ".log"), open = "a")
+log_file <- file(paste0(Sys.Date(), "fasta_raw.log"), open = "a")
 
 # Create empty objects to populate ----------------------------------------
 fastas_final <- tibble(
   "seq.name" = character(),
   "seq.text" = character()
 )
-
-# Read data from BioNumerics ----------------------------------------------
-BN <- load(args[2])
-# Convert empty strings to NA
-BN <- BN %>% mutate_all(list(~na_if(.,"")))
-
 
 #############################################
 ## Define functions
@@ -33,9 +47,8 @@ BN <- BN %>% mutate_all(list(~na_if(.,"")))
 find_sequences <- function(platform, oppsett) {
   if (platform == "Swift_FHI"){
     # Search the N: disk for consensus sequences
-    #try(dirs_fhi <- c(list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/2021/", recursive = FALSE), list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/2022/", recursive = FALSE)))
-    try(dirs_fhi <- c(list.dirs("/home/docker/N/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/2021/", recursive = FALSE),
-                      list.dirs("/home/docker/N/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/2022/", recursive = FALSE)))
+    try(dirs_fhi <- c(list.dirs(FHI_files_1, recursive = FALSE),
+                      list.dirs(FHI_files_2, recursive = FALSE)))
 
     # Pick our the relevant oppsett
     dir <- dirs_fhi[grep(paste0(oppsett, "\\b"), dirs_fhi)]
@@ -49,8 +62,7 @@ find_sequences <- function(platform, oppsett) {
 
   } else if (platform == "Swift_MIK") {
     # Search the N: disk for consensus sequences.
-    # dirs_fhi <- list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_MIK", recursive = FALSE)
-    try(dirs_fhi <- list.dirs("/home/docker/N/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_MIK", recursive = FALSE))
+    try(dirs_fhi <- list.dirs(MIK_files, recursive = FALSE))
     # Pick our the relevant oppsett
     dir <- dirs_fhi[grep(paste0(oppsett, "\\b"), dirs_fhi)]
 
@@ -63,9 +75,8 @@ find_sequences <- function(platform, oppsett) {
     samples <- gsub("_.*","", gsub(".*/","", filepaths))
   } else if (platform == "Artic_Illumina") {
     # Search the N: disk for consensus sequences.
-    #try(dirs_fhi <- c(list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2021", recursive = FALSE), list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2022", recursive = FALSE)))
-    try(dirs_fhi <- c(list.dirs("/home/docker/N/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2021", recursive = FALSE),
-                      list.dirs("/home/docker/N/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2022", recursive = FALSE)))
+    try(dirs_fhi <- c(list.dirs(Artic_files_1, recursive = FALSE),
+                      list.dirs(Artic_files_2, recursive = FALSE)))
 
     # Pick our the relevant oppsett
     dir <- dirs_fhi[grep(oppsett, dirs_fhi)]
@@ -81,9 +92,8 @@ find_sequences <- function(platform, oppsett) {
     #samples <- str_sub(gsub("Artic", "", gsub("_.*","", gsub(".*/","", filepaths))), start = 1, end = -2)
   } else if (platform == "Artic_Nanopore") {
     # Search the N: disk for consensus sequences.
-    #try(dirs_fhi <- c(list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2021", recursive = FALSE), list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2022", recursive = FALSE)))
-    try(dirs_fhi <- c(list.dirs("/home/docker/N/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2021", recursive = FALSE),
-                      list.dirs("/home/docker/N/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2022", recursive = FALSE)))
+    try(dirs_fhi <- c(list.dirs(Nano_files_1, recursive = FALSE),
+                      list.dirs(Nano_files_2, recursive = FALSE)))
 
     # Pick our the relevant oppsett
     oppsett <- gsub("Nr", "", (gsub("/Nano", "", oppsett)))
@@ -244,60 +254,18 @@ find_sequences <- function(platform, oppsett) {
 for (i in seq_along(sample_sheet$platform)) {
   print(paste("Processing", sample_sheet$oppsett[i]))
   # Remove old objects
-  suppressWarnings(rm(metadata_clean))
-  suppressWarnings(rm(fastas_clean))
-
-  #### Trekke ut prøver ####
-  oppsett_details_final <- filter_BN()
+  suppressWarnings(rm(fastas))
   
   if (nrow(oppsett_details_final > 0)){
-    #### Lage metadata ####
-    metadata <- create_metadata(oppsett_details_final)
     
     #### Find sequences on N: ####
     fastas <- find_sequences(sample_sheet$platform[i], sample_sheet$oppsett[i])
-    
-    #### Run Frameshift analysis ####
-    if (nrow(fastas) > 0) {
-      FS(fastas)
-    } else {
-      cat(paste0("No fastas found for oppsett ", sample_sheet$oppsett[i]),
-          file = log_file)
-    }
-    
-    fastas_clean <- remove_FS_fasta(fastas)
-    
-    if (exists("fastas_clean")){
-      metadata_clean <- remove_FS_metadata(metadata)
-    }
-    
-  } else {
-    cat(paste0("Oppsett: ", sample_sheet$oppsett[i], " had no samples to submit\n"),
-        file = log_file)
-  }
-  
-  # Join final metadata and fastas with final objects
-  if (exists("metadata_clean")){
-    if (nrow(metadata_clean) > 0){
-      metadata_final <- bind_rows(metadata_final, metadata_clean)
-      fastas_final <- bind_rows(fastas_final, fastas_clean)
-      # Clean up files
-      if (sample_sheet$platform[i] == "Artic_Nanopore"){
-        name <- str_replace(sample_sheet$oppsett[i], "/", "_")
-        file.rename("/home/docker/Fastq/Frameshift/FrameShift_tmp.xlsx", paste0("/home/docker/Fastq/FrameShift_", name, ".xlsx"))
-      } else {
-        file.rename("/home/docker/Fastq/Frameshift/FrameShift_tmp.xlsx", paste0("/home/docker/Fastq/FrameShift_", sample_sheet$oppsett[i], ".xlsx"))
-      }
-    } 
   }
 
-}
-  
 # Write final objects
 
 if (nrow(metadata_final) > 0){
-  dat2fasta(fastas_final, outfile = paste0("/home/docker/Fastq/", Sys.Date(), ".fasta"))
-  write_csv(metadata_final, file = paste0("/home/docker/Fastq/", Sys.Date(), ".csv"))
+  dat2fasta(fastas_final, outfile = paste0("/home/docker/Fastq/", Sys.Date(), "_raw.fasta"))
 } else {
   print("Nothing to save. Check the log file")
 }
