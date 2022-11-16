@@ -12,6 +12,6 @@ include { FASTA } from './modules/fasta.nf'
 // Workflow
 workflow {
     METADATA(samplesheet, BN)
-    FASTA(METADATA.out.metadata_raw)
+    FASTA(samplesheet, METADATA.out.metadata_raw, METADATA.out.oppsett_details_final)
 }
 
