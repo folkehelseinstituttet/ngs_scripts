@@ -1,4 +1,11 @@
-Maintained by Jon Bråte
+Neste oppgaver:
+1. Lage find fasta process
+    - Kjøre på kontormaskinen foreløpig - egen params i profile for lokalt.
+    - Kan ha en blob-path i azure profile
+2. Lage Frameshift process + clean up
+3. Joine og lage felles filer. 
+4. Logs. Ikke bare fra BN-parsinga, men også fra nextflow-kjøringa.
+    - Inkludere datoer, sample sheet, frameshift results + logs + versions fra nextflow.
 
 Planen er å gjøre om Gisaid-submisjonen til en NextFlow pipeline. 
 Viktige premisser:
