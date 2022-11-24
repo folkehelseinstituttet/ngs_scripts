@@ -26,6 +26,6 @@ process FASTA {
         ${params.Nano_files_1} \
         ${params.Nano_files_2} \
         ${oppsett_details_final}
-    """'
-
+    """
 }
+
