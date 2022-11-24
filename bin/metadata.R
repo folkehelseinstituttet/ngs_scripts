@@ -19,10 +19,11 @@ sample_sheet <- read_xlsx(args[1]) %>%
   filter(str_detect(platform, "^#", negate = TRUE))
 
 # Load the BN object from the second argument
+# load("/home/jonr/Prosjekter/FHI_Gisaid/BN.RData")
 load(args[2])
 
 # Open connection to log file
-log_file <- file(paste0(Sys.Date(), "metadata_raw.log"), open = "a")
+log_file <- file(paste0(Sys.Date(), "_metadata_raw.log"), open = "a")
 
 
 # Set fixed information ------------------------------------
@@ -448,7 +449,7 @@ for (i in seq_along(sample_sheet$platform)) {
   
 # Write final objects
 if (nrow(metadata_final) > 0){
-  save(oppsett_details_final, "oppsett_details_final.RData")
+  save(oppsett_details_final, file = "oppsett_details_final.RData")
   write_csv(metadata_final, file = paste0(Sys.Date(), "_raw.csv"))
 } else {
   print("Nothing to save. Check the log file")
