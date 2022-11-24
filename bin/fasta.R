@@ -6,12 +6,15 @@ library(phylotools)
 library(tidyverse)
 library(stringr)
 library(lubridate)
+library(readxl)
 
 # Load metadata
 args = commandArgs(trailingOnly=TRUE)
-if (length(args) < 2) {
-    stop("Usage: fasta.R <metadata_raw> <BN>", call.=FALSE)
+if (length(args) < 10) {
+    stop("Usage: fasta.R <samplesheet> <metadata_raw> <FHI_1> <FHI_2> <MIK> <Artic_1> <Artic_2> <Nano_1> <Nano_2> <oppsett_details>", call.=FALSE)
 }
+
+# sample_sheet <- read_xlsx("/home/jonr/Prosjekter/FHI_Gisaid/Gisaid_sample_sheet.xlsx") %>% filter(str_detect(platform, "^#", negate = TRUE))
 
 sample_sheet <- read_xlsx(args[1]) %>% 
   # Remove rows starting with "#"
@@ -19,19 +22,19 @@ sample_sheet <- read_xlsx(args[1]) %>%
 
 metadata <- read_csv(args[2]) 
 
-FHI_files_1 <- args[3]
-FHI_files_2 <- args[4]
-MIK_files <- args[5]
-Artic_files_1 <- args[6]
-Artic_files_2 <- args[7]
-Nano_files_1 <- args[8]
-Nano_files_2 <- args[9]
+FHI_files_1 <- args[3] # FHI_files_1 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/2021/"
+FHI_files_2 <- args[4] # FHI_files_2 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/2022/"
+MIK_files <- args[5] # MIK_files <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_MIK"
+Artic_files_1 <- args[6] # Artic_files_1 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2021"
+Artic_files_2 <- args[7] # Artic_files_2 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2022"
+Nano_files_1 <- args[8] # Nano_files_1 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2021"
+Nano_files_2 <- args[9] # Nano_files_2 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2022"
 
 # Get oppsett_details_final object
-load(args[10])
+load(args[10]) # load("/home/jonr/Prosjekter/FHI_Gisaid/oppsett_details_final.RData")
 
 # Open connection to log file
-log_file <- file(paste0(Sys.Date(), "fasta_raw.log"), open = "a")
+log_file <- file(paste0(Sys.Date(), "_fasta_raw.log"), open = "a")
 
 # Create empty objects to populate ----------------------------------------
 fastas_final <- tibble(
@@ -123,7 +126,7 @@ find_sequences <- function(platform, oppsett) {
   # First create empty data frame to fill
   fastas <- data.frame(seq.name = character(),
                        seq.text = character())
-  
+
   # Read the fasta sequences
   if (length(keep) > 0){
     for (f in seq_along(keep)){
@@ -261,11 +264,11 @@ for (i in seq_along(sample_sheet$platform)) {
     #### Find sequences on N: ####
     fastas <- find_sequences(sample_sheet$platform[i], sample_sheet$oppsett[i])
   }
-
+}
 # Write final objects
 
-if (nrow(metadata_final) > 0){
-  dat2fasta(fastas_final, outfile = paste0("/home/docker/Fastq/", Sys.Date(), "_raw.fasta"))
+if (nrow(fastas) > 0){
+  dat2fasta(fastas, outfile = paste0(Sys.Date(), "_raw.fasta"))
 } else {
   print("Nothing to save. Check the log file")
 }
