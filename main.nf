@@ -5,22 +5,21 @@ samplesheet = "$baseDir/Gisaid_sample_sheet.xlsx" // Default samplesheet path. O
 BN = "$baseDir/BN.RData"
 params.outdir = "Gisaid_files/"
 
-// Hardcode parameters for fasta.nf - should perhaps be put in a credentials/config file later
-params.FHI_fasta_1 = "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/2021/"
-params.FHI_fasta_2 = "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/2022/"
-params.MIK_fasta = "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_MIK"
-params.Artic_fasta_1 = "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2021"
-params.Artic_fasta_2 = "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2022"
-params.Nano_files_1 = "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2021"
-params.Nano_files_2 = "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2022"
-
 // Include processes
 include { METADATA } from './modules/metadata.nf'
 include { FASTA } from './modules/fasta.nf'
 
 // Workflow
 workflow {
+    FHI_fasta_1 = Channel.fromPath( params.FHI_fasta_1 )
+    FHI_fasta_2 = Channel.fromPath( params.FHI_fasta_2 )
+    MIK_fasta = Channel.fromPath( params.MIK_fasta )
+    Artic_fasta_1 = Channel.fromPath( params.Artic_fasta_1 )
+    Artic_fasta_2 = Channel.fromPath( params.Artic_fasta_2 )
+    Nano_fasta_1 = Channel.fromPath( params.Nano_fasta_1 )
+    Nano_fasta_2 = Channel.fromPath( params.Nano_fasta_2 )
+    
     METADATA(samplesheet, BN)
-    FASTA(samplesheet, METADATA.out.metadata_raw, METADATA.out.oppsett_details_final)
+    FASTA(samplesheet, METADATA.out.metadata_raw, METADATA.out.oppsett_details_final, FHI_fasta_1, FHI_fasta_2, MIK_fasta, Artic_fasta_1, Artic_fasta_2, Nano_fasta_1, Nano_fasta_2)
 }
 
