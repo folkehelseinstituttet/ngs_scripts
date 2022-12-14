@@ -10,7 +10,7 @@ process METADATA {
 
     output:
     path "*raw.csv", emit: metadata_raw
-    path "*.RData",  emit: oppsett_details_final
+    path "*.RData" , emit: oppsett_details_final
     path "*.log"
 
     script:
