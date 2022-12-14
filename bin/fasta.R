@@ -263,12 +263,19 @@ for (i in seq_along(sample_sheet$platform)) {
     
     #### Find sequences on N: ####
     fastas <- find_sequences(sample_sheet$platform[i], sample_sheet$oppsett[i])
+
+    # Join metatada per setup together
+    if (exists("fastas")){
+      if (nrow(fastas) > 0){
+        fastas_final <- bind_rows(fastas_final, fastas)
+      }
+    }
   }
 }
 # Write final objects
 
-if (nrow(fastas) > 0){
-  dat2fasta(fastas, outfile = paste0(Sys.Date(), "_raw.fasta"))
+if (nrow(fastas_final) > 0){
+  dat2fasta(fastas_final, outfile = paste0(Sys.Date(), "_raw.fasta"))
 } else {
   print("Nothing to save. Check the log file")
 }
