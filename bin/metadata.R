@@ -43,6 +43,8 @@ covv_treatment <- "Unknown"
 specimen <- "Unknown"
 
 # Create empty objects to populate ----------------------------------------
+oppsett_details_final <- tibble()
+
 metadata_final <- tibble(
   submitter = character(),
   fn  = character(),
@@ -271,7 +273,7 @@ filter_BN <- function() {
     }
 
   # Drop samples with missing data
-  oppsett_details_final <- oppsett_details
+  #oppsett_details_final <- oppsett_details
   if (sample_sheet$platform[i] == "Artic_Illumina" || sample_sheet$platform[i] == "Artic_Nanopore" || sample_sheet$platform[i] == "Swift_FHI") {
     for (x in seq_along(oppsett_details$INNSENDER)){
       if (is.na(oppsett_details$INNSENDER[x]) && is.na(oppsett_details$FYLKENAVN[x])){
@@ -285,7 +287,7 @@ filter_BN <- function() {
         cat(paste0("Key: ", oppsett_details$KEY[x], ", ", "had no Innsender info in BN - removed from submission\n"),
             file = log_file)
         # Remove from submission
-        oppsett_details_final <- oppsett_details_final[-grep(oppsett_details$KEY[x], oppsett_details_final$KEY),]
+        oppsett_details <- oppsett_details[-grep(oppsett_details$KEY[x], oppsett_details$KEY),]
       } else if (is.na(oppsett_details$FYLKENAVN[x])) {
         # Check Fylkenavn
         cat(paste0("Key: ", oppsett_details$KEY[x], ", ", "had no Fylkenavn info in BN\n"),
@@ -296,7 +298,7 @@ filter_BN <- function() {
         cat(paste0("Key: ", oppsett_details$KEY[x], ", ", "had Ukjent in Fylkenavn in BN - removed from submission\n"),
             file = log_file)
         # Remove from submission
-        oppsett_details_final <- oppsett_details_final[-grep(oppsett_details$KEY[x], oppsett_details_final$KEY),]
+        oppsett_details <- oppsett_details[-grep(oppsett_details$KEY[x], oppsett_details$KEY),]
       } 
     }
   } else if (sample_sheet$platform[i] == "Swift_MIK") {
@@ -315,7 +317,7 @@ filter_BN <- function() {
           }
         }
       }
-  return(oppsett_details_final)
+  return(oppsett_details)
 }
 
 # Define metadata function ------------------------------------------------
@@ -429,14 +431,16 @@ create_metadata <- function(oppsett_details_final) {
 for (i in seq_along(sample_sheet$platform)) {
   print(paste("Processing", sample_sheet$oppsett[i]))
   # Remove old objects
-  suppressWarnings(rm(metadata_clean))
+  suppressWarnings(rm(metadata))
+  suppressWarnings(rm(oppsett_details))
 
   #### Trekke ut prøver ####
-  oppsett_details_final <- filter_BN()
+  oppsett_details <- filter_BN()
+  oppsett_details_final <- bind_rows(oppsett_details_final, oppsett_details)
   
-  if (nrow(oppsett_details_final > 0)){
+  if (nrow(oppsett_details > 0)){
     #### Lage metadata ####
-    metadata <- create_metadata(oppsett_details_final)
+    metadata <- create_metadata(oppsett_details)
 
   # Join metatada per setup together
     if (exists("metadata")){
