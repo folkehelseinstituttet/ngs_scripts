@@ -281,3 +281,7 @@ if (nrow(fastas_final) > 0){
 }
 
 close(log_file)
+
+# Write out sessionInfo() to track versions
+session <- capture.output(sessionInfo())
+write_lines(session, file = paste0(Sys.Date(), "_R_versions_fasta.txt"))
