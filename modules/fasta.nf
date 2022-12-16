@@ -2,7 +2,8 @@ process FASTA {
 
     container 'jonbra/gisaid_sub_dockerfile:1.0'
 
-    publishDir "${params.outdir}", mode:'copy', pattern:'*.{log,fasta}'
+    //publishDir "${params.outdir}"    , mode:'copy', pattern:'*.{fasta}'
+    publishDir "${params.outdir}/log", mode:'copy', pattern:'*.{log,txt}'
 
     input:
     path samplesheet
@@ -19,8 +20,7 @@ process FASTA {
     output:
     path "*raw.fasta", emit: fasta_raw
     path "*.log"
-    //path "*.txt"
-    //path "*.csv"
+    path "*.txt"
 
     script:
     """
