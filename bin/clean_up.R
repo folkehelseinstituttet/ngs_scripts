@@ -1,0 +1,60 @@
+#!/usr/bin/env Rscript
+
+# Load packages
+library(optparse)
+library(tidyverse)
+library(readxl)
+library(phylotools)
+
+args = commandArgs(trailingOnly=TRUE)
+
+# Open connection to log file
+log_file <- file(paste0(Sys.Date(), "_clean_up.log"), open = "a")
+
+frameshift_results <- args[1]
+metadata_raw <- read_csv(args[2])
+fasta_raw <- as_tibble(phylotools::read.fasta(args[3]))
+
+# Open connection to log file
+log_file <- file(paste0(Sys.Date(), "_clean_up.log"), open = "a")
+
+## Extract OK samples and create final metadata
+FS_OK <- read_excel(frameshift_results) %>%
+  filter(Ready == "YES") %>%
+  dplyr::rename("covv_virus_name" = "Sample")
+
+metadata_clean <- left_join(FS_OK, metadata_raw, by = "covv_virus_name") %>%
+  select(-Deletions, -Frameshift, -Insertions, -Ready, -Comments)
+
+## Extract OK fastas and create final fasta file
+FS_NO <- read_excel(frameshift_results) %>%
+  filter(Ready == "NO")
+
+# Rename navn til å matche navn i fastas
+# Join fastas with FS to keep
+if (nrow(FS_OK > 0)){
+  fastas_clean <- left_join(FS_OK, fasta_raw, by = c("covv_virus_name" = "seq.name")) %>%
+    select(`seq.name` = covv_virus_name, 
+           `seq.text`)
+} 
+
+if (nrow(FS_NO > 0)) {
+  frameshift <- FS_NO %>% pull(Sample)
+  cat(paste0("These sequences had frameshift: ", frameshift),
+      file = log_file)    
+}
+
+## Write final files
+if (nrow(metadata_clean) > 0){
+  dat2fasta(fastas_clean, outfile = paste0(Sys.Date(), ".fasta"))
+  write_csv(metadata_clean, file = paste0(Sys.Date(), ".csv"))
+} else {
+  print("Nothing to save. Check the log file")
+}
+
+close(log_file)
+
+# Write out sessionInfo() to track versions
+session <- capture.output(sessionInfo())
+write_lines(session, file = "R_versions_clean_up.txt")
+
