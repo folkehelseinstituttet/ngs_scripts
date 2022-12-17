@@ -17,11 +17,11 @@ args=commandArgs(TRUE)
 # Open connection to log file
 #log_file <- file(paste0(Sys.Date(), "_frameshift.log"), open = "a")
 
-results.folder <- paste0(args[5], "/")
-fasta <- args[4]
 reference <- args[1]
 genelist <- args[2]
 database <- args[3]
+total.fasta <- args[4]
+results.folder <- paste0(args[5], "/")
 algorithm <- "Muscle"
 
 ########################################################################################################################
@@ -189,7 +189,7 @@ for (i in 1:nrow(deletion_results)) {
 
 deletion_results<-deletion_results[order(deletion_results$Frameshift, decreasing = TRUE),]
 # Skip this as well
-write_xlsx(deletion_results[,c(1:4)],paste(results.folder,"FrameShift_", gsub("\\.fa.*","",gsub(".*/","", multifasta)),".xlsx",sep = ""))
+write_xlsx(deletion_results[,c(1:4)],paste(results.folder,"FrameShift_", gsub("\\.fa.*","",gsub(".*/","", total.fasta)),".xlsx",sep = ""))
 
 
 # FrameshiftDB ------------------------------------------------------------
