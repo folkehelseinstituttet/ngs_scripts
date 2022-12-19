@@ -4,6 +4,9 @@ nextflow.enable.dsl=2
 samplesheet = "$baseDir/Gisaid_sample_sheet.xlsx" // Default samplesheet path. Override with --samplesheet 
 BN = "$baseDir/BN.RData"
 params.outdir = "Gisaid_files/"
+reference = "$baseDir/data/MN908947.3.fasta"
+genelist = "$baseDir/data/genemap.csv"
+FSDB = "$baseDir/data/FSDB.csv"
 
 // Include processes
 //include { DOWNLOAD_FILES } './modules/download.nf'
@@ -23,34 +26,22 @@ workflow {
     Nano_fasta_1 = Channel.fromPath( params.Nano_fasta_1 )
     Nano_fasta_2 = Channel.fromPath( params.Nano_fasta_2 )
 
-    ch_reference = Channel.fromPath( "/home/jonbra/FHI/Prosjekter/FHI_Gisaid/MN908947.3.fasta" )
-    ch_genelist = Channel.fromPath( "/home/jonbra/FHI/Prosjekter/FHI_Gisaid/genemap.csv" )
-    ch_FSDB = Channel.fromPath( "/home/jonbra/FHI/Prosjekter/FHI_Gisaid/FSDB.csv" )
-    
-    //DOWNLOAD_FILES()
     //METADATA(samplesheet, BN)
     //FASTA(samplesheet, METADATA.out.metadata_raw, METADATA.out.oppsett_details_final, FHI_fasta_1, FHI_fasta_2, MIK_fasta, Artic_fasta_1, Artic_fasta_2, Nano_fasta_1, Nano_fasta_2)
     
     // Split the multifasta from the FASTA process into single fasta files
-    //Channel
-    //    .fromPath(FASTA.out.fasta_raw)
-    //    .splitFasta(by: 1, file: true)
-    //    .set { ch_fasta }
-
     Channel
-        .fromPath("/home/jonbra/FHI/Prosjekter/FHI_Gisaid/test.fasta")
-        .splitFasta(by: 1, file: true)
+        .fromPath(FASTA.out.fasta_raw)
+        .splitFasta(by: 1, file:true)
         .set { ch_fasta }
     
     // Run the FRAMESHIFT process on each fasta file
-    //ch_clean = FRAMESHIFT_DEV(ch_fasta, DOWNLOAD_FILES.out.reference, DOWNLOAD_FILES.out.genelist, DOWNLOAD_FILES.out.FSDB)
-    ch_clean = FRAMESHIFT_DEV(ch_fasta, ch_reference, ch_genelist, ch_FSDB)
+    ch_clean = FRAMESHIFT_DEV(ch_fasta, reference, genelist, FSDB)
 
-    // Collect all the FrameShift results
-    // Need to save a simple tsv/csv file with no header and one line per fasta sequence
-    // This can be concatenated.
-    ch_collect = ch_clean.collectFile(name: "Frameshift.csv", newLine: true)
+    // Collect all the FrameShift results into a file called collected_frameshift.csv
+    ch_collect = ch_clean
+       .collectFile(name: "collected_frameshift.csv", newLine: false)
     
-    //CLEAN_UP(METADATA.out.metadata_raw, FASTA.out.fasta_raw, ch_collect)
+    CLEAN_UP(METADATA.out.metadata_raw, FASTA.out.fasta_raw, ch_collect)
 }
 
