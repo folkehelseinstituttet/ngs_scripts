@@ -3,7 +3,6 @@
 # Load packages
 library(optparse)
 library(tidyverse)
-library(readxl)
 library(phylotools)
 
 args = commandArgs(trailingOnly=TRUE)
@@ -11,15 +10,21 @@ args = commandArgs(trailingOnly=TRUE)
 # Open connection to log file
 log_file <- file(paste0(Sys.Date(), "_clean_up.log"), open = "a")
 
-frameshift_results <- args[1]
-metadata_raw <- read_csv(args[2])
-fasta_raw <- as_tibble(phylotools::read.fasta(args[3]))
+metadata_raw <- read_csv(args[1])
+fasta_raw <- as_tibble(phylotools::read.fasta(args[2]))
+frameshift_results <- args[3]
 
 # Open connection to log file
 log_file <- file(paste0(Sys.Date(), "_clean_up.log"), open = "a")
 
 ## Extract OK samples and create final metadata
-FS_OK <- read_excel(frameshift_results) %>%
+FS_OK <- read_csv(frameshift_results, col_names = FALSE) %>%
+  rename("Sample" = X1,
+         "Deletions" = X2,
+         "Frameshift" = X3,
+         "Insertions" = X4,
+         "Ready" = X5,
+         "Comments" = X6) %>%
   filter(Ready == "YES") %>%
   dplyr::rename("covv_virus_name" = "Sample")
 
@@ -27,7 +32,13 @@ metadata_clean <- left_join(FS_OK, metadata_raw, by = "covv_virus_name") %>%
   select(-Deletions, -Frameshift, -Insertions, -Ready, -Comments)
 
 ## Extract OK fastas and create final fasta file
-FS_NO <- read_excel(frameshift_results) %>%
+FS_NO <- read_csv(frameshift_results) %>%
+  rename("Sample" = X1,
+         "Deletions" = X2,
+         "Frameshift" = X3,
+         "Insertions" = X4,
+         "Ready" = X5,
+         "Comments" = X6) %>%
   filter(Ready == "NO")
 
 # Rename navn til å matche navn i fastas
