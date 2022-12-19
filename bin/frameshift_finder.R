@@ -5,8 +5,6 @@
 #Nacho Garcia 2021 / iggl@fhi.no
 
 library(seqinr)
-library(writexl)
-library(readxl)
 library(tidyverse)
 library(GenomicAlignments)
 library(reshape2)
@@ -134,7 +132,7 @@ seq.reference <- unlist(base::strsplit(as.character(DNAStr[grep(names(seq.list)[
 date <- gsub("-","",Sys.Date())
   
 # Skip this - instead use the final.results object
-write.csv(final.results, paste(results.folder, date, "DeletionFinderResults.csv",sep = ""), row.names = FALSE)
+#write.csv(final.results, paste(results.folder, date, "DeletionFinderResults.csv",sep = ""), row.names = FALSE)
 
 ####################################
 ### Deletion Finder end ###
@@ -189,13 +187,10 @@ for (i in 1:nrow(deletion_results)) {
 
 deletion_results<-deletion_results[order(deletion_results$Frameshift, decreasing = TRUE),]
 # Skip this as well
-write_xlsx(deletion_results[,c(1:4)],paste(results.folder,"FrameShift_", gsub("\\.fa.*","",gsub(".*/","", total.fasta)),".xlsx",sep = ""))
+#write_xlsx(deletion_results[,c(1:4)],paste(results.folder,"FrameShift_", gsub("\\.fa.*","",gsub(".*/","", total.fasta)),".xlsx",sep = ""))
 
 
 # FrameshiftDB ------------------------------------------------------------
-
-
-if(length(database)>0){
   
   indels<-read.csv(database)
   df <- deletion_results
@@ -298,8 +293,10 @@ if(length(database)>0){
   }else{
     df <- df.ready
   }
-  
-write_csv(df, file = paste0(samples.to.analyze, "_frameshift.csv"), col_names = FALSE)
+
+# Remove forward slash from sample names before writing.
+outfile <- str_replace_all(samples.to.analyze, "/", "_")
+write_csv(df, file = paste0("frameshift.csv"), col_names = FALSE)
   
 
 #close(log_file)
