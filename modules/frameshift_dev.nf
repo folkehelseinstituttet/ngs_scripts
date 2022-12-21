@@ -17,7 +17,6 @@ process FRAMESHIFT_DEV {
 
     script:
     """
-    #cat $fasta > frameshift.csv
     frameshift_finder.R \
         $reference \
         $genelist \
