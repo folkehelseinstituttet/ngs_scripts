@@ -10,8 +10,8 @@ FSDB = "$baseDir/data/FSDB.csv"
 
 // Include processes
 //include { DOWNLOAD_FILES } './modules/download.nf'
-//include { METADATA } from './modules/metadata.nf'
-//include { FASTA } from './modules/fasta.nf'
+include { METADATA } from './modules/metadata.nf'
+include { FASTA } from './modules/fasta.nf'
 include { FRAMESHIFT_DEV } from './modules/frameshift_dev.nf'
 include { CLEAN_UP } from './modules/clean_up.nf'
 
@@ -26,8 +26,8 @@ workflow {
     Nano_fasta_1 = Channel.fromPath( params.Nano_fasta_1 )
     Nano_fasta_2 = Channel.fromPath( params.Nano_fasta_2 )
 
-    //METADATA(samplesheet, BN)
-    //FASTA(samplesheet, METADATA.out.metadata_raw, METADATA.out.oppsett_details_final, FHI_fasta_1, FHI_fasta_2, MIK_fasta, Artic_fasta_1, Artic_fasta_2, Nano_fasta_1, Nano_fasta_2)
+    METADATA(samplesheet, BN)
+    FASTA(samplesheet, METADATA.out.metadata_raw, METADATA.out.oppsett_details_final, FHI_fasta_1, FHI_fasta_2, MIK_fasta, Artic_fasta_1, Artic_fasta_2, Nano_fasta_1, Nano_fasta_2)
     
     // Split the multifasta from the FASTA process into single fasta files
     Channel
