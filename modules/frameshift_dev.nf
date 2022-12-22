@@ -11,6 +11,7 @@ process FRAMESHIFT_DEV {
     path FSDB
 
     output:
+    // Check the R script that it works on fasta sequence nr. 20 in the raw_fasta output.
     path 'frameshift.csv'
     //path "*.log"
     //path "*.txt"
