@@ -37,3 +37,4 @@ process FASTA {
         ${oppsett_details_final}
     """
 }
+
