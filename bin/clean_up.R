@@ -19,13 +19,13 @@ log_file <- file(paste0(Sys.Date(), "_clean_up.log"), open = "a")
 
 ## Extract OK samples and create final metadata
 FS_OK <- read_csv(frameshift_results, col_names = FALSE) %>%
-  rename("Sample" = X1,
+  dplyr::rename("Sample" = X1,
          "Deletions" = X2,
          "Frameshift" = X3,
          "Insertions" = X4,
          "Ready" = X5,
          "Comments" = X6) %>%
-  filter(Ready == "YES") %>%
+  dplyr::filter(Ready == "YES") %>%
   dplyr::rename("covv_virus_name" = "Sample")
 
 metadata_clean <- left_join(FS_OK, metadata_raw, by = "covv_virus_name") %>%
@@ -33,7 +33,7 @@ metadata_clean <- left_join(FS_OK, metadata_raw, by = "covv_virus_name") %>%
 
 ## Extract OK fastas and create final fasta file
 FS_NO <- read_csv(frameshift_results) %>%
-  rename("Sample" = X1,
+  dplyr::rename("Sample" = X1,
          "Deletions" = X2,
          "Frameshift" = X3,
          "Insertions" = X4,
@@ -45,7 +45,7 @@ FS_NO <- read_csv(frameshift_results) %>%
 # Join fastas with FS to keep
 if (nrow(FS_OK > 0)){
   fastas_clean <- left_join(FS_OK, fasta_raw, by = c("covv_virus_name" = "seq.name")) %>%
-    select(`seq.name` = covv_virus_name, 
+    dplyr::select(`seq.name` = covv_virus_name, 
            `seq.text`)
 } 
 
