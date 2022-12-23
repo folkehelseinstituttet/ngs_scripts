@@ -194,9 +194,13 @@ deletion_results<-deletion_results[order(deletion_results$Frameshift, decreasing
   
   indels<-read.csv(database)
   df <- deletion_results
-  df.ready<-df[which(df$Frameshift=="NO"),]
-  df.ready$Ready<-"YES"
-  df.ready$Comments<-"No frameshifts detected"
+
+  # If the sample has NO frameshifts then it is ready
+  if(length(which(df$Frameshift=="NO"))>0) {
+    df.ready <- df[which(df$Frameshift=="NO"),]
+    df.ready$Ready<-"YES"
+    df.ready$Comments<-"No frameshifts detected"
+  }
   
   if(length(which(df$Frameshift=="YES"))>0){
   
