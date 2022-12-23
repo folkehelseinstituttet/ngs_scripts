@@ -15,9 +15,9 @@ args=commandArgs(TRUE)
 # Open connection to log file
 #log_file <- file(paste0(Sys.Date(), "_frameshift.log"), open = "a")
 
-reference <- args[1]
-genelist <- args[2]
-database <- args[3]
+reference <- args[1] # reference <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/MN908947.3.fasta?token=GHSAT0AAAAAABXO6NJQCJT5MGYSWKHEVBW6Y5F66QQ"
+genelist <- args[2] # genelist <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/genemap.csv?token=GHSAT0AAAAAABXO6NJREYCIUJH4Q62NE7QAY5F67BQ"
+database <- args[3] # database <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/FSDB.csv?token=GHSAT0AAAAAABXO6NJQ6E635JGJFB2WRB7QY5F676A"
 total.fasta <- args[4]
 results.folder <- paste0(args[5], "/")
 algorithm <- "Muscle"
