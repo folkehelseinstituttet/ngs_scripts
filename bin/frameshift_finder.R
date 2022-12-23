@@ -293,7 +293,6 @@ deletion_results<-deletion_results[order(deletion_results$Frameshift, decreasing
     }
   }
   df$Comments<-gsub("NA & ","",df$Comments)
-  df<-rbind(df, df.ready)
   }else{
     df <- df.ready
   }
