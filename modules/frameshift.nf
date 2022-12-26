@@ -1,8 +1,6 @@
-process FRAMESHIFT_DEV {
+process FRAMESHIFT {
 
     container 'jonbra/gisaid_sub_dockerfile:1.0'
-
-    //publishDir "${params.outdir}/log", mode:'copy', pattern:'*.{log,txt}'
 
     input:
     path fasta
@@ -11,10 +9,7 @@ process FRAMESHIFT_DEV {
     path FSDB
 
     output:
-    // Check the R script that it works on fasta sequence nr. 20 in the raw_fasta output.
     path 'frameshift.csv'
-    //path "*.log"
-    //path "*.txt"
 
     script:
     """
