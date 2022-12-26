@@ -303,7 +303,3 @@ write_csv(df, file = paste0("frameshift.csv"), col_names = FALSE)
   
 
 #close(log_file)
-
-# Write out sessionInfo() to track versions
-#session <- capture.output(sessionInfo())
-#write_lines(session, file = paste0(Sys.Date(), "_R_versions_frameshift.txt"))
