@@ -19,8 +19,8 @@ process CLEAN_UP {
     script:
     """
     clean_up.R \
-        $frameshift \
         $metadata_raw \
-        $fasta_raw
+        $fasta_raw \
+        $frameshift
     """
 }
