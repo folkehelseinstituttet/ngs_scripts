@@ -65,7 +65,3 @@ if (nrow(metadata_clean) > 0){
 
 close(log_file)
 
-# Write out sessionInfo() to track versions
-session <- capture.output(sessionInfo())
-write_lines(session, file = "R_versions_clean_up.txt")
-
