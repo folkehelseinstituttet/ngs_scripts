@@ -3,7 +3,7 @@ process CLEAN_UP {
     container 'jonbra/gisaid_sub_dockerfile:1.0'
 
     publishDir "${params.outdir}"    , mode:'copy', pattern:'*.{csv,fasta}'
-    publishDir "${params.outdir}/log", mode:'copy', pattern:'*.{log,txt}'
+    publishDir "${params.outdir}/logs/", mode:'copy', pattern:'*.{log,sh}'
 
     input:
     path metadata_raw
@@ -13,8 +13,7 @@ process CLEAN_UP {
     output:
     path "*.fasta"
     path "*.csv"
-    path "*.log"
-    path "*.txt"
+    path "*.{log,sh}"
 
     script:
     """
@@ -22,5 +21,8 @@ process CLEAN_UP {
         $metadata_raw \
         $fasta_raw \
         $frameshift
+
+    cp .command.log clean_up.log
+    cp .command.sh clean_up.sh
     """
 }
