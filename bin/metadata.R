@@ -28,48 +28,18 @@ submitter <- args[1]
 log_file <- file(paste0(Sys.Date(), "_metadata_raw.log"), open = "a")
 
 
-# Create empty data frame to populate -------------------------------------
-metadata_final <- tibble(
-  submitter = character(),
-  fn = character(),
-  covv_virus_name = character(),
-  covv_type = character(),
-  covv_passage = character(),
-  covv_collection_date = ymd(),
-  covv_location = character(),
-  covv_host = character(),
-  covv_gender = character(),
-  covv_sampling_strategy = character(),
-  covv_patient_age = character(),
-  covv_patient_status = character(),
-  covv_specimen = character(), 
-  covv_seq_technology = character(), 
-  covv_assembly_method = character(),
-  covv_orig_lab = character(), 
-  covv_orig_lab_addr = character(), 
-  covv_subm_lab = character(),
-  covv_subm_lab_addr = character(), 
-  covv_authors = character(), 
-  covv_subm_sample_id = character(),
-  covv_outbreak = character(), 
-  covv_add_host_info = character(), 
-  covv_add_location = character(),
-  covv_provider_sample_id = character(), 
-  covv_last_vaccinated = character(),
-  covv_treatment = character(),
-  covv_coverage = character()
-)
-
 # Read data from BioNumerics ----------------------------------------------
-# Convert empty strings to NA
-BN <- BN %>% mutate_all(list(~na_if(.,"")))
 
 # Initial filtering and cleaning
 tmp <- BN %>%
+  # Convert empty strings to NA
+  mutate_all(list(~na_if(.,""))) %>% 
   # Remove previously submitted samples
   filter(is.na(GISAID_EPI_ISL)) %>% 
   # Fjerne evt positiv controll
   filter(str_detect(KEY, "pos", negate = TRUE)) %>%
+  # Fjerne hvis manglende INNSENDER
+  filter(!is.na(INNSENDER)) %>% 
   # Endre Trøndelag til Trondelag
   mutate("FYLKENAVN" = str_replace(FYLKENAVN, "Tr\xf8ndelag", "Trondelag")) %>%
   # Endre Møre og Romsdal
@@ -82,39 +52,139 @@ tmp <- BN %>%
   # Fix date format
   mutate("PROVE_TATT" = ymd(PROVE_TATT)) %>%
   # Drop samples without collection date
-  filter(!is.na(PROVE_TATT)) 
+  filter(!is.na(PROVE_TATT)) %>% 
+  # Add column stating whether coverage is sufficient or not
+  mutate("COV_OK" = case_when(
+    Dekning_Swift >= 94 ~ "YES",
+    Dekning_Swift < 94  ~ "NO",
+    Dekning_Artic >= 94 ~ "YES",
+    Dekning_Artic < 94  ~ "NO",
+    Dekning_Nano >= 94  ~ "YES",
+    Dekning_Nano < 94   ~ "NO"
+  )) %>% 
+  # Only keep sequences with sufficient coverage
+  filter(!is.na(COV_OK)) %>% 
+  # Keep only necessary columns
+  select(KEY, 
+         SEQUENCEID_NANO29, 
+         SEQUENCEID_SWIFT, 
+         SEKV_OPPSETT_NANOPORE, 
+         SEKV_OPPSETT_SWIFT7, 
+         SAMPLE_CATEGORY,
+         COVERAGE_DEPTH_SWIFT,
+         RES_CDC_INFB_CT,
+         RES_CDC_INFA_RX,
+         COVARAGE_DEPTH_NANO,
+         PROVE_TATT, 
+         FYLKENAVN, 
+         INNSENDER,
+         MELDT_SMITTESPORING,
+         P)
 
-# Determine platform type
+# For now only work on data after 2022-08-01
+tmp <- tmp %>% filter(PROVE_TATT >= "2022-08-01")
+
+# Extract samples that are "skrevet ut". I.e. remove the ones without NA
+
+try(rm(df))
+df <- tibble()
+pb <- txtProgressBar(min = 1, max = nrow(tmp))
 for (i in 1:nrow(tmp)) {
-  # Add fixed info'
-  # Blir dette for tidlig? Fortsatt ikke sjekka om dekning ok etc.
-  metadata_final[i,]$fn <- "tmp.fa"
-  metadata_final[i,]$type <- "betacoronavirus"
-  metadata_final[i,]$passage <- "original"
-  metadata_final[i,]$host <- "Human"
-  metadata_final[i,]$gender <- "Unknown"
-  metadata_final[i,]$age <- "Unknown"
-  metadata_final[i,]$status <- "Unknown"
-  metadata_final[i,]$covv_subm_sample_id <- "Unknown"
-  metadata_final[i,]$covv_outbreak <- "Unknown"
-  metadata_final[i,]$covv_add_host_info <- "Unknown"
-  metadata_final[i,]$covv_add_location <- "Unknown"
-  metadata_final[i,]$covv_provider_sample_id <- "Unknown"
-  metadata_final[i,]$covv_last_vaccinated <- "Unknown"
-  metadata_final[i,]$covv_treatment <- "Unknown"
-  metadata_final[i,]$specimen <- "Unknown"
-  if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "MIK")) {
-    metadata_final
-  } else if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "FHI")) {
-    metadata_final[i,]$submitter <- submitter
-    
-    
-  } else if (str_detect(tmp$SAMPLE_CATEGORY[i], "/")) { # Illumina runs are separated by "/"
-    
-  } else if (str_detect(tmp$SEKV_OPPSETT_NANOPORE[i], "Nano")) {
-    
-  }
+  setTxtProgressBar(pb, i)
+  if (!is.na(tmp$SEKV_OPPSETT_SWIFT7[i])) {
+    if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "FHI")) {
+      dummy <- tmp[i,] %>% 
+        filter(!is.na(MELDT_SMITTESPORING)) %>% 
+        # Create column for looping through later
+        mutate(SEARCH_COLUMN = SEQUENCEID_SWIFT) %>%
+        rename("COVERAGE" = COVERAGE_DEPTH_SWIFT) %>% 
+        mutate(SETUP = SEKV_OPPSETT_SWIFT7)
+    } else if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "MIK")) {
+      dummy <- tmp[i,] %>% 
+        # Create column for looping through later
+        mutate(SEARCH_COLUMN = SEQUENCEID_SWIFT) %>%
+        rename("COVERAGE" = COVERAGE_DEPTH_SWIFT) %>% 
+        mutate(SETUP = SEKV_OPPSETT_SWIFT7)
+    }
+  } else if (!is.na(tmp$SAMPLE_CATEGORY[i])) { # Artic_Illumina
+    dummy <- tmp[i,] %>% 
+      filter(!is.na(MELDT_SMITTESPORING)) %>% 
+      mutate(SEARCH_COLUMN = RES_CDC_INFB_CT) %>%
+      rename("COVERAGE" = RES_CDC_INFA_RX) %>% 
+      mutate(SETUP = SAMPLE_CATEGORY)
+  } else if (!is.na(tmp$SEKV_OPPSETT_NANOPORE[i])) { # Artic_Nanopore
+    dummy <- tmp[i,] %>% 
+      filter(!is.na(MELDT_SMITTESPORING)) %>% 
+      mutate(SEARCH_COLUMN = SEQUENCEID_NANO29) %>%
+      rename("COVERAGE" = COVARAGE_DEPTH_NANO) %>% 
+      mutate(SETUP = SEKV_OPPSETT_NANOPORE)
+  } 
+  df <- bind_rows(df, dummy)
 }
+
+# Further filtering
+df_2 <- df %>% 
+  # Remove failed or inconclusive samples
+  filter(str_detect(SEARCH_COLUMN, "ailed", negate = TRUE)) %>% 
+  filter(str_detect(SEARCH_COLUMN, "nkonklusiv", negate = TRUE)) %>% 
+  # Lage kolonne for "year"
+  separate(PROVE_TATT, into = c("Year", NA, NA), sep = "-", remove = FALSE) %>% 
+  # Add info on sentinel sample (Fyrtårn)
+  mutate("covv_sampling_strategy" = case_when(
+    P == "1" ~ "Sentinel surveillance (ARI)",
+    P != "1" ~ "Unknown"
+  )
+  )
+
+# Modify the KEY to create Virus name
+try(rm(df_3))
+df_3 <- tibble()
+pb <- txtProgressBar(min = 1, max = nrow(df_2))
+for (i in 1:nrow(df_2)) {
+  setTxtProgressBar(pb, i)
+  if (str_detect(df_2$SETUP[i], "MIK")) {
+    dummy <- df_2[i,] %>% 
+      # For OUS bruke hele KEY som stammenr
+      mutate("Uniq_nr" = str_sub(KEY, start = 1, end = -1))
+  } else {
+    dummy <- df_2[i,] %>% 
+    # Trekke ut sifrene fra 5 og til det siste fra BN KEY
+    mutate("Uniq_nr" = str_sub(KEY, start = 5, end = -1)) %>%
+    # Fjerne ledende nuller fra stammenavnet
+    mutate("Uniq_nr" = str_remove(Uniq_nr, "^0+"))
+  }
+df_3 <- bind_rows(df_3, dummy)
+}
+
+df_4 <- df_3 %>% 
+    # Legge til kolonner med fast informasjon for å lage "Virus name" senere
+    add_column("Separator" = "/",
+               "GISAID_prefix" = "hCoV-19/",
+               "Country" = "Norway/",
+               "Continent" = "Europe/") %>%
+    # Make "Virus name" column
+    unite("covv_virus_name", c(GISAID_prefix, Country, Uniq_nr, Separator, Year), sep = "", remove = FALSE) %>%
+    # Lage Location-kolonne
+    unite("covv_location", c(Continent, Country, FYLKENAVN), sep = "", remove = FALSE) %>%
+    # Legge til faste kolonner
+    add_column("submitter" = submitter,
+               "fn" = "tmp",
+               "covv_type" = "betacoronavirus",
+               "covv_passage" = "original",
+               "covv_host" = "Human",
+               "covv_gender" = "Unknown",
+               "covv_patient_age" = "Unknown",
+               "covv_patient_status" = "Unknown",
+               "covv_specimen" = "Unknown",
+               "covv_subm_sample_id" = "Unknown",
+               "covv_outbreak" = "Unknown",
+               "covv_add_host_info" = "Unknown",
+               "covv_add_location" = "Unknown",
+               "covv_provider_sample_id" = "Unknown",
+               "covv_last_vaccinated" = "Unknown",
+               "covv_treatment" = "Unknown")
+
+# Add sequencing technology, addresses and authors
 
 # Set originating labs and addresses --------------------------------------
 lab_lookup_table <- tribble(
@@ -149,11 +219,159 @@ lab_lookup_table <- tribble(
   27,	"Oslo Helse", "Hegdehaugsveien 36, 0352 Oslo"
 ) %>%
   mutate(`Lab code` = as.character(`Lab code`))
-platform_lookup_table <- tribble(
-  ~`Platform`, ~`Info`, ~`Authors`,
-  0,	"Norwegian Institute of Public Health, Department of Virology",	"P.O.Box 222 Skoyen, 0213 Oslo, Norway",
-) %>%
-  mutate(`Lab code` = as.character(`Lab code`))
+
+# add empty columns
+df_4 <- df_4 %>% 
+  add_column("covv_orig_lab" = NA,
+             "covv_orig_lab_addr" = NA)
+
+  for (row in seq_along(df_4$INNSENDER)) {
+    if (df_4[row,]$INNSENDER == 0){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[1,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[1,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 1){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[2,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[2,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 2){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[3,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[3,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 3){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[4,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[4,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 4){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[5,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[5,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 5){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[6,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[6,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 6){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[7,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[7,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 7){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[8,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[8,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 8){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[9,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[9,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 9){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[10,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[10,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 10){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[11,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[11,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 11){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[12,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[12,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 12){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[13,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[13,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 13){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[14,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[14,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 14){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[15,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[15,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 15){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[16,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[16,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 16){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[17,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[17,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 17){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[18,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[18,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 18){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[19,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[19,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 19){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[20,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[20,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 20){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[21,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[21,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 21){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[22,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[22,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 22){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[23,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[23,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 23){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[24,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[24,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 24){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[25,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[25,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 25){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[26,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[26,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 26){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[27,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[27,]$`Lab address`
+    } else if (df_4[row,]$INNSENDER == 27){
+      df_4[row,]$covv_orig_lab <- lab_lookup_table[28,]$Lab
+      df_4[row,]$covv_orig_lab_addr <- lab_lookup_table[28,]$`Lab address`
+    }
+  }
+
+# Add author information and sequencing technology
+df_4 %>% 
+
+# Use lookup table
+# Missing:
+"covv_seq_technology" = sample_sheet$seq_tech[i],
+"covv_assembly_method" = sample_sheet$ass_method[i],
+"covv_subm_lab" = sample_sheet$sub_lab[i],
+"covv_subm_lab_addr" = sample_sheet$address[i],
+"covv_authors" = sample_sheet$authors[i],
+
+
+    # Beholde endelige kolonner og rekkefølge
+    select("submitter",
+           "fn",
+           "covv_virus_name",
+           "covv_type",
+           "covv_passage",
+           "covv_collection_date" = PROVE_TATT,
+           "covv_location",
+           "covv_host",
+           "covv_gender",
+           "covv_patient_age",
+           "covv_patient_status",
+           "covv_specimen",
+           "covv_seq_technology",
+           "covv_assembly_method",
+           "covv_orig_lab",
+           "covv_orig_lab_addr",
+           "covv_subm_lab",
+           "covv_subm_lab_addr",
+           "covv_authors",
+           "covv_subm_sample_id",
+           "covv_outbreak",
+           "covv_add_host_info",
+           "covv_add_location",
+           "covv_provider_sample_id",
+           "covv_last_vaccinated",
+           "covv_treatment",
+           "covv_coverage" = COVERAGE,
+           "INNSENDER",
+           "covv_sampling_strategy")
+  
+  if (sample_sheet$platform[i] == "Swift_MIK") {
+    # Remove column INNSENDER
+    metadata <- metadata %>% select(-INNSENDER)
+  } else {
+    # Legge inn orig lab og adresse
+    metadata <- lookup_function(metadata)
+    
+    # Remove column INNSENDER
+    metadata <- metadata %>% select(-INNSENDER)
+  }
+  return(metadata)
+}
+
+# Add fixed info
+
+
 
 
 # Set sequencing technology and author info -------------------------------
