@@ -3,51 +3,35 @@
 # Load packages
 library(optparse)
 library(tidyverse)
-library(readxl)
+#library(readxl)
 library(stringr)
 library(lubridate)
 
 # Load sample sheet
-args = commandArgs(trailingOnly=TRUE)
-if (length(args) < 2) {
-    stop("Usage: metadata.R <samplesheet> <BN>", call.=FALSE)
-}
+#args = commandArgs(trailingOnly=TRUE)
+#if (length(args) < 2) {
+#    stop("Usage: metadata.R <samplesheet> <BN>", call.=FALSE)
+#}
 
 # Read the sample sheet from the first argument
-sample_sheet <- read_xlsx(args[1]) %>% 
+#sample_sheet <- read_xlsx(args[1]) %>% 
   # Remove rows starting with "#"
-  filter(str_detect(platform, "^#", negate = TRUE))
+#  filter(str_detect(platform, "^#", negate = TRUE))
 
 # Load the BN object from the second argument
 # load("/home/jonr/Prosjekter/FHI_Gisaid/BN.RData")
 load(args[2])
 
+submitter <- args[1]
+
 # Open connection to log file
 log_file <- file(paste0(Sys.Date(), "_metadata_raw.log"), open = "a")
 
 
-# Set fixed information ------------------------------------
-type <- "betacoronavirus"
-passage <- "original"
-host <- "Human"
-gender <- "Unknown"
-age <- "Unknown"
-status <- "Unknown"
-covv_subm_sample_id <- "Unknown"
-covv_outbreak <- "Unknown"
-covv_add_host_info <- "Unknown"
-covv_add_location <- "Unknown"
-covv_provider_sample_id <- "Unknown"
-covv_last_vaccinated <- "Unknown"
-covv_treatment <- "Unknown"
-specimen <- "Unknown"
-
-# Create empty objects to populate ----------------------------------------
-oppsett_details_final <- tibble()
-
+# Create empty data frame to populate -------------------------------------
 metadata_final <- tibble(
   submitter = character(),
-  fn  = character(),
+  fn = character(),
   covv_virus_name = character(),
   covv_type = character(),
   covv_passage = character(),
@@ -97,10 +81,42 @@ tmp <- BN %>%
   mutate("FYLKENAVN" = na_if(FYLKENAVN, "ukjent")) %>% 
   # Fix date format
   mutate("PROVE_TATT" = ymd(PROVE_TATT)) %>%
-  # Drop samples witout collection date
-  filter(!is.na(PROVE_TATT))
+  # Drop samples without collection date
+  filter(!is.na(PROVE_TATT)) 
 
-# Set originating labs and adresses ---------------------------------------
+# Determine platform type
+for (i in 1:nrow(tmp)) {
+  # Add fixed info'
+  # Blir dette for tidlig? Fortsatt ikke sjekka om dekning ok etc.
+  metadata_final[i,]$fn <- "tmp.fa"
+  metadata_final[i,]$type <- "betacoronavirus"
+  metadata_final[i,]$passage <- "original"
+  metadata_final[i,]$host <- "Human"
+  metadata_final[i,]$gender <- "Unknown"
+  metadata_final[i,]$age <- "Unknown"
+  metadata_final[i,]$status <- "Unknown"
+  metadata_final[i,]$covv_subm_sample_id <- "Unknown"
+  metadata_final[i,]$covv_outbreak <- "Unknown"
+  metadata_final[i,]$covv_add_host_info <- "Unknown"
+  metadata_final[i,]$covv_add_location <- "Unknown"
+  metadata_final[i,]$covv_provider_sample_id <- "Unknown"
+  metadata_final[i,]$covv_last_vaccinated <- "Unknown"
+  metadata_final[i,]$covv_treatment <- "Unknown"
+  metadata_final[i,]$specimen <- "Unknown"
+  if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "MIK")) {
+    metadata_final
+  } else if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "FHI")) {
+    metadata_final[i,]$submitter <- submitter
+    
+    
+  } else if (str_detect(tmp$SAMPLE_CATEGORY[i], "/")) { # Illumina runs are separated by "/"
+    
+  } else if (str_detect(tmp$SEKV_OPPSETT_NANOPORE[i], "Nano")) {
+    
+  }
+}
+
+# Set originating labs and addresses --------------------------------------
 lab_lookup_table <- tribble(
   ~`Lab code`, ~`Lab`, ~`Lab address`,
   0,	"Norwegian Institute of Public Health, Department of Virology",	"P.O.Box 222 Skoyen, 0213 Oslo, Norway",
@@ -133,6 +149,16 @@ lab_lookup_table <- tribble(
   27,	"Oslo Helse", "Hegdehaugsveien 36, 0352 Oslo"
 ) %>%
   mutate(`Lab code` = as.character(`Lab code`))
+platform_lookup_table <- tribble(
+  ~`Platform`, ~`Info`, ~`Authors`,
+  0,	"Norwegian Institute of Public Health, Department of Virology",	"P.O.Box 222 Skoyen, 0213 Oslo, Norway",
+) %>%
+  mutate(`Lab code` = as.character(`Lab code`))
+
+
+# Set sequencing technology and author info -------------------------------
+
+
 
 #############################################
 ## Define functions
