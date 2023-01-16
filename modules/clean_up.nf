@@ -6,7 +6,7 @@ process CLEAN_UP {
     publishDir "${params.outdir}/logs/", mode:'copy', pattern:'*.{log,sh}'
 
     input:
-    path metadata_raw
+    tuple path(csv), path(RData)
     path fasta_raw
     path frameshift
 
@@ -18,7 +18,7 @@ process CLEAN_UP {
     script:
     """
     clean_up.R \
-        $metadata_raw \
+        $csv \
         $fasta_raw \
         $frameshift
 
