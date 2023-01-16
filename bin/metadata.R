@@ -235,14 +235,14 @@ seq_tech_authors_lookup_table <- tribble(
 
 df_4 <- df_4 %>%
   # Create a column to join with "code"
-  mutate("tmp" = case_when(
+  mutate("code" = case_when(
     str_detect(SETUP, "FHI")  ~ "FHI",
     str_detect(SETUP, "MIK")  ~ "MIK",
     str_detect(SETUP, "Nano") ~ "Artic_Nano",
     !is.na(SAMPLE_CATEGORY)   ~ "Artic_Ill"
   )) %>% 
   left_join(seq_tech_authors_lookup_table,
-            by = c("tmp" = "code")) %>% 
+            by = "code") %>% 
   # Add submitting lab and address
   add_column(
     "covv_subm_lab"      = "Norwegian Institute of Public Health, Department of Virology",
@@ -282,14 +282,16 @@ metadata_raw <- df_4 %>%
           "covv_coverage"        = COVERAGE,
           "covv_sampling_strategy",
           "KEY",
-          "SEARCH_COLUMN")
+          "SEARCH_COLUMN",
+          "code",
+          SETUP)
   
 
 
 # Write final objects
 if (nrow(metadata_raw) > 0){
   save(metadata_raw, file = "metadata_raw.RData")
-  write_csv(metadata_raw, file = paste0(Sys.Date(), "_raw.csv"))
+  write_csv(metadata_raw, file = paste0(Sys.Date(), "_metadata_raw.csv"))
 } else {
   print("Nothing to save. Check the log file")
 }
