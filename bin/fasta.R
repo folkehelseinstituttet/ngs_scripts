@@ -44,7 +44,7 @@ fastas_final <- tibble(
 
 # Start to list directories first
 dirs_fhi  <- c(list.dirs(FHI_files_1, recursive = FALSE), list.dirs(FHI_files_2, recursive = FALSE))
-dirs_mik  <- list.dirs(MIK_files, recursive = FALSE))
+dirs_mik  <- list.dirs(MIK_files, recursive = FALSE)
 dirs_ill  <- c(list.dirs(Artic_files_1, recursive = FALSE), list.dirs(Artic_files_2, recursive = FALSE))
 dirs_nano <- c(list.dirs(Nano_files_1, recursive = FALSE), list.dirs(Nano_files_2, recursive = FALSE))
 
