@@ -10,8 +10,8 @@ library(readxl)
 
 # Load metadata
 args = commandArgs(trailingOnly=TRUE)
-if (length(args) < 9) {
-    stop("Usage: fasta.R <csv> <FHI_1> <FHI_2> <MIK> <Artic_1> <Artic_2> <Nano_1> <Nano_2> <RData>", call.=FALSE)
+if (length(args) < 8) {
+    stop("Usage: fasta.R <csv> <FHI_1> <FHI_2> <MIK> <Artic_1> <Artic_2> <Nano_1> <Nano_2>", call.=FALSE)
 }
 
 # sample_sheet <- read_xlsx("/home/jonr/Prosjekter/FHI_Gisaid/Gisaid_sample_sheet.xlsx") %>% filter(str_detect(platform, "^#", negate = TRUE))
@@ -29,9 +29,6 @@ Artic_files_1 <- args[5] # Artic_files_1 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/
 Artic_files_2 <- args[6] # Artic_files_2 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2022"
 Nano_files_1  <- args[7] # Nano_files_1 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2021"
 Nano_files_2  <- args[8] # Nano_files_2 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2022"
-
-# Get oppsett_details_final object
-load(args[9]) # load("/home/jonr/Prosjekter/FHI_Gisaid/oppsett_details_final.RData")
 
 # Open connection to log file
 log_file <- file(paste0(Sys.Date(), "_fasta_raw.log"), open = "a")
@@ -53,7 +50,9 @@ dirs_nano <- c(list.dirs(Nano_files_1, recursive = FALSE), list.dirs(Nano_files_
 suppressWarnings(rm(fastas)) # Remove old objects
 fastas <- data.frame(seq.name = character(),
                      seq.text = character())
+pb = txtProgressBar(min = 0, max = nrow(metadata), initial = 0) 
 for (i in 1:nrow(metadata)) {
+  setTxtProgressBar(pb,i)
   if (metadata$code[i] == "FHI"){
     # Pick our the relevant oppsett
     dir <- dirs_fhi[grep(paste0(metadata$SETUP[i], "\\b"), dirs_fhi)]
@@ -63,24 +62,9 @@ for (i in 1:nrow(metadata)) {
                             pattern = "ivar\\.consensus\\.masked_Nremoved\\.fa$",
                             full.names = TRUE,
                             recursive = TRUE)
-    samples <- gsub("_.*", "", basename(filepaths))
+    #samples <- gsub("_.*", "", basename(filepaths))
 
     fasta <- filepaths[grep(metadata$SEARCH_COLUMN[i], filepaths)]
-    if (length(fasta) > 0) {
-      dummy <- read.fasta(fasta) 
-      # Convert to tibble for easier manipulation
-      dummy <- as_tibble(dummy)
-      
-      # Set virus name as fasta header
-      dummy[1,1] <- metadata$covv_virus_name[i]
-
-      # Add fasta file to dataframe
-      fastas <- rbind(fastas, dummy)
-
-    } else {
-      cat(paste0("sequence_id: ", metadata$SEARCH_COLUMN[i], ", ", "could not find the sequence\n"),
-      file = log_file)
-    }
 
   } else if (metadata$code[i] == "MIK") {
     # Pick our the relevant oppsett
@@ -92,24 +76,9 @@ for (i in 1:nrow(metadata)) {
                             full.names = TRUE,
                             recursive = TRUE)
 
-    samples <- gsub("_.*","", gsub(".*/","", filepaths))
+    #samples <- gsub("_.*","", gsub(".*/","", filepaths))
 
     fasta <- filepaths[grep(metadata$SEARCH_COLUMN[i], filepaths)]
-    if (length(fasta) > 0) {
-      dummy <- read.fasta(fasta) 
-      # Convert to tibble for easier manipulation
-      dummy <- as_tibble(dummy)
-      
-      # Set virus name as fasta header
-      dummy[1,1] <- metadata$covv_virus_name[i]
-
-      # Add fasta file to dataframe
-      fastas <- rbind(fastas, dummy)
-    } else {
-      cat(paste0("sequence_id: ", metadata$SEARCH_COLUMN[i], ", ", "could not find the sequence\n"),
-      file = log_file)
-    }
-
 
   } else if (metadata$code[i] == "Artic_Ill") {
     # Pick our the relevant oppsett
@@ -122,27 +91,12 @@ for (i in 1:nrow(metadata)) {
                             recursive = TRUE)
 
     # Dropper det siste tallet.
-    samples <- gsub("_.*", "", basename(filepaths))
+    #samples <- gsub("_.*", "", basename(filepaths))
     #samples <- str_sub(gsub("Artic", "", gsub("_.*","", gsub(".*/","", filepaths))), start = 1, end = -2)
 
     fasta <- filepaths[grep(metadata$SEARCH_COLUMN[i], filepaths)]
-    if (length(fasta) > 0) {
-      dummy <- read.fasta(fasta) 
-      # Convert to tibble for easier manipulation
-      dummy <- as_tibble(dummy)
-      
-      # Set virus name as fasta header
-      dummy[1,1] <- metadata$covv_virus_name[i]
 
-      # Add fasta file to dataframe
-      fastas <- rbind(fastas, dummy)
-    } else {
-      cat(paste0("sequence_id: ", metadata$SEARCH_COLUMN[i], ", ", "could not find the sequence\n"),
-      file = log_file)
-    }
-
-
-  } else if (platform == "Artic_Nano") {
+  } else if (metadata$code[i] == "Artic_Nano") {
 
     # Pick our the relevant oppsett
     oppsett <- gsub("Nr", "", (gsub("/Nano", "", metadata$SETUP[i])))
@@ -155,20 +109,24 @@ for (i in 1:nrow(metadata)) {
                             recursive = TRUE)
 
     fasta <- filepaths[grep(metadata$SEARCH_COLUMN[i], filepaths)]
-    if (length(fasta) > 0) {
-      dummy <- read.fasta(fasta) 
-      # Convert to tibble for easier manipulation
-      dummy <- as_tibble(dummy)
-      
-      # Set virus name as fasta header
-      dummy[1,1] <- metadata$covv_virus_name[i]
-
-      # Add fasta file to dataframe
-      fastas <- rbind(fastas, dummy)
-    } else {
-      cat(paste0("sequence_id: ", metadata$SEARCH_COLUMN[i], ", ", "could not find the sequence\n"),
-      file = log_file)
-    }
+  }
+  
+  if (length(fasta) == 1) {
+    dummy <- read.fasta(fasta) 
+    # Convert to tibble for easier manipulation
+    dummy <- as_tibble(dummy)
+    
+    # Set virus name as fasta header
+    dummy[1,1] <- metadata$covv_virus_name[i]
+    
+    # Add fasta file to dataframe
+    fastas <- rbind(fastas, dummy)
+  } else if (length(fasta > 1)) {
+    cat(paste0("sequence_id: ", metadata$SEARCH_COLUMN[i], ", ", "found more than one matching sequence id\n"),
+        file = log_file)
+  } else {
+    cat(paste0("sequence_id: ", metadata$SEARCH_COLUMN[i], ", ", "could not find the sequence\n"),
+        file = log_file)
   }
 }
 
