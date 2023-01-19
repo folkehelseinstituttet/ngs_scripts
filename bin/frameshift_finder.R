@@ -15,9 +15,9 @@ args=commandArgs(TRUE)
 # Open connection to log file
 #log_file <- file(paste0(Sys.Date(), "_frameshift.log"), open = "a")
 
-reference      <- args[1] # reference <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/MN908947.3.fasta?token=GHSAT0AAAAAABXO6NJQCJT5MGYSWKHEVBW6Y5F66QQ"
-genelist       <- args[2] # genelist <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/genemap.csv?token=GHSAT0AAAAAABXO6NJREYCIUJH4Q62NE7QAY5F67BQ"
-database       <- args[3] # database <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/FSDB.csv?token=GHSAT0AAAAAABXO6NJQ6E635JGJFB2WRB7QY5F676A"
+reference      <- args[1] # reference <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/MN908947.3.fasta?token=GHSAT0AAAAAABYIZV4GQCD6GWF6Z575NJ5CY6GXHEA"
+genelist       <- args[2] # genelist <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/genemap.csv?token=GHSAT0AAAAAABYIZV4HTBQNL4TKIMIJR7REY6GXH3A"
+database       <- args[3] # database <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/FSDB.csv?token=GHSAT0AAAAAABYIZV4GCKOIJM62CCKLHBBQY6GXIGQ"
 total.fasta    <- args[4]
 results.folder <- paste0(args[5], "/")
 algorithm      <- "Muscle"
@@ -49,21 +49,23 @@ seq.aln <- msa(seq.list[c(1,2)], algorithm)
 x <- DNAMultipleAlignment(seq.aln)
 DNAStr <- as(x, "DNAStringSet")
     #seq<-toupper(as.character(DNAStr[grep(samples.to.analyze[k],names(DNAStr))]))
-# Get the sequence of the sequence
+# Get the aligned sequence of the sample
 seq <- toupper(as.character(DNAStr[-grep(names(seq.list)[length(seq.list)],names(DNAStr))]))    
     
 results <- as.data.frame(matrix(nrow = 1, ncol = 4))
 colnames(results) <- c("Sample", "Deletions", "Frameshift", "Insertions")
 results$Frameshift <- "NO"
 results$Insertions <- "NO"
-    
+
+# Get the aligned sequence of the reference
 seq.reference <- unlist(base::strsplit(as.character(DNAStr[grep(names(seq.list)[length(seq.list)],names(DNAStr))]),""))
-  if(length(seq.reference[seq.reference=="-"])!=0){
-      results$Insertions<-paste(as.numeric(which(seq.reference=="-")), collapse = " / ")
+# If there are gaps ("-") in the aligned reference sequence:
+if(length(seq.reference[seq.reference=="-"])!=0){
+      results$Insertions<-paste(as.numeric(which(seq.reference=="-")), collapse = " / ") # Insertions at the gaps of the reference
       
       ins.n<-length(seq.reference[seq.reference=="-"])
       ins.fs<-"YES"
-      if(which(seq.reference=="-")==29904) ins.fs<-"NO" 
+      if(which(seq.reference=="-")==29904) ins.fs<-"NO" # If the gaps are at the end, no frameshift
       if(length(which(as.numeric(which(seq.reference=="-")) %in% non.codding )) == length(which(seq.reference=="-"))) ins.fs<-"NO"
     }else{
       ins.fs<-"NO"
