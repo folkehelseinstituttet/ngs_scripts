@@ -29,7 +29,6 @@ process FASTA {
         "dir5" \
         "dir6" \
         "dir7" \
-        ${RData}
 
     cp .command.log process_find_fasta.log
     cp .command.sh process_find_fasta.sh
