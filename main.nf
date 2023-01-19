@@ -1,10 +1,5 @@
 nextflow.enable.dsl=2
 
-samples = params.samplesheet
-ref = params.reference
-genes = params.genelist
-db = params.FSDB
-
 // Include processes
 include { METADATA   } from './modules/metadata.nf'
 include { FASTA      } from './modules/fasta.nf'
