@@ -24,14 +24,16 @@ metadata <- read_csv(args[2])
 
 FHI_files_1 <- args[3] # FHI_files_1 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/2021/"
 FHI_files_2 <- args[4] # FHI_files_2 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/2022/"
-MIK_files <- args[5] # MIK_files <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_MIK"
-Artic_files_1 <- args[6] # Artic_files_1 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2021"
-Artic_files_2 <- args[7] # Artic_files_2 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2022"
-Nano_files_1 <- args[8] # Nano_files_1 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2021"
-Nano_files_2 <- args[9] # Nano_files_2 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2022"
+FHI_files_3 <- args[5] # FHI_files_3 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_FHI/203/"
+MIK_files <- args[6] # MIK_files <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina_NSC_MIK"
+Artic_files_1 <- args[7] # Artic_files_1 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2021"
+Artic_files_2 <- args[8] # Artic_files_2 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Illumina/2022"
+Nano_files_1 <- args[9] # Nano_files_1 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2021"
+Nano_files_2 <- args[10] # Nano_files_2 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2022"
+Nano_files_3 <- args[11] # Nano_files_3 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2023"
 
 # Get oppsett_details_final object
-load(args[10]) # load("/home/jonr/Prosjekter/FHI_Gisaid/oppsett_details_final.RData")
+load(args[12]) # load("/home/jonr/Prosjekter/FHI_Gisaid/oppsett_details_final.RData")
 
 # Open connection to log file
 log_file <- file(paste0(Sys.Date(), "_fasta_raw.log"), open = "a")
@@ -51,7 +53,8 @@ find_sequences <- function(platform, oppsett) {
   if (platform == "Swift_FHI"){
     # Search the N: disk for consensus sequences
     try(dirs_fhi <- c(list.dirs(FHI_files_1, recursive = FALSE),
-                      list.dirs(FHI_files_2, recursive = FALSE)))
+                      list.dirs(FHI_files_2, recursive = FALSE),
+                      list.dirs(FHI_files_3, recursive = FALSE)))
 
     # Pick our the relevant oppsett
     dir <- dirs_fhi[grep(paste0(oppsett, "\\b"), dirs_fhi)]
@@ -96,7 +99,8 @@ find_sequences <- function(platform, oppsett) {
   } else if (platform == "Artic_Nanopore") {
     # Search the N: disk for consensus sequences.
     try(dirs_fhi <- c(list.dirs(Nano_files_1, recursive = FALSE),
-                      list.dirs(Nano_files_2, recursive = FALSE)))
+                      list.dirs(Nano_files_2, recursive = FALSE),
+                      list.dirs(Nano_files_3, recursive = FALSE)))
 
     # Pick our the relevant oppsett
     oppsett <- gsub("Nr", "", (gsub("/Nano", "", oppsett)))
