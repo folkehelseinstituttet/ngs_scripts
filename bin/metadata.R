@@ -21,19 +21,19 @@ files <- list.files(path = args[3], #"/mnt/N/Virologi/Influensa/2223/LabwareUttr
 # Kunne lest alle med map og kombinert.
 # Men jeg looper over først
 
-df <- tibble()
-pb <- txtProgressBar(min = 1, max = length(files))
-for (i in 1:length(files)) {
-  setTxtProgressBar(pb, i)
-  tmp <- read_delim(files[i], delim = ";", col_names = TRUE, locale=locale(encoding="latin1")) %>% 
-    filter(`AGENS Agens` == "SARS-CoV-2") %>%
-    filter(Test_status == "A") %>%  
-    select(Key) %>% 
-    mutate(Key = as.character(Key))
-  df <- bind_rows(df, tmp)
-}
+#df <- tibble()
+#pb <- txtProgressBar(min = 1, max = length(files))
+#for (i in 1:length(files)) {
+#  setTxtProgressBar(pb, i)
+#  tmp <- read_delim(files[i], delim = ";", col_names = TRUE, locale=locale(encoding="latin1")) %>% 
+#    filter(`AGENS Agens` == "SARS-CoV-2") %>%
+#    filter(Test_status == "A") %>%
+#    select(Key) %>%
+#    mutate(Key = as.character(Key))
+#  df <- bind_rows(df, tmp)
+#}
 
-df <- df %>% distinct()
+#df <- df %>% distinct()
 
 
 # Temporary code ends here
@@ -110,10 +110,10 @@ tmp <- BN %>%
 tmp <- tmp %>% filter(PROVE_TATT >= "2022-08-01")
 
 # Get info from BN
-for_sub <- left_join(df, tmp, by = c("Key" = "KEY"))
+#for_sub <- left_join(df, tmp, by = c("Key" = "KEY"))
 
 # Create common columns for searching
-tmp <- for_sub
+#tmp <- for_sub
 try(rm(df))
 df <- tibble()
 pb <- txtProgressBar(min = 1, max = nrow(tmp))
@@ -328,9 +328,10 @@ metadata_raw <- df_4 %>%
           "code",
           SETUP)
 
-# Remove any duplicate ids
+# Remove any duplicate ids and empty "code"
 metadata_raw <- metadata_raw %>% 
-  distinct(covv_virus_name, .keep_all = TRUE)
+  distinct(covv_virus_name, .keep_all = TRUE) %>%
+  filter(!is.na(code))
 
 # Write final objects
 if (nrow(metadata_raw) > 0){
