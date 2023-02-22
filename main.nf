@@ -9,16 +9,17 @@ include { CLEAN_UP   } from './modules/clean_up.nf'
 // Workflow
 workflow {
 
+    // Temporary fix
+    ch_LW = Channel.fromPath( params.LW )
+
     //
     // Create the initial metadata file
-    //
-    METADATA(params.samplesheet, params.BN)
+    METADATA(params.BN, params.submitter, ch_LW)
     
     //
     // Find and rename fasta files
-    //
-
     // Paths to search folders are converted to channels for input into the process
+
     ch_FHI_fasta_1   = Channel.fromPath( params.FHI_fasta_1 )
     ch_FHI_fasta_2   = Channel.fromPath( params.FHI_fasta_2 )
     ch_FHI_fasta_3   = Channel.fromPath( params.FHI_fasta_3 )
@@ -29,9 +30,7 @@ workflow {
     ch_Nano_fasta_2  = Channel.fromPath( params.Nano_fasta_2 )
     ch_Nano_fasta_3  = Channel.fromPath( params.Nano_fasta_3 )
     
-    FASTA(params.samplesheet, 
-          METADATA.out.metadata_raw, 
-          METADATA.out.oppsett_details_final, 
+    FASTA(METADATA.out.metadata_raw, 
           ch_FHI_fasta_1, 
           ch_FHI_fasta_2, 
           ch_FHI_fasta_3, 
@@ -44,8 +43,6 @@ workflow {
     
     //
     // Run frameshift analysis
-    //
-
     // Split the multifasta from the FASTA process into single fasta files
     FASTA.out.fasta_raw
         .splitFasta(by: 1, file: true)

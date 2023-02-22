@@ -2,23 +2,22 @@ process METADATA {
 
     container 'jonbra/gisaid_sub_dockerfile:1.0'
 
-    publishDir "${params.outdir}/", mode:'copy', pattern:'*.xlsx'
+    publishDir "${params.outdir}/", mode:'copy', pattern:'*.csv'
     publishDir "${params.outdir}/logs/", mode:'copy', pattern:'*.{log,sh}'
     publishDir "${params.outdir}/versions/", mode:'copy', pattern:'*.txt'
 
     input:
-    path samplesheet
     path BN
+    val submitter
+    path ch_LW
 
     output:
-    path "*raw.csv", emit: metadata_raw
-    path "*.RData" , emit: oppsett_details_final
+    tuple path("*raw.csv"), path("*raw.RData"), emit: metadata_raw
     path "*.{log,sh,txt}"
-    path "${samplesheet}"
 
     script:
     """
-    metadata.R ${samplesheet} ${BN}
+    metadata.R ${BN} ${submitter} ${ch_LW}
 
     cp .command.log process_metadata.log
     cp .command.sh process_metadata.sh

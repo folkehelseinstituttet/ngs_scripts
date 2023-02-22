@@ -15,87 +15,110 @@ args=commandArgs(TRUE)
 # Open connection to log file
 #log_file <- file(paste0(Sys.Date(), "_frameshift.log"), open = "a")
 
-reference <- args[1] # reference <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/MN908947.3.fasta?token=GHSAT0AAAAAABXO6NJQCJT5MGYSWKHEVBW6Y5F66QQ"
-genelist <- args[2] # genelist <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/genemap.csv?token=GHSAT0AAAAAABXO6NJREYCIUJH4Q62NE7QAY5F67BQ"
-database <- args[3] # database <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/FSDB.csv?token=GHSAT0AAAAAABXO6NJQ6E635JGJFB2WRB7QY5F676A"
-total.fasta <- args[4]
+reference      <- args[1] # reference <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/MN908947.3.fasta?token=GHSAT0AAAAAAB55LYB36YE57ZM6WZ52RKU4Y7UT7JA"
+genelist       <- args[2] # genelist <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/genemap.csv?token=GHSAT0AAAAAAB55LYB2KWZTO4JJELQ2NXT2Y7UUA3Q"
+database       <- args[3] # database <- "https://raw.githubusercontent.com/jonbra/FHI_Gisaid/master/data/FSDB.csv?token=GHSAT0AAAAAAB55LYB2CMJDF23AZV6BKLO6Y7U2RPQ"
+total.fasta    <- args[4]
 results.folder <- paste0(args[5], "/")
-algorithm <- "Muscle"
+algorithm      <- "Muscle"
 
 ########################################################################################################################
-### Define Deletion Finder                                                                                 ###
+### Deletion Finder                                                                                                  ###
 ### Taken from the script CSAK_DeletionFinder_v05.R                                                                  ###
 ### https://github.com/folkehelseinstituttet/FHI_SC2_Pipeline_Illumina/blob/master/Scripts/CSAK_DeletionFinder_v05.R ###
 ########################################################################################################################
 
 # Fasta files comparison and mutations extraction --------------------------------------------------
-  
+
 genes <- read.csv(genelist)
 non.codding <- c(1:29903)
-  
+
+# Removing positions in coding regions
 for (i in 1:nrow(genes)) {
-  non.codding<-non.codding[-which(non.codding %in% c(genes$start[i]:genes$end[i]))]
+  non.codding <- non.codding[-which(non.codding %in% c(genes$start[i]:genes$end[i]))]
 }
-  
-seq.list <- readDNAStringSet(c(total.fasta, reference))  
-names(seq.list) <- gsub(" MN908947.3", "", names(seq.list))
-# Subtract the reference
+
+# Read the reference and the sequence to be aligned
+seq.list <- readDNAStringSet(c(total.fasta, reference))
+
+# Subtract the reference (element 2 in the list)
 samples <- names(seq.list)[-length(seq.list)]
-  
+
 samples.to.analyze <- samples
- 
+
 # Aligne sekvensen mot referansen 
 seq.aln <- msa(seq.list[c(1,2)], algorithm)
 x <- DNAMultipleAlignment(seq.aln)
 DNAStr <- as(x, "DNAStringSet")
     #seq<-toupper(as.character(DNAStr[grep(samples.to.analyze[k],names(DNAStr))]))
-# Get the sequence of the sequence
+# Get the aligned sequence of the sample. Entire sequence as a single vector element. 
 seq <- toupper(as.character(DNAStr[-grep(names(seq.list)[length(seq.list)],names(DNAStr))]))    
-    
+
+# Create a data frame to store the results
 results <- as.data.frame(matrix(nrow = 1, ncol = 4))
 colnames(results) <- c("Sample", "Deletions", "Frameshift", "Insertions")
+# Pre-fill frameshifts and insertions with "NO"
 results$Frameshift <- "NO"
 results$Insertions <- "NO"
-    
+
+# Get the aligned sequence of the reference. Each character as a separate element of a vector
 seq.reference <- unlist(base::strsplit(as.character(DNAStr[grep(names(seq.list)[length(seq.list)],names(DNAStr))]),""))
-  if(length(seq.reference[seq.reference=="-"])!=0){
-      results$Insertions<-paste(as.numeric(which(seq.reference=="-")), collapse = " / ")
-      
-      ins.n<-length(seq.reference[seq.reference=="-"])
-      ins.fs<-"YES"
-      if(which(seq.reference=="-")==29904) ins.fs<-"NO" 
-      if(length(which(as.numeric(which(seq.reference=="-")) %in% non.codding )) == length(which(seq.reference=="-"))) ins.fs<-"NO"
-    }else{
-      ins.fs<-"NO"
-      ins.n<-0
+
+# Update the non coding regions to include the extra reference length as a result of insertions
+if(length(seq.reference)>29903) non.codding <- c(non.codding, c((non.codding[length(non.codding)]+1):length(seq.reference)))
+
+# If there are gaps ("-") in the aligned reference sequence (i.e. insertions in the sample):
+if(length(seq.reference[seq.reference=="-"])!=0){
+  # Get which elements (positions) of the reference that are gaps and write these positions in the Insertions column of results separated by "/"
+  results$Insertions <- paste(as.numeric(which(seq.reference=="-")), collapse = " / ")
+
+  # ins.n stores the lengt of the insertion
+  ins.n <- length(seq.reference[seq.reference=="-"])
+  ins.fs <- "YES"
+  # If any of the gaps are at position 29904 (i.e. the end), then call NO frameshift
+  # if( length(which(seq.reference=="-"))==1 & which(seq.reference=="-")[1]==29904) ins.fs <- "NO" 
+  # If ALL? of the insertions are in non-coding regions. Then call NO frameshift.
+  if(length(which(as.numeric(which(seq.reference=="-")) %in% non.codding )) == length(which(seq.reference=="-"))) ins.fs <- "NO"
+} else {
+  ins.fs <- "NO"
+  ins.n <- 0
+}
+
+if(ins.n > 0){
+  fram.s.insertio<-ins.n%%3
+  if(fram.s.insertio!=0){
+    results$Frameshift<-"YES"
+  } else {
+    if(max(as.numeric(which(seq.reference=="-")))-min(as.numeric(which(seq.reference=="-")))> length(as.numeric(which(seq.reference=="-")))){
+      results$Frameshift<-"YES"
     }
-    
-    
-    if(ins.n>0){
-      fram.s.insertio<-ins.n%%3
-      if(fram.s.insertio!=0){
-        results$Frameshift<-"YES"
-      }else{
-        if(max(as.numeric(which(seq.reference=="-")))-min(as.numeric(which(seq.reference=="-")))> length(as.numeric(which(seq.reference=="-")))){
-          results$Frameshift<-"YES"
-        }
-      }
-    }
-    if(ins.fs=="NO")results$Frameshift<-"NO"
-    
-    out.df<-as.data.frame(matrix(data = NA, nrow = 36, ncol = 4))
-    colnames(out.df)<-c("Length", "Elements", "Positions","FS")
-    out.df$Length<-c(1:36)
-    
-    for (i in 1:nrow(out.df)) {
-      dummy<-unlist(base::strsplit(seq, paste("[A-Z]\\-{",i,"}[A-Z]",sep = "")))
+  }
+}
+
+if(ins.fs=="NO")results$Frameshift<-"NO"
+
+out.df <- as.data.frame(matrix(data = NA, nrow = 36, ncol = 4))
+
+colnames(out.df) <- c("Length", "Elements", "Positions","FS")
+out.df$Length <- c(1:36)
+
+# Working on the aligned sample sequence
+for (i in 1:nrow(out.df)) {
+
+      # Split on increasing number of dashes. E.g. when i <- 6 then the sequence is split where there are 6 dashes
+      dummy <- unlist(base::strsplit(seq, paste("[A-Z]\\-{",i,"}[A-Z]",sep = "")))
       
-      out.df$Elements[i]<-length(dummy)-1  
+      # If there is a single instance of the gap length then there are two elements in dummy. I.e. Elements <- 1
+      out.df$Elements[i] <- length(dummy)-1
+      
       if(length(dummy)>1){
         
-        dummy<-dummy[-length(dummy)]
-        characters<-as.numeric(nchar(dummy))
-        characters[1]<-characters[1]+2
+        # Remove the last element
+        dummy <- dummy[-length(dummy)]
+        # Number of characters in each element
+        characters <- as.numeric(nchar(dummy))
+        
+        characters[1] <- characters[1]+2
         if(length(dummy)>1){
           for(j in 2:(length(characters))){
             characters[j] <- characters[j-1]+characters[j] + 2 +i 
@@ -117,35 +140,23 @@ seq.reference <- unlist(base::strsplit(as.character(DNAStr[grep(names(seq.list)[
       }
       
       
-    }
+}
     
-    out.df$To.out<-paste(out.df$Length, "[", out.df$Positions,"]", sep = "")
-    out.df$To.out[out.df$Elements==0]<-NA
+out.df$To.out <- paste(out.df$Length, "[", out.df$Positions,"]", sep = "")
+out.df$To.out[out.df$Elements==0]<-NA
     
-    results$Deletions<-paste(na.omit(out.df$To.out), collapse = " / ")
-    results$Sample<-samples.to.analyze
-    deletion.lengh<-out.df$Length[out.df$Elements!=0]%%3
-    if(length(which(deletion.lengh>0))>0 & length(which(out.df$FS=="YES"))>0){
+results$Deletions <- paste(na.omit(out.df$To.out), collapse = " / ")
+results$Sample <- samples.to.analyze
+deletion.lengh <- out.df$Length[out.df$Elements!=0]%%3
+if(length(which(deletion.lengh > 0)) > 0 & length(which(out.df$FS=="YES"))>0){
       results$Frameshift<-"YES"
-    }
+}
   
 date <- gsub("-","",Sys.Date())
-  
-# Skip this - instead use the final.results object
-#write.csv(final.results, paste(results.folder, date, "DeletionFinderResults.csv",sep = ""), row.names = FALSE)
 
 ####################################
 ### Deletion Finder end ###
 ####################################
-
-
-
-genes <- read.csv(genelist)
-non.codding <- c(1:29903)
-for (i in 1:nrow(genes)) {
-  non.codding<-non.codding[-which(non.codding %in% c(genes$start[i]:genes$end[i]))]
-}
-
 
 #Cleaning
 deletion_results <- results
@@ -186,23 +197,20 @@ for (i in 1:nrow(deletion_results)) {
 }
 
 deletion_results<-deletion_results[order(deletion_results$Frameshift, decreasing = TRUE),]
-# Skip this as well
-#write_xlsx(deletion_results[,c(1:4)],paste(results.folder,"FrameShift_", gsub("\\.fa.*","",gsub(".*/","", total.fasta)),".xlsx",sep = ""))
-
 
 # FrameshiftDB ------------------------------------------------------------
   
-  indels<-read.csv(database)
-  df <- deletion_results
+indels <- read.csv(database)
+df <- deletion_results
 
-  # If the sample has NO frameshifts then it is ready
-  if(length(which(df$Frameshift=="NO"))>0) {
+# If the sample has NO frameshifts then it is ready
+if(length(which(df$Frameshift=="NO"))>0) {
     df.ready <- df[which(df$Frameshift=="NO"),]
     df.ready$Ready<-"YES"
     df.ready$Comments<-"No frameshifts detected"
-  }
+}
   
-  if(length(which(df$Frameshift=="YES"))>0){
+if(length(which(df$Frameshift=="YES"))>0){
   
   df<-df[which(df$Frameshift=="YES"),]
   df$Ready<-"NO"
@@ -293,13 +301,12 @@ deletion_results<-deletion_results[order(deletion_results$Frameshift, decreasing
     }
   }
   df$Comments<-gsub("NA & ","",df$Comments)
-  }else{
+} else {
     df <- df.ready
-  }
+}
 
 # Remove forward slash from sample names before writing.
 outfile <- str_replace_all(samples.to.analyze, "/", "_")
 write_csv(df, file = paste0("frameshift.csv"), col_names = FALSE)
-  
 
 #close(log_file)

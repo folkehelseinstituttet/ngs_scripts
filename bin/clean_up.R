@@ -8,14 +8,14 @@ library(phylotools)
 args = commandArgs(trailingOnly=TRUE)
 
 # Open connection to log file
-log_file <- file(paste0(Sys.Date(), "_clean_up.log"), open = "a")
+log_file           <- file(paste0(Sys.Date(), "_clean_up.log"), open = "a")
 
-metadata_raw <- read_csv(args[1])
-fasta_raw <- as_tibble(phylotools::read.fasta(args[2]))
+metadata_raw       <- read_csv(args[1])
+fasta_raw          <- as_tibble(phylotools::read.fasta(args[2]))
 frameshift_results <- args[3]
 
 # Open connection to log file
-log_file <- file(paste0(Sys.Date(), "_clean_up.log"), open = "a")
+log_file           <- file(paste0(Sys.Date(), "_clean_up.log"), open = "a")
 
 ## Extract OK samples and create final metadata
 FS_OK <- read_csv(frameshift_results, col_names = FALSE) %>%
