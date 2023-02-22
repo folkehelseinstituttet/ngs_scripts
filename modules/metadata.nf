@@ -16,7 +16,7 @@ process METADATA {
 
     script:
     """
-    metadata.R ${BN} ${submitter}
+    metadata.R ${BN} ${submitter} ${params.LW}
 
     cp .command.log process_metadata.log
     cp .command.sh process_metadata.sh
