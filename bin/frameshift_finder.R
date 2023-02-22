@@ -29,7 +29,7 @@ algorithm      <- "Muscle"
 ########################################################################################################################
 
 # Fasta files comparison and mutations extraction --------------------------------------------------
-  
+
 genes <- read.csv(genelist)
 non.codding <- c(1:29903)
 
@@ -37,15 +37,15 @@ non.codding <- c(1:29903)
 for (i in 1:nrow(genes)) {
   non.codding <- non.codding[-which(non.codding %in% c(genes$start[i]:genes$end[i]))]
 }
-  
+
 # Read the reference and the sequence to be aligned
-seq.list <- readDNAStringSet(c(total.fasta, reference))  
+seq.list <- readDNAStringSet(c(total.fasta, reference))
 
 # Subtract the reference (element 2 in the list)
 samples <- names(seq.list)[-length(seq.list)]
-  
+
 samples.to.analyze <- samples
- 
+
 # Aligne sekvensen mot referansen 
 seq.aln <- msa(seq.list[c(1,2)], algorithm)
 x <- DNAMultipleAlignment(seq.aln)
@@ -71,7 +71,7 @@ if(length(seq.reference)>29903) non.codding <- c(non.codding, c((non.codding[len
 if(length(seq.reference[seq.reference=="-"])!=0){
   # Get which elements (positions) of the reference that are gaps and write these positions in the Insertions column of results separated by "/"
   results$Insertions <- paste(as.numeric(which(seq.reference=="-")), collapse = " / ")
-      
+
   # ins.n stores the lengt of the insertion
   ins.n <- length(seq.reference[seq.reference=="-"])
   ins.fs <- "YES"
@@ -83,8 +83,7 @@ if(length(seq.reference[seq.reference=="-"])!=0){
   ins.fs <- "NO"
   ins.n < -0
 }
-    
-    
+
 if(ins.n > 0){
   fram.s.insertio<-ins.n%%3
   if(fram.s.insertio!=0){
@@ -95,13 +94,13 @@ if(ins.n > 0){
     }
   }
 }
-    
+
 if(ins.fs=="NO")results$Frameshift<-"NO"
-    
+
 out.df <- as.data.frame(matrix(data = NA, nrow = 36, ncol = 4))
 
-colnames(out.df)<-c("Length", "Elements", "Positions","FS")
-out.df$Length<-c(1:36)
+colnames(out.df) <- c("Length", "Elements", "Positions","FS")
+out.df$Length <- c(1:36)
 
 # Working on the aligned sample sequence
 for (i in 1:nrow(out.df)) {
@@ -154,15 +153,10 @@ if(length(which(deletion.lengh > 0)) > 0 & length(which(out.df$FS=="YES"))>0){
 }
   
 date <- gsub("-","",Sys.Date())
-  
-# Skip this - instead use the final.results object
-#write.csv(final.results, paste(results.folder, date, "DeletionFinderResults.csv",sep = ""), row.names = FALSE)
 
 ####################################
 ### Deletion Finder end ###
 ####################################
-
-
 
 #Cleaning
 deletion_results <- results
@@ -203,10 +197,6 @@ for (i in 1:nrow(deletion_results)) {
 }
 
 deletion_results<-deletion_results[order(deletion_results$Frameshift, decreasing = TRUE),]
-
-# Skip this as well
-#write_xlsx(deletion_results[,c(1:4)],paste(results.folder,"FrameShift_", gsub("\\.fa.*","",gsub(".*/","", total.fasta)),".xlsx",sep = ""))
-
 
 # FrameshiftDB ------------------------------------------------------------
   
@@ -318,6 +308,5 @@ if(length(which(df$Frameshift=="YES"))>0){
 # Remove forward slash from sample names before writing.
 outfile <- str_replace_all(samples.to.analyze, "/", "_")
 write_csv(df, file = paste0("frameshift.csv"), col_names = FALSE)
-  
 
 #close(log_file)
