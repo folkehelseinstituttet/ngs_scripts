@@ -328,6 +328,10 @@ metadata_raw <- df_4 %>%
           "code",
           SETUP)
 
+# Remove any duplicate ids
+metadata_raw <- metadata_raw %>% 
+  distinct(covv_virus_name, .keep_all = TRUE)
+
 # Write final objects
 if (nrow(metadata_raw) > 0){
   save(metadata_raw, file = "metadata_raw.RData")
