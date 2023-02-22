@@ -9,9 +9,12 @@ include { CLEAN_UP   } from './modules/clean_up.nf'
 // Workflow
 workflow {
 
+    // Temporary fix
+    ch_LW = Channel.fromPath( params.LW )
+
     //
     // Create the initial metadata file
-    METADATA(params.BN, params.submitter)
+    METADATA(params.BN, params.submitter, ch_LW)
     
     //
     // Find and rename fasta files
