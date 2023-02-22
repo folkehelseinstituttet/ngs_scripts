@@ -81,7 +81,7 @@ if(length(seq.reference[seq.reference=="-"])!=0){
   if(length(which(as.numeric(which(seq.reference=="-")) %in% non.codding )) == length(which(seq.reference=="-"))) ins.fs <- "NO"
 } else {
   ins.fs <- "NO"
-  ins.n < -0
+  ins.n <- 0
 }
 
 if(ins.n > 0){
