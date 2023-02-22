@@ -9,6 +9,7 @@ process METADATA {
     input:
     path BN
     val submitter
+    path ch_LW
 
     output:
     tuple path("*raw.csv"), path("*raw.RData"), emit: metadata_raw
@@ -16,7 +17,7 @@ process METADATA {
 
     script:
     """
-    metadata.R ${BN} ${submitter} ${params.LW}
+    metadata.R ${BN} ${submitter} ${ch_LW}
 
     cp .command.log process_metadata.log
     cp .command.sh process_metadata.sh
