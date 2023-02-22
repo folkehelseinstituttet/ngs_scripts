@@ -11,6 +11,33 @@ if (length(args) < 2) {
     stop("Usage: metadata.R <BN> <submitter>", call.=FALSE)
 }
 
+# NB: Temporary code begins here:
+# Read all utslusingsfiles from LW
+files <- list.files(path = args[3], #"/mnt/N/Virologi/Influensa/2223/LabwareUttrekk/"
+                    pattern = "^Utslu.*",
+                    full.names = TRUE)
+
+# Read all files and pull out de som er svart ut.
+# Kunne lest alle med map og kombinert.
+# Men jeg looper over først
+
+df <- tibble()
+pb <- txtProgressBar(min = 1, max = length(files))
+for (i in 1:length(files)) {
+  setTxtProgressBar(pb, i)
+  tmp <- read_delim(files[i], delim = ";", col_names = TRUE, locale=locale(encoding="latin1")) %>% 
+    filter(`AGENS Agens` == "SARS-CoV-2") %>%
+    filter(Test_status == "A") %>%  
+    select(Key) %>% 
+    mutate(Key = as.character(Key))
+  df <- bind_rows(df, tmp)
+}
+
+df <- df %>% distinct()
+
+
+# Temporary code ends here
+
 # Read the BioNumerics object from the first argument
 # load("/home/jonr/Prosjekter/FHI_Gisaid/BN.RData")
 load(args[1])
@@ -57,7 +84,11 @@ tmp <- BN %>%
     Dekning_Nano < 94   ~ "NO"
   )) %>% 
   # Only keep sequences with sufficient coverage
-  filter(!is.na(COV_OK)) %>% 
+  filter(COV_OK == "YES") %>% 
+  # Keeo sequences sucessfully called with pangolin
+  filter(!is.na(PANGOLIN_NOM)) %>% 
+  filter(str_detect(PANGOLIN_NOM, "konklu", negate = TRUE)) %>% 
+  filter(str_detect(PANGOLIN_NOM, "komment", negate = TRUE)) %>%
   # Keep only necessary columns
   select(KEY, 
          SEQUENCEID_NANO29, 
@@ -78,43 +109,51 @@ tmp <- BN %>%
 # For now only work on data after 2022-08-01
 tmp <- tmp %>% filter(PROVE_TATT >= "2022-08-01")
 
-# Extract samples that are "skrevet ut". I.e. remove the ones without NA
+# Get info from BN
+for_sub <- left_join(df, tmp, by = c("Key" = "KEY"))
 
+# Create common columns for searching
+tmp <- for_sub
 try(rm(df))
 df <- tibble()
 pb <- txtProgressBar(min = 1, max = nrow(tmp))
 for (i in 1:nrow(tmp)) {
   setTxtProgressBar(pb, i)
-  if (!is.na(tmp$SEKV_OPPSETT_SWIFT7[i])) {
-    if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "FHI")) {
+  if (!is.na(tmp$SEKV_OPPSETT_SWIFT7[i])) { # i.e. NSC sample
+    if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "FHI")) { # FHI samples
       dummy <- tmp[i,] %>% 
-        filter(!is.na(MELDT_SMITTESPORING)) %>% 
-        # Create column for looping through later
+        # Create common columns for looping through later
         mutate(SEARCH_COLUMN = SEQUENCEID_SWIFT) %>%
         rename("COVERAGE" = COVERAGE_DEPTH_SWIFT) %>% 
         mutate(SETUP = SEKV_OPPSETT_SWIFT7)
-    } else if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "MIK")) {
+    } else if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "MIK")) { # MIK samples
       dummy <- tmp[i,] %>% 
-        # Create column for looping through later
+        # Create common columns for looping through later
         mutate(SEARCH_COLUMN = SEQUENCEID_SWIFT) %>%
         rename("COVERAGE" = COVERAGE_DEPTH_SWIFT) %>% 
         mutate(SETUP = SEKV_OPPSETT_SWIFT7)
     }
-  } else if (!is.na(tmp$SAMPLE_CATEGORY[i])) { # Artic_Illumina
+  } else if (!is.na(tmp$SAMPLE_CATEGORY[i])) { # Artic_Illumina sample
     dummy <- tmp[i,] %>% 
-      filter(!is.na(MELDT_SMITTESPORING)) %>% 
+      # Create common columns for looping through later
       mutate(SEARCH_COLUMN = RES_CDC_INFB_CT) %>%
       rename("COVERAGE" = RES_CDC_INFA_RX) %>% 
       mutate(SETUP = SAMPLE_CATEGORY)
-  } else if (!is.na(tmp$SEKV_OPPSETT_NANOPORE[i])) { # Artic_Nanopore
+  } else if (!is.na(tmp$SEKV_OPPSETT_NANOPORE[i])) { # Artic_Nanopore sample
     dummy <- tmp[i,] %>% 
-      filter(!is.na(MELDT_SMITTESPORING)) %>% 
+      # Create common columns for looping through later
       mutate(SEARCH_COLUMN = SEQUENCEID_NANO29) %>%
       rename("COVERAGE" = COVARAGE_DEPTH_NANO) %>% 
       mutate(SETUP = SEKV_OPPSETT_NANOPORE)
   } 
   df <- bind_rows(df, dummy)
 }
+
+# Keep only sequence IDs with SC2 - i.e. the new format
+#df <- df %>% 
+#  filter(str_detect(SEARCH_COLUMN, "SC2")) %>% 
+#  # Endre underscore til bindestrek
+#  mutate(SEARCH_COLUMN = str_replace(SEARCH_COLUMN, "_", "-"))
 
 # Further filtering
 df_2 <- df %>% 
@@ -233,13 +272,17 @@ seq_tech_authors_lookup_table <- tribble(
   "Artic_Nano",	"Nanopore GridIon, Artic V4.1 protocol modified",	"Assembly by reference based mapping using the Artic Nanopore protocol with medaka", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes"
   )
 
+# Create a column to join with "code"
 df_4 <- df_4 %>%
-  # Create a column to join with "code"
   mutate("code" = case_when(
-    str_detect(SETUP, "FHI")  ~ "FHI",
-    str_detect(SETUP, "MIK")  ~ "MIK",
-    str_detect(SETUP, "Nano") ~ "Artic_Nano",
-    !is.na(SAMPLE_CATEGORY)   ~ "Artic_Ill"
+    str_detect(SETUP, "FHI")      ~ "FHI",
+    str_detect(SETUP, "MIK")      ~ "MIK",
+    str_detect(SETUP, "Nano")     ~ "Artic_Nano",
+    str_detect(SETUP, "^NGSSEQ")  ~ "Artic_Nano",
+    str_detect(SETUP, "^NGSprep") ~ "Artic_Nano",
+    str_detect(SETUP, "^NGSPREP") ~ "Artic_Nano",
+    str_detect(SETUP, "^SEQ")     ~ "Artic_Nano",
+    !is.na(SAMPLE_CATEGORY)       ~ "Artic_Ill"
   )) %>% 
   left_join(seq_tech_authors_lookup_table,
             by = "code") %>% 
@@ -248,7 +291,6 @@ df_4 <- df_4 %>%
     "covv_subm_lab"      = "Norwegian Institute of Public Health, Department of Virology",
     "covv_subm_lab_addr" = "P.O.Box 222 Skoyen, 0213 Oslo, Norway",
   )
-
 
 # Beholde endelige kolonner og rekkefølge
 # Keep some columns for finding fasta sequences later
@@ -285,8 +327,6 @@ metadata_raw <- df_4 %>%
           "SEARCH_COLUMN",
           "code",
           SETUP)
-  
-
 
 # Write final objects
 if (nrow(metadata_raw) > 0){
