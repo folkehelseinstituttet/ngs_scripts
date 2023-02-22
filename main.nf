@@ -19,20 +19,24 @@ workflow {
 
     ch_FHI_fasta_1   = Channel.fromPath( params.FHI_fasta_1 )
     ch_FHI_fasta_2   = Channel.fromPath( params.FHI_fasta_2 )
+    ch_FHI_fasta_3   = Channel.fromPath( params.FHI_fasta_3 )
     ch_MIK_fasta     = Channel.fromPath( params.MIK_fasta )
     ch_Artic_fasta_1 = Channel.fromPath( params.Artic_fasta_1 )
     ch_Artic_fasta_2 = Channel.fromPath( params.Artic_fasta_2 )
     ch_Nano_fasta_1  = Channel.fromPath( params.Nano_fasta_1 )
     ch_Nano_fasta_2  = Channel.fromPath( params.Nano_fasta_2 )
+    ch_Nano_fasta_3  = Channel.fromPath( params.Nano_fasta_3 )
     
     FASTA(METADATA.out.metadata_raw, 
           ch_FHI_fasta_1, 
           ch_FHI_fasta_2, 
+          ch_FHI_fasta_3, 
           ch_MIK_fasta, 
           ch_Artic_fasta_1, 
           ch_Artic_fasta_2, 
           ch_Nano_fasta_1, 
-          ch_Nano_fasta_2)
+          ch_Nano_fasta_2,
+          ch_Nano_fasta_3)
     
     //
     // Run frameshift analysis
