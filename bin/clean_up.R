@@ -14,9 +14,6 @@ metadata_raw       <- read_csv(args[1])
 fasta_raw          <- as_tibble(phylotools::read.fasta(args[2]))
 frameshift_results <- args[3]
 
-# Open connection to log file
-log_file           <- file(paste0(Sys.Date(), "_clean_up.log"), open = "a")
-
 ## Extract OK samples and create final metadata
 FS_OK <- read_csv(frameshift_results, col_names = FALSE) %>%
   dplyr::rename("Sample" = X1,
@@ -43,16 +40,16 @@ FS_NO <- read_csv(frameshift_results, col_names = FALSE) %>%
 
 # Rename navn til å matche navn i fastas
 # Join fastas with FS to keep
-if (nrow(FS_OK > 0)){
+if (nrow(FS_OK > 0)) {
   fastas_clean <- left_join(FS_OK, fasta_raw, by = c("covv_virus_name" = "seq.name")) %>%
     dplyr::select(`seq.name` = covv_virus_name, 
            `seq.text`)
-} 
+}
 
 if (nrow(FS_NO > 0)) {
   frameshift <- FS_NO %>% pull(Sample)
-  cat(paste0("These sequences had frameshift: ", frameshift),
-      file = log_file)    
+  cat(paste0("Frameshift: ", frameshift),
+      file = log_file)
 }
 
 ## Write final files
@@ -64,4 +61,3 @@ if (nrow(metadata_clean) > 0){
 }
 
 close(log_file)
-
