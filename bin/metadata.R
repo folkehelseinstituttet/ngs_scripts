@@ -21,19 +21,19 @@ files <- list.files(path = args[3], #"/mnt/N/Virologi/Influensa/2223/LabwareUttr
 # Kunne lest alle med map og kombinert.
 # Men jeg looper over først
 
-#df <- tibble()
-#pb <- txtProgressBar(min = 1, max = length(files))
-#for (i in 1:length(files)) {
-#  setTxtProgressBar(pb, i)
-#  tmp <- read_delim(files[i], delim = ";", col_names = TRUE, locale=locale(encoding="latin1")) %>% 
-#    filter(`AGENS Agens` == "SARS-CoV-2") %>%
-#    filter(Test_status == "A") %>%
-#    select(Key) %>%
-#    mutate(Key = as.character(Key))
-#  df <- bind_rows(df, tmp)
-#}
+df <- tibble()
+pb <- txtProgressBar(min = 1, max = length(files))
+for (i in 1:length(files)) {
+  setTxtProgressBar(pb, i)
+  tmp <- read_delim(files[i], delim = ";", col_names = TRUE, locale=locale(encoding="latin1")) %>% 
+    filter(`AGENS Agens` == "SARS-CoV-2") %>%
+    filter(Test_status == "A") %>%
+    select(Key) %>%
+    mutate(Key = as.character(Key))
+  df <- bind_rows(df, tmp)
+}
 
-#df <- df %>% distinct()
+df <- df %>% distinct()
 
 
 # Temporary code ends here
@@ -54,13 +54,13 @@ log_file <- file(paste0(Sys.Date(), "_metadata_raw.log"), open = "a")
 # Initial filtering and cleaning
 tmp <- BN %>%
   # Convert empty strings to NA
-  mutate_all(list(~na_if(.,""))) %>% 
+  mutate_all(list(~na_if(.,""))) %>%
   # Remove previously submitted samples
-  filter(is.na(GISAID_EPI_ISL)) %>% 
+  filter(is.na(GISAID_EPI_ISL)) %>%
   # Fjerne evt positiv controll
   filter(str_detect(KEY, "pos", negate = TRUE)) %>%
   # Fjerne hvis manglende INNSENDER
-  filter(!is.na(INNSENDER)) %>% 
+  filter(!is.na(INNSENDER)) %>%
   # Endre Trøndelag til Trondelag
   mutate("FYLKENAVN" = str_replace(FYLKENAVN, "Tr\xf8ndelag", "Trondelag")) %>%
   # Endre Møre og Romsdal
@@ -68,12 +68,12 @@ tmp <- BN %>%
   # Endre Sør
   mutate("FYLKENAVN" = str_replace(FYLKENAVN, "S\xf8r", "Sor")) %>%
   # Change "Ukjent" in FYLKENAVN to NA
-  mutate("FYLKENAVN" = na_if(FYLKENAVN, "Ukjent")) %>% 
-  mutate("FYLKENAVN" = na_if(FYLKENAVN, "ukjent")) %>% 
+  mutate("FYLKENAVN" = na_if(FYLKENAVN, "Ukjent")) %>%
+  mutate("FYLKENAVN" = na_if(FYLKENAVN, "ukjent")) %>%
   # Fix date format
   mutate("PROVE_TATT" = ymd(PROVE_TATT)) %>%
   # Drop samples without collection date
-  filter(!is.na(PROVE_TATT)) %>% 
+  filter(!is.na(PROVE_TATT)) %>%
   # Add column stating whether coverage is sufficient or not
   mutate("COV_OK" = case_when(
     Dekning_Swift >= 94 ~ "YES",
@@ -82,38 +82,39 @@ tmp <- BN %>%
     Dekning_Artic < 94  ~ "NO",
     Dekning_Nano >= 94  ~ "YES",
     Dekning_Nano < 94   ~ "NO"
-  )) %>% 
+  )) %>%
   # Only keep sequences with sufficient coverage
-  filter(COV_OK == "YES") %>% 
+  filter(COV_OK == "YES") %>%
   # Keeo sequences sucessfully called with pangolin
-  filter(!is.na(PANGOLIN_NOM)) %>% 
-  filter(str_detect(PANGOLIN_NOM, "konklu", negate = TRUE)) %>% 
+  filter(!is.na(PANGOLIN_NOM)) %>%
+  filter(str_detect(PANGOLIN_NOM, "konklu", negate = TRUE)) %>%
   filter(str_detect(PANGOLIN_NOM, "komment", negate = TRUE)) %>%
   # Keep only necessary columns
-  select(KEY, 
-         SEQUENCEID_NANO29, 
-         SEQUENCEID_SWIFT, 
-         SEKV_OPPSETT_NANOPORE, 
-         SEKV_OPPSETT_SWIFT7, 
+  select(KEY,
+         SEQUENCEID_NANO29,
+         SEQUENCEID_SWIFT,
+         SEKV_OPPSETT_NANOPORE,
+         SEKV_OPPSETT_SWIFT7,
          SAMPLE_CATEGORY,
          COVERAGE_DEPTH_SWIFT,
          RES_CDC_INFB_CT,
          RES_CDC_INFA_RX,
          COVARAGE_DEPTH_NANO,
-         PROVE_TATT, 
-         FYLKENAVN, 
+         PROVE_TATT,
+         FYLKENAVN,
          INNSENDER,
          MELDT_SMITTESPORING,
          P)
 
 # For now only work on data after 2022-08-01
-tmp <- tmp %>% filter(PROVE_TATT >= "2022-08-01")
+# tmp <- tmp %>% filter(PROVE_TATT >= "2022-08-01")
 
-# Get info from BN
-#for_sub <- left_join(df, tmp, by = c("Key" = "KEY"))
+# Add info from BN to samples destined for submission
+for_sub <- left_join(df, tmp, by = c("Key" = "KEY"))
 
 # Create common columns for searching
-#tmp <- for_sub
+tmp <- for_sub # This is unneccessary but is done to preserve old code
+
 try(rm(df))
 df <- tibble()
 pb <- txtProgressBar(min = 1, max = nrow(tmp))
@@ -150,10 +151,10 @@ for (i in 1:nrow(tmp)) {
 }
 
 # Keep only sequence IDs with SC2 - i.e. the new format
-#df <- df %>% 
-#  filter(str_detect(SEARCH_COLUMN, "SC2")) %>% 
-#  # Endre underscore til bindestrek
-#  mutate(SEARCH_COLUMN = str_replace(SEARCH_COLUMN, "_", "-"))
+df <- df %>% 
+  filter(str_detect(SEARCH_COLUMN, "SC2")) %>% 
+  # Endre underscore til bindestrek
+  mutate(SEARCH_COLUMN = str_replace(SEARCH_COLUMN, "_", "-"))
 
 # Further filtering
 df_2 <- df %>% 
@@ -269,7 +270,7 @@ seq_tech_authors_lookup_table <- tribble(
   "FHI",	"Illumina Swift Amplicon SARS-CoV-2 protocol at Norwegian Sequencing Centre",	"Assembly by reference based mapping using Bowtie2 with iVar majority rules consensus", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes",
   "MIK",	"Illumina Swift Amplicon SARS-CoV-2 protocol at Norwegian Sequencing Centre", "Assembly by reference based mapping using Bowtie2 with iVar majority rules consensus", "Mona Holberg-Petersen, Lise Andresen, Cathrine Fladeby, Mariann Nilsen, Teodora Plamenova Ribarska, Pål Marius Bjørnstad, Gregor D. Gilfillan, Arvind Yegambaram Meenakshi Sundaram, Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Pedersen Benedikte Nevjen, Line Victoria Moen, Rasmus Riis Kopperud, Hilde Vollan, Olav Hungnes, Karoline Bragstad",
   "Artic_Ill",	"Illumina MiSeq, modified ARTIC protocol with V4.1 primers",	"Assembly by reference based mapping using Tanoti with iVar majority rules consensus", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes",
-  "Artic_Nano",	"Nanopore GridIon, Artic V4.1 protocol modified",	"Assembly by reference based mapping using the Artic Nanopore protocol with medaka", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes"
+  "Artic_Nano",	"Nanopore GridIon, Midnight protocol modified",	"Assembly by reference based mapping using the Artic Nanopore protocol with medaka", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes"
   )
 
 # Create a column to join with "code"
