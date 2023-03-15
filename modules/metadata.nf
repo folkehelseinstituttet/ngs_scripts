@@ -7,7 +7,7 @@ process METADATA {
     publishDir "${params.outdir}/versions/", mode:'copy', pattern:'*.txt'
 
     input:
-    path BN
+    path ch_BN, stageAs: 'BN'
     val submitter
     path ch_LW
 
