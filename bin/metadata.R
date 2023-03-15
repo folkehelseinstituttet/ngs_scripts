@@ -39,7 +39,7 @@ df <- df %>% distinct()
 # Temporary code ends here
 
 # Read the BioNumerics object from the first argument
-# load("/home/jonr/Prosjekter/FHI_Gisaid/BN.RData")
+# load("/mnt/N/Virologi/JonBrate/Prosjekter/BN.RData")
 load(args[1])
 
 # Get submitter info
@@ -74,6 +74,9 @@ tmp <- BN %>%
   mutate("PROVE_TATT" = ymd(PROVE_TATT)) %>%
   # Drop samples without collection date
   filter(!is.na(PROVE_TATT)) %>%
+  mutate(Dekning_Swift = as.numeric(Dekning_Swift),
+         Dekning_Artic = as.numeric(Dekning_Artic),
+         Dekning_Nano = as.numeric(Dekning_Nano)) %>% 
   # Add column stating whether coverage is sufficient or not
   mutate("COV_OK" = case_when(
     Dekning_Swift >= 94 ~ "YES",
@@ -84,11 +87,16 @@ tmp <- BN %>%
     Dekning_Nano < 94   ~ "NO"
   )) %>%
   # Only keep sequences with sufficient coverage
-  filter(COV_OK == "YES") %>%
+  filter(COV_OK == "YES") %>% 
   # Keeo sequences sucessfully called with pangolin
   filter(!is.na(PANGOLIN_NOM)) %>%
   filter(str_detect(PANGOLIN_NOM, "konklu", negate = TRUE)) %>%
   filter(str_detect(PANGOLIN_NOM, "komment", negate = TRUE)) %>%
+  # Replace , with . and convert to numeric
+  mutate(COVERAGE_DEPTH_SWIFT = str_replace(COVERAGE_DEPTH_SWIFT, ",", "."),
+         COVARAGE_DEPTH_NANO = str_replace(COVARAGE_DEPTH_NANO, ",", ".")) %>% 
+  mutate(COVERAGE_DEPTH_SWIFT = as.numeric(COVERAGE_DEPTH_SWIFT),
+         COVARAGE_DEPTH_NANO = as.numeric(COVARAGE_DEPTH_NANO)) %>% 
   # Keep only necessary columns
   select(KEY,
          SEQUENCEID_NANO29,
@@ -107,10 +115,11 @@ tmp <- BN %>%
          P)
 
 # For now only work on data after 2022-08-01
-# tmp <- tmp %>% filter(PROVE_TATT >= "2022-08-01")
+tmp <- tmp %>% filter(PROVE_TATT >= "2022-08-01")
 
 # Add info from BN to samples destined for submission
-for_sub <- left_join(df, tmp, by = c("Key" = "KEY"))
+for_sub <- left_join(df, tmp, by = c("Key" = "KEY")) %>%
+	rename("KEY" = "Key")
 
 # Create common columns for searching
 tmp <- for_sub # This is unneccessary but is done to preserve old code
@@ -270,7 +279,7 @@ seq_tech_authors_lookup_table <- tribble(
   "FHI",	"Illumina Swift Amplicon SARS-CoV-2 protocol at Norwegian Sequencing Centre",	"Assembly by reference based mapping using Bowtie2 with iVar majority rules consensus", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes",
   "MIK",	"Illumina Swift Amplicon SARS-CoV-2 protocol at Norwegian Sequencing Centre", "Assembly by reference based mapping using Bowtie2 with iVar majority rules consensus", "Mona Holberg-Petersen, Lise Andresen, Cathrine Fladeby, Mariann Nilsen, Teodora Plamenova Ribarska, Pål Marius Bjørnstad, Gregor D. Gilfillan, Arvind Yegambaram Meenakshi Sundaram, Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Pedersen Benedikte Nevjen, Line Victoria Moen, Rasmus Riis Kopperud, Hilde Vollan, Olav Hungnes, Karoline Bragstad",
   "Artic_Ill",	"Illumina MiSeq, modified ARTIC protocol with V4.1 primers",	"Assembly by reference based mapping using Tanoti with iVar majority rules consensus", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes",
-  "Artic_Nano",	"Nanopore GridIon, Midnight protocol modified",	"Assembly by reference based mapping using the Artic Nanopore protocol with medaka", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes"
+  "Artic_Nano",	"Nanopore GridIon, Artic V4.1 protocol modified",	"Assembly by reference based mapping using the Artic Nanopore protocol with medaka", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes"
   )
 
 # Create a column to join with "code"
