@@ -6,15 +6,21 @@ library(tidyverse)
 library(stringr)
 library(lubridate)
 
-args = commandArgs(trailingOnly=TRUE)
+args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2) {
-    stop("Usage: metadata.R <BN> <submitter>", call.=FALSE)
+    stop("Usage: metadata.R <BN> <submitter>", call. = FALSE)
 }
 
 # NB: Temporary code begins here:
 # Read all utslusingsfiles from LW
-files <- list.files(path = args[3], #"/mnt/N/Virologi/Influensa/2223/LabwareUttrekk/"
-                    pattern = "^Utslu.*",
+# LW <- "/mnt/N/Virologi/Influensa/2223/LabwareUttrekk/"
+# Hva er riktig å bruke, utslusning eller konverteringsfil?
+#files <- list.files(path = args[3], 
+#                    pattern = "^Utslu.*",
+#                    full.names = TRUE)
+
+files <- list.files(path = args[3], 
+                    pattern = ".*konvertering.*",
                     full.names = TRUE)
 
 # Read all files and pull out de som er svart ut.
