@@ -65,6 +65,33 @@ write.csv(tmp,
           row.names = FALSE)
 
 
+# Import samples with frameshift to BN
+# Loop through all frameshift results
+Frameshift <- list.files(path = "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/4-GISAIDsubmisjon/",
+           pattern = "frameshift_results.csv$",
+           recursive = TRUE,
+           full.names = TRUE) %>% 
+  read_csv(col_names = FALSE) %>% 
+  # Extract samples with frameshift
+  filter(X5 == "NO") %>% 
+  # Recreate BN Key
+  separate(X1, into = c(NA, NA, "Key", "year"), sep = "/") %>% 
+  mutate(year = str_sub(year, 3, 4)) %>% 
+  add_column("nr" = 25) %>% 
+  # Left pad the Key with zeroes to a total of 5 digits
+  mutate("Key" = str_pad(Key, width = 5, side = c("left"), pad = "0")) %>% 
+  unite("tmp", c(nr, year, Key), sep = "") %>% 
+  add_column("Platform" = NA) %>% 
+  add_column("gisaid_epi_isl" = "Frameshift") %>% 
+  # Select final columns
+  select("Key" = tmp, gisaid_epi_isl, Platform)
+
+write.csv(Frameshift, 
+          file = paste0("/home/jonr/", Sys.Date(), "_BN_Frameshift_import.csv"),
+          quote = TRUE,
+          row.names = FALSE)
+
+
 # Old code that takes a tsv file downloaded from the Gisaid web:
 # Download from Gisaid Sequencing Technology metadata
 
