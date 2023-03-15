@@ -20,7 +20,7 @@ if (length(args) < 2) {
 #                    full.names = TRUE)
 
 files <- list.files(path = args[3], 
-                    pattern = ".*konvertering.*",
+                    pattern = "csv$",
                     full.names = TRUE)
 
 # Read all files and pull out de som er svart ut.
@@ -135,6 +135,7 @@ df <- tibble()
 pb <- txtProgressBar(min = 1, max = nrow(tmp))
 for (i in 1:nrow(tmp)) {
   setTxtProgressBar(pb, i)
+  try(rm(dummy))
   if (!is.na(tmp$SEKV_OPPSETT_SWIFT7[i])) { # i.e. NSC sample
     if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "FHI")) { # FHI samples
       dummy <- tmp[i,] %>% 
@@ -162,7 +163,7 @@ for (i in 1:nrow(tmp)) {
       rename("COVERAGE" = COVARAGE_DEPTH_NANO) %>% 
       mutate(SETUP = SEKV_OPPSETT_NANOPORE)
   } 
-  df <- bind_rows(df, dummy)
+  try(df <- bind_rows(df, dummy))
 }
 
 # Keep only sequence IDs with SC2 - i.e. the new format
