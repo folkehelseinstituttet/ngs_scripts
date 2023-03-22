@@ -7,9 +7,9 @@ process METADATA {
     publishDir "${params.outdir}/versions/", mode:'copy', pattern:'*.txt'
 
     input:
-    path ch_BN, stageAs: 'BN'
+    path BN
     val submitter
-    path ch_LW
+    path LW, stageAs: 'LW'
 
     output:
     tuple path("*raw.csv"), path("*raw.RData"), emit: metadata_raw
@@ -17,7 +17,7 @@ process METADATA {
 
     script:
     """
-    metadata.R ${BN} ${submitter} ${ch_LW}
+    metadata.R ${BN} ${submitter} ${LW}
 
     cp .command.log process_metadata.log
     cp .command.sh process_metadata.sh

@@ -11,11 +11,10 @@ workflow {
 
     // Temporary fix
     ch_LW = Channel.fromPath( params.LW )
-    ch_BN = Channel.fromPath( params.BN )
 
     //
     // Create the initial metadata file
-    METADATA(ch_BN, params.submitter, ch_LW)
+    METADATA(params.BN, params.submitter, ch_LW)
     
     //
     // Find and rename fasta files
