@@ -4,6 +4,29 @@
 library(tidyverse)
 
 # NB: This script is based on the input from the cli3 gisaid uploader
+to_BN_OUS <- read_tsv(file = "/home/jonr/tmp_gisaid/2023-04-11_submission.log", col_names = FALSE) %>% 
+  # Remove already existing submissions - deal with these later
+  filter(str_detect(X1, "error", negate = TRUE)) %>% 
+  # Remove summary text
+  filter(str_detect(X1, "submissions", negate = TRUE)) %>%
+  # Remove much junk text and isolate the Key and EPI_ISL
+  separate(X1, into = c("tmp1", "tmp2"), sep = ";") %>%
+  separate(tmp1, into = c(NA, "tmp4"), sep = "Norway/") %>% 
+  separate(tmp4, into = c("Key", "year"), sep = "/") %>% 
+  mutate(gisaid_epi_isl = str_sub(tmp2, 1, -3)) %>%
+  # Remove leading white space
+  mutate(gisaid_epi_isl = str_remove(gisaid_epi_isl, "^ ")) %>% 
+  # Drop rows with NA
+  filter(!is.na(Key)) %>% 
+  add_column("Platform" = NA) %>% 
+  # Select final columns
+  select(Key, gisaid_epi_isl, Platform)
+
+write.csv(to_BN_OUS, 
+          file = "/home/jonr/2023.04.11_MIK_batch_import.csv",
+          quote = TRUE,
+          row.names = FALSE)
+
 to_BN_rest <- read_tsv(file = "/home/jonr/Prosjekter/FHI_Gisaid/Gisaid_files/2023-03-15_submission.log", col_names = FALSE) %>% 
   # Remove already existing submissions - deal with these later
   filter(str_detect(X1, "error", negate = TRUE)) %>% 
