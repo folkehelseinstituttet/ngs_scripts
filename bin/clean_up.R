@@ -26,7 +26,7 @@ FS_OK <- read_csv(frameshift_results, col_names = FALSE) %>%
   dplyr::rename("covv_virus_name" = "Sample")
 
 metadata_clean <- left_join(FS_OK, metadata_raw, by = "covv_virus_name") %>%
-  select(-Deletions, -Frameshift, -Insertions, -Ready, -Comments, -KEY, -SEARCH_COLUMN, code, SETUP)
+  select(-Deletions, -Frameshift, -Insertions, -Ready, -Comments, -KEY, -SEARCH_COLUMN, -code, -SETUP)
 
 ## Extract OK fastas and create final fasta file
 FS_NO <- read_csv(frameshift_results, col_names = FALSE) %>%
