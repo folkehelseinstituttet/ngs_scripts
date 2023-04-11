@@ -142,26 +142,34 @@ for (i in 1:nrow(tmp)) {
         # Create common columns for looping through later
         mutate(SEARCH_COLUMN = SEQUENCEID_SWIFT) %>%
         rename("COVERAGE" = COVERAGE_DEPTH_SWIFT) %>% 
-        mutate(SETUP = SEKV_OPPSETT_SWIFT7)
+        mutate(SETUP = SEKV_OPPSETT_SWIFT7) %>%
+        # Create a column to join with "code" later
+        add_column("code" = "FHI")
     } else if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "MIK")) { # MIK samples
       dummy <- tmp[i,] %>% 
         # Create common columns for looping through later
         mutate(SEARCH_COLUMN = SEQUENCEID_SWIFT) %>%
         rename("COVERAGE" = COVERAGE_DEPTH_SWIFT) %>% 
-        mutate(SETUP = SEKV_OPPSETT_SWIFT7)
+        mutate(SETUP = SEKV_OPPSETT_SWIFT7) %>% 
+        # Create a column to join with "code" later
+        add_column("code" = "Artic_Ill")
     }
   } else if (!is.na(tmp$SAMPLE_CATEGORY[i])) { # Artic_Illumina sample
     dummy <- tmp[i,] %>% 
       # Create common columns for looping through later
       mutate(SEARCH_COLUMN = RES_CDC_INFB_CT) %>%
       rename("COVERAGE" = RES_CDC_INFA_RX) %>% 
-      mutate(SETUP = SAMPLE_CATEGORY)
+      mutate(SETUP = SAMPLE_CATEGORY) %>% 
+      # Create a column to join with "code" later
+      add_column("code" = "FHI")
   } else if (!is.na(tmp$SEKV_OPPSETT_NANOPORE[i])) { # Artic_Nanopore sample
     dummy <- tmp[i,] %>% 
       # Create common columns for looping through later
       mutate(SEARCH_COLUMN = SEQUENCEID_NANO29) %>%
       rename("COVERAGE" = COVARAGE_DEPTH_NANO) %>% 
-      mutate(SETUP = SEKV_OPPSETT_NANOPORE)
+      mutate(SETUP = SEKV_OPPSETT_NANOPORE) %>% 
+      # Create a column to join with "code" later
+      add_column("code" = "Artic_Nano")
   } 
   try(df <- bind_rows(df, dummy))
 }
@@ -170,7 +178,8 @@ for (i in 1:nrow(tmp)) {
 df <- df %>% 
   filter(str_detect(SEARCH_COLUMN, "SC2")) %>% 
   # Endre underscore til bindestrek
-  mutate(SEARCH_COLUMN = str_replace(SEARCH_COLUMN, "_", "-"))
+  mutate(SEARCH_COLUMN = str_replace(SEARCH_COLUMN, "_", "-")) %>% 
+  distinct()
 
 # Further filtering
 df_2 <- df %>% 
@@ -289,20 +298,8 @@ seq_tech_authors_lookup_table <- tribble(
   "Artic_Nano",	"Nanopore GridIon, Artic V4.1 protocol modified",	"Assembly by reference based mapping using the Artic Nanopore protocol with medaka", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes"
   )
 
-# Create a column to join with "code"
-df_4 <- df_4 %>%
-  mutate("code" = case_when(
-    str_detect(SETUP, "FHI")      ~ "FHI",
-    str_detect(SETUP, "MIK")      ~ "MIK",
-    str_detect(SETUP, "Nano")     ~ "Artic_Nano",
-    str_detect(SETUP, "^NGSSEQ")  ~ "Artic_Nano",
-    str_detect(SETUP, "^NGSprep") ~ "Artic_Nano",
-    str_detect(SETUP, "^NGSPREP") ~ "Artic_Nano",
-    str_detect(SETUP, "^SEQ")     ~ "Artic_Nano",
-    !is.na(SAMPLE_CATEGORY)       ~ "Artic_Ill"
-  )) %>% 
-  left_join(seq_tech_authors_lookup_table,
-            by = "code") %>% 
+# Use join to add seq tech and authors
+df_4 <- left_join(df_4, seq_tech_authors_lookup_table, by = "code") %>% 
   # Add submitting lab and address
   add_column(
     "covv_subm_lab"      = "Norwegian Institute of Public Health, Department of Virology",
