@@ -137,7 +137,7 @@ for (i in 1:nrow(tmp)) {
   setTxtProgressBar(pb, i)
   try(rm(dummy))
   if (!is.na(tmp$SEKV_OPPSETT_SWIFT7[i])) { # i.e. NSC sample
-    if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "FHI")) { # FHI samples
+    if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "FHI") | str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "EXT")) { # FHI samples
       dummy <- tmp[i,] %>% 
         # Create common columns for looping through later
         mutate(SEARCH_COLUMN = SEQUENCEID_SWIFT) %>%
@@ -152,7 +152,7 @@ for (i in 1:nrow(tmp)) {
         rename("COVERAGE" = COVERAGE_DEPTH_SWIFT) %>% 
         mutate(SETUP = SEKV_OPPSETT_SWIFT7) %>% 
         # Create a column to join with "code" later
-        add_column("code" = "Artic_Ill")
+        add_column("code" = "MIK")
     }
   } else if (!is.na(tmp$SAMPLE_CATEGORY[i])) { # Artic_Illumina sample
     dummy <- tmp[i,] %>% 
@@ -161,7 +161,7 @@ for (i in 1:nrow(tmp)) {
       rename("COVERAGE" = RES_CDC_INFA_RX) %>% 
       mutate(SETUP = SAMPLE_CATEGORY) %>% 
       # Create a column to join with "code" later
-      add_column("code" = "FHI")
+      add_column("code" = "Artic_Ill")
   } else if (!is.na(tmp$SEKV_OPPSETT_NANOPORE[i])) { # Artic_Nanopore sample
     dummy <- tmp[i,] %>% 
       # Create common columns for looping through later

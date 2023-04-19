@@ -66,11 +66,10 @@ for (i in 1:nrow(metadata)) {
                             pattern = "ivar\\.consensus\\.masked_Nremoved\\.fa$",
                             full.names = TRUE,
                             recursive = TRUE)
-    # NB: Temporary fix for old NSC samples
-    #fasta <- filepaths[grep(metadata$SEARCH_COLUMN[i], filepaths)]
-    # NB: Change this for the new sequence id format
+    
+    fasta <- filepaths[grep(metadata$SEARCH_COLUMN[i], filepaths)]
     # Skip the dash for NSC samples
-    fasta <- filepaths[grep(str_remove(metadata$SEARCH_COLUMN[i], "-"), filepaths)]
+    #fasta <- filepaths[grep(str_remove(metadata$SEARCH_COLUMN[i], "-"), filepaths)]
 
   } else if (metadata$code[i] == "MIK") {
     # Pick our the relevant oppsett
