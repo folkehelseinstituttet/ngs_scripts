@@ -121,6 +121,6 @@ df <- bind_rows(
 
 # Write file
 write.csv(df, 
-          file = paste0(format(Sys.Date(), format = "%Y.%m.%d"), "_BN_import.csv"),
+          file = paste0("Gisaid_files/", format(Sys.Date(), format = "%Y.%m.%d"), "_BN_import.csv"),
           quote = TRUE,
           row.names = FALSE)
