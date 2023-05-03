@@ -111,7 +111,10 @@ for (i in 1:nrow(metadata)) {
 
     # change dash to underscore for new sequence ids:
     fasta <- filepaths[grep(str_replace(metadata$SEARCH_COLUMN[i], "-", "_"), filepaths)]
-    #fasta <- filepaths[grep(metadata$SEARCH_COLUMN[i], filepaths)]
+    
+    if (length(fasta) == 0) {
+      fasta <- filepaths[grep(metadata$SEARCH_COLUMN[i], filepaths)]
+    }
   }
 
   # Read fasta sequence and change name to Gisaid virus name
