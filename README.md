@@ -7,7 +7,7 @@ nextflow run main.nf -profile local --submitter jonbra
 
 Upload to GISAID using gisaid_cl3:   
 ```
-source activate gisaid_cli3/cli3venv/bin/activate
+source gisaid_cli3/cli3venv/bin/activate
 
 cli3 upload --metadata Gisaid_files/2023-05-03.csv --fasta Gisaid_files/2023-05-03.fasta --frameshift catch_none --failed Gisaid_files/2023-05-03_failed_samples.out --log Gisaid_files/2023-05-03_submission.log --token /home/jonr/Downloads/gisaid_cli3/gisaid.authtoken
 ```
