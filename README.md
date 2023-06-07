@@ -5,6 +5,11 @@ First time, clone this repo:
 git clone git@github.com:jonbra/FHI_Gisaid.git
 ```
 
+Make sure the N-drive is mounted to `/mnt/N`:
+```
+sudo mount -t drvfs N: /mnt/N 
+```
+
 Example run:
 ```
 nextflow run main.nf -profile local --submitter jonbra
