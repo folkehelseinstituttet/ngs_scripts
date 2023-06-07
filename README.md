@@ -1,5 +1,10 @@
 Pipeline to prepare and create files for submitting SARS-CoV-2 consensus sequences to GISAID. The pipeline only requires Nextflow and Docker installed in order to run. However, there are several features of the various scripts that will only work on the internal datastructures of NIPH. 
 
+First time, clone this repo:
+```
+git clone git@github.com:jonbra/FHI_Gisaid.git
+```
+
 Example run:
 ```
 nextflow run main.nf -profile local --submitter jonbra
