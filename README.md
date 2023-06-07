@@ -10,6 +10,11 @@ Make sure the N-drive is mounted to `/mnt/N`:
 sudo mount -t drvfs N: /mnt/N 
 ```
 
+Refresh data from BN (make sure docker is running by typing `sudo service docker start`):
+```
+
+```
+
 Example run:
 ```
 nextflow run main.nf -profile local --submitter jonbra
