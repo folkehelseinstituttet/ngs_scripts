@@ -1,6 +1,5 @@
 library(odbc)
 library(tidyverse)
-library(dplyr)
 
 con <- dbConnect(odbc(),
                  Driver = "SQL Server",
