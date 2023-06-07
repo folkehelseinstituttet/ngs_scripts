@@ -6,7 +6,6 @@
 
 library(seqinr)
 library(tidyverse)
-library(GenomicAlignments)
 library(reshape2)
 library(msa)
 
