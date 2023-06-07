@@ -10,9 +10,9 @@ Make sure the N-drive is mounted to `/mnt/N`:
 sudo mount -t drvfs N: /mnt/N 
 ```
 
-Refresh data from BN (make sure docker is running by typing `sudo service docker start`):
+Inside the `FHI_Gisaid` directory, refresh data from BN (make sure docker is running by typing `sudo service docker start`):
 ```
-
+docker run --rm -it -v /mnt/N/Virologi/JonBrate
 ```
 
 Example run:
