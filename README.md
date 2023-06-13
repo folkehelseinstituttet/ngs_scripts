@@ -6,7 +6,20 @@ Pipeline to prepare and create files for submitting SARS-CoV-2 consensus sequenc
 
 You need to have Ubuntu installed using WSL2 on your windows laptop. In Ubuntu, make sure you have `Git`, `Nextflow` and `Docker` installed and running on your computer. 
 
-Installation:
+Install Nextflow:
+```
+# Java
+
+# Nextflow
+```
+
+Install Docker:
+```
+```
+
+Install Git:
+```
+```
 
 Then clone this repo (run `git pull` frequently to have the latest updates):
 ```
