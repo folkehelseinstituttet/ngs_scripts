@@ -1,7 +1,6 @@
 #!/usr/bin/env Rscript
 
 # Load packages
-library(optparse)
 library(tidyverse)
 library(stringr)
 library(lubridate)
@@ -61,8 +60,8 @@ log_file <- file(paste0(Sys.Date(), "_metadata_raw.log"), open = "a")
 tmp <- BN %>%
   # Convert empty strings to NA
   mutate_all(list(~na_if(.,""))) %>%
-  # Remove previously submitted samples
-  filter(is.na(GISAID_EPI_ISL)) %>%
+  # Remove previously submitted samples, keep samples with Frameshift for re-analysis
+  filter(str_detect(GISAID_EPI_ISL, "^EPI", negate = TRUE) | GISAID_EPI_ISL == "Frameshift") %>% 
   # Fjerne evt positiv controll
   filter(str_detect(KEY, "pos", negate = TRUE)) %>%
   # Fjerne hvis manglende INNSENDER
@@ -292,10 +291,10 @@ df_4 <- df_4 %>%
 # Set seq tech and authors ------------------------------------------------
 seq_tech_authors_lookup_table <- tribble(
   ~`code`, ~`seq_tech`, ~`assembly`, ~`authors`,
-  "FHI",	"Illumina Swift Amplicon SARS-CoV-2 protocol at Norwegian Sequencing Centre",	"Assembly by reference based mapping using Bowtie2 with iVar majority rules consensus", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes",
+  "FHI",	"Illumina Swift Amplicon SARS-CoV-2 protocol at Norwegian Sequencing Centre",	"Assembly by reference based mapping using Bowtie2 with iVar majority rules consensus", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes",
   "MIK",	"Illumina Swift Amplicon SARS-CoV-2 protocol at Norwegian Sequencing Centre", "Assembly by reference based mapping using Bowtie2 with iVar majority rules consensus", "Mona Holberg-Petersen, Lise Andresen, Cathrine Fladeby, Mariann Nilsen, Teodora Plamenova Ribarska, Pål Marius Bjørnstad, Gregor D. Gilfillan, Arvind Yegambaram Meenakshi Sundaram, Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Pedersen Benedikte Nevjen, Line Victoria Moen, Rasmus Riis Kopperud, Hilde Vollan, Olav Hungnes, Karoline Bragstad",
   "Artic_Ill",	"Illumina MiSeq, modified ARTIC protocol with V4.1 primers",	"Assembly by reference based mapping using Tanoti with iVar majority rules consensus", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes",
-  "Artic_Nano",	"Nanopore GridIon, Artic V4.1 protocol modified",	"Assembly by reference based mapping using the Artic Nanopore protocol with medaka", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Line Victoria Moen, Debech Nadia, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Hilde Vollan, Karoline Bragstad, Olav Hungnes"
+  "Artic_Nano",	"Nanopore GridIon, Artic V4.1 protocol modified",	"Assembly by reference based mapping using the Artic Nanopore protocol with medaka", "Kathrine Stene-Johansen, Kamilla Heddeland Instefjord, Hilde Elshaug, Garcia Llorente Ignacio, Jon Bråte, Engebretsen Serina Beate, Pedersen Benedikte Nevjen, Atiya R Ali, Marie Paulsen Madsen, Rasmus Riis Kopperud, Karoline Bragstad, Olav Hungnes"
   )
 
 # Use join to add seq tech and authors
