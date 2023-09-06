@@ -11,8 +11,8 @@ process CLEAN_UP {
     path frameshift
 
     output:
-    path "*.fasta"
-    path "*.csv"
+    path "*.fasta", optional:true
+    path "*.csv", optional:true
     path "*.{log,sh}"
 
     def date = new java.util.Date().format( 'yyyy-MM-dd' )
