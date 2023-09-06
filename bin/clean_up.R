@@ -1,7 +1,6 @@
 #!/usr/bin/env Rscript
 
 # Load packages
-library(optparse)
 library(tidyverse)
 library(phylotools)
 
