@@ -14,7 +14,7 @@ workflow {
 
     //
     // Create the initial metadata file
-    METADATA(params.BN, params.submitter, ch_LW)
+    METADATA(params.BN, params.submitter, ch_LW, params.min_date)
     
     //
     // Find and rename fasta files
