@@ -1,6 +1,6 @@
 process CLEAN_UP {
 
-    container 'jonbra/gisaid_sub_dockerfile:1.0'
+    container 'jonbra/gisaid_sub_dockerfile:2.0'
 
     publishDir "${params.outdir}"      , mode:'copy', pattern:'*.{csv,fasta}'
     publishDir "${params.outdir}/logs/", mode:'copy', pattern:'*.{log,sh}'

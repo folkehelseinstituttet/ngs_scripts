@@ -1,6 +1,6 @@
 process FRAMESHIFT {
 
-    container 'jonbra/gisaid_sub_dockerfile:1.0'
+    container 'jonbra/gisaid_sub_dockerfile:2.0'
 
     //publishDir "${params.outdir}/logs/", mode:'copy', pattern:'*.{log,sh}'
 
