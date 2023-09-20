@@ -46,7 +46,7 @@ sudo mount -t drvfs N: /mnt/N
 
 Run the pipeline:
 ```
-nextflow run main.nf -profile local --submitter jonbra
+nextflow run main.nf -profile local --submitter jonbra --LW path/to/LW-uttrekk
 ```
 
 Upload to GISAID using gisaid_cl3:   
