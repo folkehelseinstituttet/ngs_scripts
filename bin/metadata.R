@@ -6,42 +6,18 @@ library(stringr)
 library(lubridate)
 
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 2) {
-    stop("Usage: metadata.R <BN> <submitter>", call. = FALSE)
+if (length(args) < 4) {
+    stop("Usage: metadata.R <BN> <submitter> <LW file> <minimum date>", call. = FALSE)
 }
 
-# NB: Temporary code begins here:
-# Read all utslusingsfiles from LW
-# LW <- "/mnt/N/Virologi/Influensa/2223/LabwareUttrekk/"
-# Hva er riktig å bruke, utslusning eller konverteringsfil?
-#files <- list.files(path = args[3], 
-#                    pattern = "^Utslu.*",
-#                    full.names = TRUE)
+min_date <- args[4]
 
-files <- list.files(path = args[3], 
-                    pattern = "csv$",
-                    full.names = TRUE)
-
-# Read all files and pull out de som er svart ut.
-# Kunne lest alle med map og kombinert.
-# Men jeg looper over først
-
-df <- tibble()
-pb <- txtProgressBar(min = 1, max = length(files))
-for (i in 1:length(files)) {
-  setTxtProgressBar(pb, i)
-  tmp <- read_delim(files[i], delim = ";", col_names = TRUE, locale=locale(encoding="latin1")) %>% 
-    filter(`AGENS Agens` == "SARS-CoV-2") %>%
-    filter(Test_status == "A") %>%
-    select(Key) %>%
-    mutate(Key = as.character(Key))
-  df <- bind_rows(df, tmp)
-}
-
-df <- df %>% distinct()
-
-
-# Temporary code ends here
+# Read LW uttrekk with list of approved samples
+appr_samples <- read_tsv(args[3]) %>% 
+  distinct() %>% 
+  # Modify to match Bn Key
+  mutate(Key = str_remove(Stammenavn_pr, "INFNOR20")) %>% 
+  mutate(Key = paste0("25", Key))
 
 # Read the BioNumerics object from the first argument
 # load("/mnt/N/Virologi/JonBrate/Prosjekter/BN.RData")
@@ -58,8 +34,8 @@ log_file <- file(paste0(Sys.Date(), "_metadata_raw.log"), open = "a")
 
 # Initial filtering and cleaning
 tmp <- BN %>%
-  # Convert empty strings to NA
-  mutate_all(list(~na_if(.,""))) %>%
+  # Convert empty character strings to NA
+  mutate_if(is.character, ~na_if(., "")) %>% 
   # Remove previously submitted samples, keep samples with Frameshift for re-analysis
   filter(str_detect(GISAID_EPI_ISL, "^EPI", negate = TRUE) | GISAID_EPI_ISL == "Frameshift") %>% 
   # Fjerne evt positiv controll
@@ -93,7 +69,7 @@ tmp <- BN %>%
   )) %>%
   # Only keep sequences with sufficient coverage
   filter(COV_OK == "YES") %>% 
-  # Keeo sequences sucessfully called with pangolin
+  # Keep sequences sucessfully called with pangolin
   filter(!is.na(PANGOLIN_NOM)) %>%
   filter(str_detect(PANGOLIN_NOM, "konklu", negate = TRUE)) %>%
   filter(str_detect(PANGOLIN_NOM, "komment", negate = TRUE)) %>%
@@ -119,11 +95,11 @@ tmp <- BN %>%
          MELDT_SMITTESPORING,
          P)
 
-# For now only work on data after 2022-08-01
-tmp <- tmp %>% filter(PROVE_TATT >= "2022-08-01")
+# Keep samples taken after min_date
+tmp <- tmp %>% filter(PROVE_TATT >= min_date)
 
 # Add info from BN to samples destined for submission
-for_sub <- left_join(df, tmp, by = c("Key" = "KEY")) %>%
+for_sub <- left_join(appr_samples, tmp, by = c("Key" = "KEY")) %>%
 	rename("KEY" = "Key")
 
 # Create common columns for searching
@@ -340,6 +316,13 @@ metadata_raw <- df_4 %>%
           "SEARCH_COLUMN",
           "code",
           SETUP)
+
+# Change name of primers used for Nanopore depending on date
+metadata_raw <- metadata_raw %>% 
+  mutate(covv_seq_technology = case_when(
+    covv_collection_date > "2023-07-01" & str_detect(covv_seq_technology, "Nanopore") ~ "Nanopore GridIon, Artic V5.3.2 protocol modified",
+    .default = covv_seq_technology)
+  )
 
 # Remove any duplicate ids and empty "code"
 metadata_raw <- metadata_raw %>% 
