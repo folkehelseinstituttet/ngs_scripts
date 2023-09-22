@@ -46,7 +46,7 @@ sudo mount -t drvfs N: /mnt/N
 
 Run the pipeline:
 ```
-nextflow run main.nf -profile local --submitter jonbra --LW path/to/LW-uttrekk
+nextflow run main.nf -profile local --submitter jonbra --LW path/to/LW-uttrekk --min_date "2023-01-01"
 ```
 
 Upload to GISAID using gisaid_cl3:   
