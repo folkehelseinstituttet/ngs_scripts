@@ -34,13 +34,12 @@ log_file <- file(paste0(Sys.Date(), "_metadata_raw.log"), open = "a")
 
 # Initial filtering and cleaning
 tmp <- BN %>%
-  # Convert empty character strings to NA
-  mutate_if(is.character, ~na_if(., "")) %>% 
   # Remove previously submitted samples, keep samples with Frameshift for re-analysis
   filter(str_detect(GISAID_EPI_ISL, "^EPI", negate = TRUE) | GISAID_EPI_ISL == "Frameshift") %>% 
   # Fjerne evt positiv controll
-  filter(str_detect(KEY, "pos", negate = TRUE)) %>%
+  filter(str_detect(KEY, "pos", negate = TRUE)) %>% 
   # Fjerne hvis manglende INNSENDER
+  mutate_at("INNSENDER", ~na_if(., '')) %>% # first convert empty strings to NA
   filter(!is.na(INNSENDER)) %>%
   # Endre Trøndelag til Trondelag
   mutate("FYLKENAVN" = str_replace(FYLKENAVN, "Tr\xf8ndelag", "Trondelag")) %>%
@@ -52,7 +51,7 @@ tmp <- BN %>%
   mutate("FYLKENAVN" = na_if(FYLKENAVN, "Ukjent")) %>%
   mutate("FYLKENAVN" = na_if(FYLKENAVN, "ukjent")) %>%
   # Fix date format
-  mutate("PROVE_TATT" = ymd(PROVE_TATT)) %>%
+  mutate("PROVE_TATT" = ymd(PROVE_TATT)) %>% 
   # Drop samples without collection date
   filter(!is.na(PROVE_TATT)) %>%
   mutate(Dekning_Swift = as.numeric(Dekning_Swift),
@@ -98,6 +97,12 @@ tmp <- BN %>%
 # Keep samples taken after min_date
 tmp <- tmp %>% filter(PROVE_TATT >= min_date)
 
+# Convert empty strings to NA
+tmp <- tmp %>% 
+  mutate_at("SEKV_OPPSETT_SWIFT7", ~na_if(., '')) %>% 
+  mutate_at("SAMPLE_CATEGORY", ~na_if(., '')) %>% 
+  mutate_at("SEKV_OPPSETT_NANOPORE", ~na_if(., '')) 
+  
 # Add info from BN to samples destined for submission
 for_sub <- left_join(appr_samples, tmp, by = c("Key" = "KEY")) %>%
 	rename("KEY" = "Key")
@@ -120,7 +125,7 @@ for (i in 1:nrow(tmp)) {
         mutate(SETUP = SEKV_OPPSETT_SWIFT7) %>%
         # Create a column to join with "code" later
         add_column("code" = "FHI")
-    } else if (str_detect(tmp$SEKV_OPPSETT_SWIFT7[i], "MIK")) { # MIK samples
+    } else if (grepl("MIK", tmp$SEKV_OPPSETT_SWIFT7[i])) { # MIK samples
       dummy <- tmp[i,] %>% 
         # Create common columns for looping through later
         mutate(SEARCH_COLUMN = SEQUENCEID_SWIFT) %>%
