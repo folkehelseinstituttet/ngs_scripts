@@ -1,4 +1,4 @@
-name: /home/ngs3/miniconda3/envs/Illumina
+name: Illumina
 channels:
   - bioconda
   - conda-forge
@@ -118,4 +118,4 @@ dependencies:
       - pytz==2023.3.post1
       - seaborn==0.12.2
       - six==1.16.0
-prefix: /home/ngs3/miniconda3/envs/Illumina
+prefix: Illumina
