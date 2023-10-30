@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 ### NY VERSJON v2 ######## I v2 er ICTV-databasen oppdatert og gaps og N'er er fjernet fra referansene.
 						## I v2 er det lagt til opprettelse av consensus-sekvens
 
@@ -39,13 +41,13 @@
 			## Lagt til avrunding av %dekning 1x til 2 desimaler og dybde (uten duplikater) til 0 desimaler
 
 ## Skript startes fra run-mappen (f.eks. Run443)
-source activate /home/ngs3/miniconda3/envs/Illumina
+source activate /home/ngs4/miniconda3/envs/Illumina
 
 basedir=$(pwd)
 runname=${basedir##*/}
 
 #husk å legge inn Rscript_sumreads.R
-scriptdir="/home/${HOSTNAME}/.fhiscripts/"
+scriptdir="hcv_ngs" # NB! Navnet burde scriptes
 #tanotidir=/home/ngs2/Downloads/Tanoti-1.2-Linux/
 #weesamdir=/home/ngs2/.fhiscripts/weeSAM/
 script_name1=`basename $0`
@@ -54,7 +56,7 @@ script_name1=`basename $0`
 Aar=$([ "$OSTYPE" = linux-gnu ] && date --date="4 days ago" +"%Y" || date -v-4d +"%Y") 
 
 ###### DATABASER/REFERANSESEKVENSER ########
-HCV_RefDir=Referanser_HCV_ICTV_190508_clean
+HCV_RefDir=${HOME}"/hcv_ngs/Referanser_HCV_ICTV_190508_clean/"
 #HEV_RefDir=/media/data/Referanser_HEV
 #Corona_RefDir=/media/data/Referanser_Corona
 #Dengue_RefDir=/media/data/Referanser_Dengue
@@ -119,20 +121,21 @@ do
 
 #align vs. entire db
     cp ${Refdir}/*${Agens}*.fa . # Copy input reference fasta to pwd
-    docker run --rm -v ${pwd}:/input jonbra/viral_haplo:1.3 tanoti -r /input/${Refdir}/*${Agens}*.fa -i /input/${newR1} /input/${newR2} -o /input/${R1%%_*L001*}_tanoti.sam -p 1 -u 1 -m ${String} #dobbel % fjerner lengste mulige substring, enkelt % fjerner korteste mulige substring i ${variable%substring}
+    docker run --rm -v $(pwd):/input -w /input jonbra/viral_haplo:1.3 tanoti -r ${Agens}*.fa -i ${newR1} ${newR2} -o ${R1%%_*L001*}_tanoti.sam -p 1 -u 1 -m ${String} #dobbel % fjerner lengste mulige substring, enkelt % fjerner korteste mulige substring i ${variable%substring}
     newR4=$(ls *_tanoti.sam)
     samtools view -bS ${newR4} | samtools sort -o ${newR4%.sam}_sorted.bam
     samtools index ${newR4%.sam}_sorted.bam
-    docker run --rm -v ${pwd}:/input jonbra/weesam_docker:1.0 weeSAMv1.4 -b /input/${newR4%.sam}_sorted.bam -out /input/${newR4%.sam}_stats.txt 
+    docker run --rm -v $(pwd):/input -w /input jonbra/weesam_docker:1.0 weeSAMv1.4 -b ${newR4%.sam}_sorted.bam -out ${newR4%.sam}_stats.txt 
     Rscript --vanilla ${scriptdir}Rscript_sumreads.R "${newR4%.sam}_stats.txt" "${newR4%.sam}_sumstats.txt" # Beregner også prosent av totalt antall agens read
 	
 	sort -t$'\t' -k3 -nr ${newR4%.sam}_stats.txt > ${newR4%.sam}_stats_sorted.txt #Ikke nødvendig, men gjør det lettere å gå tilbake å se på resultatene fra første mapping	
 	
 #align vs. best hit
     major=$(sed -n 2p  *_tanoti_sumstats.txt | cut -d " " -f1 | cut -d'"' -f2)  
-    bestF1=$(sort -t$'\t' -k3 -nr ${newR4%.sam}_stats.txt | grep ^${major} -m1 | cut -f1) #Finne første referanse i _stats.txt som inneholder "major" og bruke denne som referanse for mapping   
+    bestF1=$(sort -t$'\t' -k3 -nr ${newR4%.sam}_stats.txt | grep ^${major} -m1 | cut -f1) #Finne første referanse i _stats.txt som inneholder "major" og bruke denne som referanse for mapping 
+    cp ${Refdir}/${bestF1}.fa . # Copy input reference fasta to pwd  
     bestF2="${R1%%_*L001*}_${bestF1%_*}" # brukes til navnsetting av outputfil 
-    tanoti -r ${Refdir}/${bestF1}.fa -i ${newR1} ${newR2} -o ${bestF2}_tanoti_vbest.sam -p 1 -m ${String2}
+    docker run --rm -v $(pwd):/input -w /input jonbra/viral_haplo:1.3 tanoti -r ${bestF1}.fa -i ${newR1} ${newR2} -o ${bestF2}_tanoti_vbest.sam -p 1 -m ${String2}
     bestF3=$(ls *_tanoti_vbest.sam)
     samtools view -bS ${bestF3} | samtools sort -o ${bestF3%.sam}_sorted.bam
     samtools index ${bestF3%.sam}_sorted.bam
@@ -176,8 +179,8 @@ do
     
 	
 	if [ ${sumAgensRead} -gt ${minAgensRead} ] && [ ${bestMinor_percCov2} -gt 5 ]; then      
-   
-    tanoti -r ${Refdir}/${bestMinor}.fa -i ${newR1} ${newR2} -o ${bestMinor2}_tanoti_bestMinor.sam -p 1 -m ${String2}
+    cp ${Refdir}/${bestMinor}.fa . # Copy input reference fasta to pwd  
+    docker run --rm -v $(pwd):/input -w /input jonbra/viral_haplo:1.3 tanoti -r ${bestMinor}.fa -i ${newR1} ${newR2} -o ${bestMinor2}_tanoti_bestMinor.sam -p 1 -m ${String2}
     bestMinor3=$(ls *_tanoti_bestMinor.sam)
     samtools view -bS ${bestMinor3} | samtools sort -o ${bestMinor3%.sam}_sorted.bam
     samtools index ${bestMinor3%.sam}_sorted.bam
@@ -318,11 +321,11 @@ do
 	
 # Coverage plot og statistikkmed duplikater
 	bestF3=$(ls *_tanoti_vbest.sam)
-	weeSAMv1.4 -b ${bestF3%.sam}_sorted.bam -out ${bestF3%.sam}_stats.txt 
+	docker run --rm -v $(pwd):/input -w /input jonbra/weesam_docker:1.0 weeSAMv1.4 -b ${bestF3%.sam}_sorted.bam -out ${bestF3%.sam}_stats.txt 
    # weeSAMv1.6 --bam ${bestF3%.sam}_sorted.bam --out ${bestF3%.sam}_stats.txt --html ${bestF3%.sam}.html
 
 # Coverage plot og statistikk uten duplikater	
-	weeSAMv1.4 -b ${bestF3%.sam}_sorted.marked.bam -out ${bestF3%.sam}.marked_stats.txt 
+	docker run --rm -v $(pwd):/input -w /input jonbra/weesam_docker:1.0 weeSAMv1.4 -b ${bestF3%.sam}_sorted.marked.bam -out ${bestF3%.sam}.marked_stats.txt 
     #weeSAMv1.6 --bam ${bestF3%.sam}_sorted.marked.bam --out ${bestF3%.sam}.marked_stats.txt --html ${bestF3%.sam}_marked.html
 	
 	
@@ -337,11 +340,11 @@ do
 	
 # Coverage plot og statistikk med duplikater for minor
 		bestMinor3=$(ls *_tanoti_bestMinor.sam)
-		weeSAMv1.4 -b ${bestMinor3%.sam}_sorted.bam -out ${bestMinor3%.sam}_stats.txt 
+		docker run --rm -v $(pwd):/input -w /input jonbra/weesam_docker:1.0 weeSAMv1.4 -b ${bestMinor3%.sam}_sorted.bam -out ${bestMinor3%.sam}_stats.txt 
         #weeSAMv1.6 --bam ${bestMinor3%.sam}_sorted.bam --out ${bestMinor3%.sam}_stats.txt --html ${bestMinor3%.sam}.html
 
 # Coverage plot og statistikk uten duplikater	for minor		
-		weeSAMv1.4 -b ${bestMinor3%.sam}_sorted.marked.bam -out ${bestMinor3%.sam}.marked_stats.txt 
+		docker run --rm -v $(pwd):/input -w /input jonbra/weesam_docker:1.0 weeSAMv1.4 -b ${bestMinor3%.sam}_sorted.marked.bam -out ${bestMinor3%.sam}.marked_stats.txt 
 		#weeSAMv1.6 --bam ${bestMinor3%.sam}_sorted.marked.bam --out ${bestMinor3%.sam}.marked_stats.txt --html ${bestMinor3%.sam}_marked.html
     fi
 
