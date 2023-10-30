@@ -125,7 +125,7 @@ do
     newR4=$(ls *_tanoti.sam)
     samtools view -bS ${newR4} | samtools sort -o ${newR4%.sam}_sorted.bam
     samtools index ${newR4%.sam}_sorted.bam
-    docker run --rm -v $(pwd):/input -w /input jonbra/weesam_docker:1.0 weeSAMv1.4 -b ${newR4%.sam}_sorted.bam -out ${newR4%.sam}_stats.txt 
+    docker run --rm -v $(pwd):/input -w /input jonbra/weesam1.4_docker:1.0 weeSAMv1.4 -b ${newR4%.sam}_sorted.bam -out ${newR4%.sam}_stats.txt 
     Rscript --vanilla ${scriptdir}Rscript_sumreads.R "${newR4%.sam}_stats.txt" "${newR4%.sam}_sumstats.txt" # Beregner også prosent av totalt antall agens read
 	
 	sort -t$'\t' -k3 -nr ${newR4%.sam}_stats.txt > ${newR4%.sam}_stats_sorted.txt #Ikke nødvendig, men gjør det lettere å gå tilbake å se på resultatene fra første mapping	
@@ -321,11 +321,11 @@ do
 	
 # Coverage plot og statistikkmed duplikater
 	bestF3=$(ls *_tanoti_vbest.sam)
-	docker run --rm -v $(pwd):/input -w /input jonbra/weesam_docker:1.0 weeSAMv1.4 -b ${bestF3%.sam}_sorted.bam -out ${bestF3%.sam}_stats.txt 
+	docker run --rm -v $(pwd):/input -w /input jonbra/weesam1.4_docker:1.0 weeSAMv1.4 -b ${bestF3%.sam}_sorted.bam -out ${bestF3%.sam}_stats.txt 
    # weeSAMv1.6 --bam ${bestF3%.sam}_sorted.bam --out ${bestF3%.sam}_stats.txt --html ${bestF3%.sam}.html
 
 # Coverage plot og statistikk uten duplikater	
-	docker run --rm -v $(pwd):/input -w /input jonbra/weesam_docker:1.0 weeSAMv1.4 -b ${bestF3%.sam}_sorted.marked.bam -out ${bestF3%.sam}.marked_stats.txt 
+	docker run --rm -v $(pwd):/input -w /input jonbra/weesam1.4_docker:1.0 weeSAMv1.4 -b ${bestF3%.sam}_sorted.marked.bam -out ${bestF3%.sam}.marked_stats.txt 
     #weeSAMv1.6 --bam ${bestF3%.sam}_sorted.marked.bam --out ${bestF3%.sam}.marked_stats.txt --html ${bestF3%.sam}_marked.html
 	
 	
@@ -340,11 +340,11 @@ do
 	
 # Coverage plot og statistikk med duplikater for minor
 		bestMinor3=$(ls *_tanoti_bestMinor.sam)
-		docker run --rm -v $(pwd):/input -w /input jonbra/weesam_docker:1.0 weeSAMv1.4 -b ${bestMinor3%.sam}_sorted.bam -out ${bestMinor3%.sam}_stats.txt 
+		docker run --rm -v $(pwd):/input -w /input jonbra/weesam1.4_docker:1.0 weeSAMv1.4 -b ${bestMinor3%.sam}_sorted.bam -out ${bestMinor3%.sam}_stats.txt 
         #weeSAMv1.6 --bam ${bestMinor3%.sam}_sorted.bam --out ${bestMinor3%.sam}_stats.txt --html ${bestMinor3%.sam}.html
 
 # Coverage plot og statistikk uten duplikater	for minor		
-		docker run --rm -v $(pwd):/input -w /input jonbra/weesam_docker:1.0 weeSAMv1.4 -b ${bestMinor3%.sam}_sorted.marked.bam -out ${bestMinor3%.sam}.marked_stats.txt 
+		docker run --rm -v $(pwd):/input -w /input jonbra/weesam1.4_docker:1.0 weeSAMv1.4 -b ${bestMinor3%.sam}_sorted.marked.bam -out ${bestMinor3%.sam}.marked_stats.txt 
 		#weeSAMv1.6 --bam ${bestMinor3%.sam}_sorted.marked.bam --out ${bestMinor3%.sam}.marked_stats.txt --html ${bestMinor3%.sam}_marked.html
     fi
 
