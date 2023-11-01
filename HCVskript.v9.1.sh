@@ -41,13 +41,13 @@
 			## Lagt til avrunding av %dekning 1x til 2 desimaler og dybde (uten duplikater) til 0 desimaler
 
 ## Skript startes fra run-mappen (f.eks. Run443)
-source activate /home/ngs4/miniconda3/envs/Illumina
+
 
 basedir=$(pwd)
 runname=${basedir##*/}
 
 #husk å legge inn Rscript_sumreads.R
-scriptdir="hcv_ngs" # NB! Navnet burde scriptes
+scriptdir=${HOME}"/hcv_ngs/" # NB! Navnet burde scriptes
 #tanotidir=/home/ngs2/Downloads/Tanoti-1.2-Linux/
 #weesamdir=/home/ngs2/.fhiscripts/weeSAM/
 script_name1=`basename $0`
@@ -744,7 +744,7 @@ for dir in $(ls -d *minor*results);
 do cd ${dir}/figures/*figures/ ; test=$(pwd) ; test2=${test##*/}; echo ${test2} og ${test2%%_*}; for file in $(ls *svg); do mv $file ${test2%%_*}_${file%,*}_covplot.svg; done; mv ./*svg ${base}/plot ; cd ${base}/bam; done
 rm -r *html_results
 
-conda deactivate 
+#conda deactivate 
 
 cd "${basedir}"
 ######## DEL 7 Lage coverage-plot #### SLUTT #####
@@ -772,8 +772,8 @@ Vent til dette er ferdig før du gjør noe mer! Det tar ikke veldig lang tid.
 
 "
 
-cd /mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/HCV/${Aar}/
-sudo cp -rf ${basedir}/${runname}_summaries ./
+#cd /mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/HCV/${Aar}/
+#sudo cp -rf ${basedir}/${runname}_summaries ./
 
 echo "
 Takk for at du brukte dette skriptet til å hente ut resultater for ${Agens}"
