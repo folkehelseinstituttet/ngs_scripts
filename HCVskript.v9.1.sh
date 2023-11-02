@@ -573,7 +573,7 @@ done
 
 ######## GLUE #### START ######
 ## bruker bam-filene uten duplikater
-
+cd /home/ngs4/hcv_ngs/${runname}/
 basedir=$(pwd)
 runname=${basedir##*/}
 docker start gluetools-mysql #starter først gluetools-mysql docker (lagt inn fordi docker stopper å kjøre ved restart av pc)
@@ -727,7 +727,7 @@ cd "${basedir}"
 
 
 ######## DEL 7 Lage coverage-plot #### START #####
-cd "./${runname}_summaries"
+cd /home/ngs4/hcv_ngs/${runname}_summaries/
 
 #source  activate weeSAM - endret 5. september 2023
 
@@ -736,7 +736,8 @@ mkdir plot
 cd bam
 
 # Edit 5. september 2023
-for file in $(ls *bam); do weeSAMv1.6 --bam ${file} --html ${file%.sorted.bam}.html; done
+
+for file in $(ls *bam); do docker run --rm -v $(pwd):/input -w /input jonbra/weesam1.6_docker:1.0 weeSAMv1.6 --bam ${file} --html ${file%.sorted.bam}.html; done
 
 for dir in $(ls -d *vbest*results); do cd ${dir}/figures/*figures/ ; test=$(pwd) ; test2=${test##*/}; echo ${test2} og ${test2%%_*}; mv *svg ${test2%%_*}_covplot.svg ; mv ./*svg ${base}/plot ; cd ${base}/bam; done
 
@@ -752,7 +753,7 @@ cd "${basedir}"
 ######## DEL 8 Sammenfatte GLUE-rapporter inn i summarie #### START #####
 basedir=$(pwd)
 runname=${basedir##*/}
-cd "./${runname}_summaries"
+cd /home/ngs4/hcv_ngs/${runname}_summaries/
 
 Rscript --vanilla GLUE_json_parser.R ${runname} ${runname}_summaries.csv
 tsv=$(echo *glue.tsv)
