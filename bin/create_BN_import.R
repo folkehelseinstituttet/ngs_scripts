@@ -55,7 +55,7 @@ BN_rest <- read_tsv(file = log, col_names = FALSE) %>%
   # Left pad the Key with zeroes to a total of 5 digits
   mutate("Key" = str_pad(Key, width = 5, side = c("left"), pad = "0")) %>% 
   # Add the version number back, but with "_"
-  unite("Key", c(Key, version), sep = "-", na.rm = TRUE) %>% 
+  unite("Key", c(Key, version), sep = "_", na.rm = TRUE) %>% 
   unite("tmp", c(nr, year, Key), sep = "") %>% 
   add_column("Platform" = NA) %>% 
   # Extract the Virus name
@@ -85,7 +85,7 @@ fail_ext <- read_tsv(file = log, col_names = FALSE) %>%
   # Left pad the Key with zeroes to a total of 5 digits
   mutate("Key" = str_pad(Key, width = 5, side = c("left"), pad = "0")) %>%
   # Add the version number back, but with "_"
-  unite("Key", c(Key, version), sep = "-", na.rm = TRUE) %>% 
+  unite("Key", c(Key, version), sep = "_", na.rm = TRUE) %>% 
   unite("tmp", c(nr, year, Key), sep = "") %>% 
   add_column("Platform" = NA) %>% 
   # Extract the Virus name
