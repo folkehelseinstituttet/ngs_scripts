@@ -58,7 +58,11 @@ cli3 upload --metadata Gisaid_files/2023-05-03.csv --fasta Gisaid_files/2023-05-
 
 ```
 deactivate
-```  
+```
+Using version 4 of the cli:
+```
+covCLI upload --username jonbra --password PASSWORD --clientid cid-3a1ebf9db899m --log Gisaid_files/2024-01-09_submission.log --metadata Gisaid_files/2024-01-09_metadata_raw_submit.csv --fasta Gisaid_files/2024-01-09_raw.fasta --frameshifts catch_novel --dateformat YYYYMMDD
+```
 
 Create BioNumerics import file:
 ```
