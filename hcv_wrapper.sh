@@ -33,7 +33,7 @@ docker run --rm \
     Rscript /scripts/create_samplesheet.R /mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/${Run}/ /home/samplesheet.csv "HCV"
 
 # Export the access token for web monitoring with tower
-export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
+export TOWER_ACCESS_TOKEN=
 
 ### Run the main pipeline ###
 
