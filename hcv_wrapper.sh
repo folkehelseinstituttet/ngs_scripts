@@ -100,3 +100,6 @@ docker run --rm \
     Rscript /scripts/join_glue_report_with_summary.R
 
 ## Then move the results to the N: drive
+
+## Then clean up the Nextflow run work directory
+nextflow clean -f
