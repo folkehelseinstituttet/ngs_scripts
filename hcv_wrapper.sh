@@ -10,7 +10,7 @@
 docker run --rm -v /mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/NGS_SEQ-20240126-01/:/mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/NGS_SEQ-20240126-01/ -v $(pwd):/home docker.io/jonbra/tidyverse_seqinr:2.0 Rscript /home/bin/create_samplesheet.R /mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/NGS_SEQ-20240126-01/ /home/test_samplesheet.csv "HCV"
 
 # Export the access token for web monitoring with tower
-export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
+export TOWER_ACCESS_TOKEN=
 
 # Activate the conda environment that holds Nextflow
 conda activate NEXTFLOW
