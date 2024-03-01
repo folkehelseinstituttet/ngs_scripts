@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 
 # Usage:
-# bash hcv_wrapper.sh "Run_name"
-# Run name can be "NGS_SEQ_20240214-03"
+# bash hcv_wrapper.sh <Run_name> <Agens>
+# Run name can be "NGS_SEQ_20240214-03" "HCV"
 
 # TODO
-# [] Replace HCV_test_tanoti with an input variable
-# [] Where to start the script? 
-# [] Drop samplesheet from the params.json file and enter via the command line
+# [X] Replace HCV_test_tanoti with an input variable
+# [X] Where to start the script? 
+# [X] Drop samplesheet from the params.json file and enter via the command line
 # [] Save the tower token in a hidden file
 
 cd $HOME
 
 Run=$1
+Agens=$2
 
 # First mount N and 3-Sekvenseringsbiblioteker
 
@@ -44,7 +45,7 @@ export TOWER_ACCESS_TOKEN=
 conda activate NEXTFLOW
 
 # Start the pipeline
-nextflow run viralseq/main.nf -profile server -params-file "$PWD/params.json" --input "$PWD/samplesheet.csv" --outdir "${Run}" -w /mnt/tempdata/work -with-tower -bg
+nextflow run viralseq/main.nf -profile server --input "$PWD/samplesheet.csv" --outdir "${Run}" --agens $2 -with-tower -bg
 
 ## Then run HCV GLUE on the bam files
 # First make a directory for the GLUE files
