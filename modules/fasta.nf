@@ -16,6 +16,7 @@ process FASTA {
     path Nano_fasta_1,  stageAs: 'dir7'
     path Nano_fasta_2,  stageAs: 'dir8'
     path Nano_fasta_3,  stageAs: 'dir9'
+    path Nano_fasta_4,  stageAs: 'dir10'
 
     output:
     path "*raw.fasta", emit: fasta_raw
@@ -33,7 +34,8 @@ process FASTA {
         "dir6" \
         "dir7" \
         "dir8" \
-        "dir9"
+        "dir9" \
+        "dir10"
 
     cp .command.log process_find_fasta.log
     cp .command.sh process_find_fasta.sh
