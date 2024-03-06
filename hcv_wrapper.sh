@@ -9,8 +9,10 @@
 # [X] Where to start the script? 
 # [X] Drop samplesheet from the params.json file and enter via the command line
 # [] Save the tower token in a hidden file
+# [] Switch to local user without need for password
 
-
+# Switch to local user
+su jonrlocal
 
 Run=$1
 Agens=$2
