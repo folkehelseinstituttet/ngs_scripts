@@ -34,7 +34,7 @@ docker run --rm \
     -v $(pwd)/${Run}:/home \
     -w /home \
     docker.io/jonbra/tidyverse_seqinr:2.0 \
-    Rscript /scripts/create_samplesheet.R /mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/${Run}/ $PWD/samplesheet.csv "HCV"
+    Rscript /scripts/create_samplesheet.R /mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/${Run}/ $PWD/samplesheet.csv ${Agens}
 
 # Export the access token for web monitoring with tower
 export TOWER_ACCESS_TOKEN=
