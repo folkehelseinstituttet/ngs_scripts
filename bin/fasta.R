@@ -10,8 +10,8 @@ library(readxl)
 
 # Load metadata
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 10) {
-    stop("Usage: fasta.R <csv> <FHI_1> <FHI_2> <MIK> <Artic_1> <Artic_2> <Nano_1> <Nano_2>", call. = FALSE)
+if (length(args) < 12) {
+    stop("Usage: fasta.R <csv> <FHI_1> <FHI_2> <FHI_3> <MIK> <Artic_1> <Artic_2> <Nano_1> <Nano_2> <Nano_3> <Nano_4>", call. = FALSE)
 }
 
 # sample_sheet <- read_xlsx("/home/jonr/Prosjekter/FHI_Gisaid/Gisaid_sample_sheet.xlsx") %>% filter(str_detect(platform, "^#", negate = TRUE))
@@ -31,6 +31,7 @@ Artic_files_2 <- args[7] # Artic_files_2 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/
 Nano_files_1  <- args[8] # Nano_files_1 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2021"
 Nano_files_2  <- args[9] # Nano_files_2 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2022"
 Nano_files_3  <- args[10] # Nano_files_3 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2023"
+Nano_files_4  <- args[11] # Nano_files_4 <- "/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2024"
 
 # Open connection to log file
 log_file <- file(paste0(Sys.Date(), "_fasta_raw.log"), open = "a")
@@ -45,7 +46,7 @@ fastas_final <- tibble(
 dirs_fhi  <- c(list.dirs(FHI_files_1, recursive = FALSE), list.dirs(FHI_files_2, recursive = FALSE), list.dirs(FHI_files_3, recursive = FALSE))
 dirs_mik  <- list.dirs(MIK_files, recursive = FALSE)
 dirs_ill  <- c(list.dirs(Artic_files_1, recursive = FALSE), list.dirs(Artic_files_2, recursive = FALSE))
-dirs_nano <- c(list.dirs(Nano_files_1, recursive = FALSE), list.dirs(Nano_files_2, recursive = FALSE), list.dirs(Nano_files_3, recursive = FALSE))
+dirs_nano <- c(list.dirs(Nano_files_1, recursive = FALSE), list.dirs(Nano_files_2, recursive = FALSE), list.dirs(Nano_files_3, recursive = FALSE), list.dirs(Nano_files_4, recursive = FALSE))
 
 # Find sequences on N: and create fasta object ----------------------------
 # First create empty data frame to fill
