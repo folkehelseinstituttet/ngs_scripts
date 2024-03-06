@@ -10,7 +10,7 @@ library(readxl)
 
 # Load metadata
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 13) {
+if (length(args) < 11) {
     stop("Usage: fasta.R <csv> <FHI_1> <FHI_2> <FHI_3> <MIK> <Artic_1> <Artic_2> <Nano_1> <Nano_2> <Nano_3> <Nano_4>", call. = FALSE)
 }
 
