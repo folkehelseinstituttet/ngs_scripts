@@ -73,7 +73,7 @@ do
 input=$(basename $bam)
 docker run --rm \
     --name gluetools \
-    -v $(pwd)/viralseq/HCV_test_tanoti/samtools:/opt/bams \
+    -v $(pwd)/viralseq/${Run}/samtools:/opt/bams \
     -w /opt/bams \
     --link gluetools-mysql \
     cvrbioinformatics/gluetools:latest gluetools.sh \
