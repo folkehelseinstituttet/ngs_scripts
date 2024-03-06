@@ -10,10 +10,13 @@
 # [X] Drop samplesheet from the params.json file and enter via the command line
 # [] Save the tower token in a hidden file
 
-cd $HOME
+
 
 Run=$1
 Agens=$2
+
+cd $HOME
+mkdir $Run
 
 # First mount N and 3-Sekvenseringsbiblioteker
 
