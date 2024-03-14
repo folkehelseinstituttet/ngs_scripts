@@ -1,14 +1,26 @@
 #!/usr/bin/env bash
 
-# Maintained by Jon Bråte (jon.brate@fhi.no)
+# Maintained by: Jon Bråte (jon.brate@fhi.no)
+# Version: dev
+# Last updated: 2024.03.14
+
+# Usage: 
 
 # The script requires BaseSpace CLI installed (https://developer.basespace.illumina.com/docs/content/documentation/cli/cli-overview)
-
+# Check if the bs command is available
 if ! command -v bs &> /dev/null
 then
     echo "BaseSpace CLI could not be found"
     exit 1
 fi
+
+# There also has to be a BaseSpace credentials file: $HOME/.basespace/default.cfg
+# Check if the file exists
+if ! test -f ~/.basespace/defaults.cfg; then
+  echo "BaseSpace credentials file does not exist."
+  exit 1
+fi
+
 
 # Ved restart av PC må det mountes på nytt til Felles før skriptet startes
 # Kan startes fra hvor som helst på linux-maskin
