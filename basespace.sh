@@ -1,3 +1,15 @@
+#!/usr/bin/env bash
+
+# Maintained by Jon Bråte (jon.brate@fhi.no)
+
+# The script requires BaseSpace CLI installed (https://developer.basespace.illumina.com/docs/content/documentation/cli/cli-overview)
+
+if ! command -v bs &> /dev/null
+then
+    echo "BaseSpace CLI could not be found"
+    exit 1
+fi
+
 # Ved restart av PC må det mountes på nytt til Felles før skriptet startes
 # Kan startes fra hvor som helst på linux-maskin
 
