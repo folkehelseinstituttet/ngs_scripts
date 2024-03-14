@@ -4,8 +4,6 @@
 # Version: dev
 # Last updated: 2024.03.14
 
-# Usage: 
-
 # The script requires BaseSpace CLI installed (https://developer.basespace.illumina.com/docs/content/documentation/cli/cli-overview)
 # Check if the bs command is available
 if ! command -v bs &> /dev/null
@@ -16,11 +14,21 @@ fi
 
 # There also has to be a BaseSpace credentials file: $HOME/.basespace/default.cfg
 # Check if the file exists
-if ! test -f ~/.basespace/defaults.cfg; then
+if ! test -f ~/.basespace/default.cfg; then
   echo "BaseSpace credentials file does not exist."
   exit 1
 fi
 
+# The script takes a single argument, the name of the Illumina run.
+# Check if the argument is entered correctly
+if [ $# -eq 0 ]; then
+    echo "Did you forget to enter the Run name?"
+    echo "Usage: $0 <Run name>"
+    exit 1
+fi
+
+# Set the Run variable
+Run=$1
 
 # Ved restart av PC må det mountes på nytt til Felles før skriptet startes
 # Kan startes fra hvor som helst på linux-maskin
