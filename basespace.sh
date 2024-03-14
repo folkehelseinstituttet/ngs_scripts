@@ -30,6 +30,13 @@ fi
 # Set the Run variable
 Run=$1
 
+# List Runs on BaseSpace and get the Run id (third column separated by | and whitespaces)
+id=$(bs list projects | grep "${Run}" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
+
+# Then download the fastq files
+bs download project -i ${id} --extension=fastq.gz -o ${Run}
+
+
 # Ved restart av PC må det mountes på nytt til Felles før skriptet startes
 # Kan startes fra hvor som helst på linux-maskin
 
