@@ -36,6 +36,10 @@ id=$(bs list projects | grep "${Run}" | awk -F '|' '{print $3}' | awk '{$1=$1};1
 # Then download the fastq files
 bs download project -i ${id} --extension=fastq.gz -o ${Run}
 
+# Clean up the folder names
+
+# Move to N:
+
 
 # Ved restart av PC må det mountes på nytt til Felles før skriptet startes
 # Kan startes fra hvor som helst på linux-maskin
