@@ -24,7 +24,7 @@ if ! test -f ~/.basespace/default.cfg; then
   exit 1
 fi
 
-# The script takes a single argument, the name of the Illumina run.
+# The script takes two arguments, the name of the Illumina run to be downloaded and the agens.
 # Check if the argument is entered correctly
 if [ $# -eq 0 ]; then
     echo "Did you forget to enter the Run or Agens name?"
