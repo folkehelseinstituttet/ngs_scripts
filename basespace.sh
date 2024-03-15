@@ -22,13 +22,14 @@ fi
 # The script takes a single argument, the name of the Illumina run.
 # Check if the argument is entered correctly
 if [ $# -eq 0 ]; then
-    echo "Did you forget to enter the Run name?"
-    echo "Usage: $0 <Run name>"
+    echo "Did you forget to enter the Run or Agens name?"
+    echo "Usage: $0 <Run name> <Agens>"
     exit 1
 fi
 
-# Set the Run variable
+# Set the variables
 Run=$1
+Agens=$2
 
 # List Runs on BaseSpace and get the Run id (third column separated by | and whitespaces)
 id=$(bs list projects | grep "${Run}" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
@@ -37,6 +38,15 @@ id=$(bs list projects | grep "${Run}" | awk -F '|' '{print $3}' | awk '{$1=$1};1
 bs download project -i ${id} --extension=fastq.gz -o ${Run}
 
 # Clean up the folder names
+cd $Run
+# Find only directories in the current directory. Loop through them and rename
+find ./*/ -maxdepth 1 -type d -print0 | while IFS= read -r -d '' folder; do
+    # Extract the sample number and add Agens name
+    new_name="${folder%%-*}-${Agens}"
+
+    # Rename the folder
+    mv "$folder" "$new_name"
+done
 
 # Move to N:
 
