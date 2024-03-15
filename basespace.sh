@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# TODO:
+# [] Set up the smbclient command. Move to N/Virologi/JonBrate when testing
+# [] Run script as ngs user
+# [] Move files to 3-Sekvenseringsbiblioteker in the end
+
 # Maintained by: Jon Bråte (jon.brate@fhi.no)
 # Version: dev
 # Last updated: 2024.03.14
