@@ -3,6 +3,7 @@
 # TODO:
 # [] Set up the smbclient command. Move to N/Virologi/JonBrate when testing
 # [] Run script as ngs user
+# [] Hva skal være $SMB_HOST? (vi flytter fra VM til N)
 # [] Move files to 3-Sekvenseringsbiblioteker in the end (fix the $STAGING variable)
 
 # Maintained by: Jon Bråte (jon.brate@fhi.no)
