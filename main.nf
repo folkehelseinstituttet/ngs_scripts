@@ -43,6 +43,13 @@ workflow {
           ch_Nano_fasta_3,
           ch_Nano_fasta_4)
     
+    /*
+    //
+    // 2024.03.21: Skip the frameshift analysis. 
+    // It is not updated and does not catch all relevant frameshifts.
+    // The strategy for now is to submit sequences to Gisaid and let Gisaid catch novel frameshifts.
+    //
+
     //
     // Run frameshift analysis
     // Split the multifasta from the FASTA process into single fasta files
@@ -61,4 +68,5 @@ workflow {
     // Create final metadata and fasta files
     //
     CLEAN_UP(METADATA.out.metadata_raw, FASTA.out.fasta_raw, ch_collect)
+    */
 }
