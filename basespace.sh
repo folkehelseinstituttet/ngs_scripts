@@ -59,20 +59,24 @@ find "$RUN_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | while IFS= read -r -d 
     mv "$folder" "$RUN_DIR/$new_name"
 done
 
+### TEMPORARY FIX ###
+sudo cp -r $Run /mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/$Run
+
+### NOT FINISHED: ###
 # Move to N:
 
 # Create variable to hold the path on N to move files to
-STAGING="/mnt/N/Virologi/JonBrate/"
+#STAGING="/mnt/N/Virologi/JonBrate/"
 
 # Populate the smbclient bundle
 # find $RUN_DIR -type f -name "*.fastq.gz" lists the files to be moved
-for filename in $(find $RUN_DIR -type f -name "*.fastq.gz")
-	do
-     # Remove home directory from file path
-    short_name=$(echo $filename | sed "s|$HOME/||")
-    echo "put $filename $STAGING/$short_name" >> smbclient_bundle
-done
+#for filename in $(find $RUN_DIR -type f -name "*.fastq.gz")
+#	do
+#     # Remove home directory from file path
+#    short_name=$(echo $filename | sed "s|$HOME/||")
+#    echo "put $filename $STAGING/$short_name" >> smbclient_bundle
+#done
 
 # Doing the file smbclient file transfer
-/usr/bin/smbclient $SMB_HOST -A=$SMB_AUTH -D $SMB_DIR < smbclient_bundle 2>> $ERRORLOG
+#/usr/bin/smbclient $SMB_HOST -A=$SMB_AUTH -D $SMB_DIR < smbclient_bundle 2>> $ERRORLOG
 
