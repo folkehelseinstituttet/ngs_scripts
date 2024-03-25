@@ -62,18 +62,21 @@ done
 ### NOT FINISHED: ###
 # Move to N:
 
+# Need to change this:
+SMB_AUTH=/home/jon.brate/.credentials
+
 # Create variable to hold the path on N to move files to
-#STAGING="/mnt/N/Virologi/JonBrate/"
+STAGING="/mnt/N/Virologi/JonBrate/"
 
 # Populate the smbclient bundle
-# find $RUN_DIR -type f -name "*.fastq.gz" lists the files to be moved
-#for filename in $(find $RUN_DIR -type f -name "*.fastq.gz")
-#	do
-#     # Remove home directory from file path
-#    short_name=$(echo $filename | sed "s|$HOME/||")
-#    echo "put $filename $STAGING/$short_name" >> smbclient_bundle
-#done
+find $RUN_DIR -type f -name "*.fastq.gz" lists the files to be moved
+for filename in $(find $RUN_DIR -type f -name "*.fastq.gz")
+	do
+     # Remove home directory from file path
+    short_name=$(echo $filename | sed "s|$HOME/||")
+    echo "put $filename $STAGING/$short_name" >> smbclient_bundle
+done
 
 # Doing the file smbclient file transfer
-#/usr/bin/smbclient $SMB_HOST -A=$SMB_AUTH -D $SMB_DIR < smbclient_bundle 2>> $ERRORLOG
+/usr/bin/smbclient $SMB_HOST -A=$SMB_AUTH -D $SMB_DIR < smbclient_bundle 2>> $ERRORLOG
 
