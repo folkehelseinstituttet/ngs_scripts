@@ -50,7 +50,7 @@ export TOWER_ACCESS_TOKEN=
 conda activate NEXTFLOW
 
 # Start the pipeline
-nextflow run viralseq/main.nf -profile server --input "$PWD/samplesheet.csv" --outdir "${Run}" --agens $2 -with-tower -bg
+nextflow run viralseq/main.nf -profile server --input "${Run}/samplesheet.csv" --outdir "${Run}" --agens $2 -with-tower -bg
 
 ## Then run HCV GLUE on the bam files
 # First make a directory for the GLUE files
