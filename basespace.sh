@@ -59,9 +59,6 @@ find "$RUN_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | while IFS= read -r -d 
     mv "$folder" "$RUN_DIR/$new_name"
 done
 
-### TEMPORARY FIX ###
-sudo cp -r $Run /mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/$Run
-
 ### NOT FINISHED: ###
 # Move to N:
 
