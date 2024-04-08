@@ -26,3 +26,7 @@ for i in *.fasta
 do
 genoflu.py -f $i
 done
+
+# Collect the results
+cd ..
+Rscript collect_genoflu_results.R
