@@ -12,8 +12,10 @@ ENV PATH="$HOME/miniconda/bin:$PATH"
 # Initialize conda in bash config fiiles:
 RUN conda init bash
 
+# Install GenoFlu (https://github.com/USDA-VS/GenoFLU)
 RUN conda install GenoFlU -c conda-forge -c bioconda -y
 
+# Install R-base to get Rscript
 RUN conda install conda-forge::r-base -y
 
 
