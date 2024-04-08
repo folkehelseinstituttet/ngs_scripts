@@ -18,7 +18,7 @@ then
 fi
 
 # Then split the multifasta into individual fastas per virus genome
-Rscript <input multi fasta> fasta
+Rscript $1 fasta
 
 # Then run the genotyping
 cd fasta
