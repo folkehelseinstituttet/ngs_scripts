@@ -28,5 +28,5 @@ grouped_sequences <- split(fasta, sapply(names(fasta), get_group_name))
 # Write sequences into individual fasta files per group
 for (group_name in names(grouped_sequences)) {
   tmp <- grouped_sequences[[group_name]][1:8]
-  write.fasta(tmp, names = names(tmp), file = paste0(prefix, "EPI_ISL_", group_name, "_sequences.fasta"))
+  write.fasta(tmp, names = names(tmp), file = paste0(prefix, "/", "EPI_ISL_", group_name, "_sequences.fasta"))
 }
