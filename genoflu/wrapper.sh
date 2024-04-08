@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Usage
-wrapper.sh <input fasta>
+# wrapper.sh <input fasta>
 
 # Check that GenoFlu is installed and available
 if ! command -v genoflu.py &> /dev/null
