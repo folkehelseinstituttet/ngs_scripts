@@ -16,5 +16,11 @@ fi
 # Then install GenoFlu
 conda install GenoFlU -c conda-forge -c bioconda
 
+# Then split the multifasta into individual fastas per virus genome
+Rscript
+
 # Then run the genotyping
-genoflu.py -f $1
+for i in fasta/*.fasta
+do
+genoflu.py -f $i
+done
