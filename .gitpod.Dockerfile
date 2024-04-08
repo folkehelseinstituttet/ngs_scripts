@@ -12,8 +12,8 @@ ENV PATH="$HOME/miniconda/bin:$PATH"
 # Initialize conda in bash config fiiles:
 RUN conda init bash
 
-RUN conda install GenoFlU -c conda-forge -c bioconda
+RUN conda install GenoFlU -c conda-forge -c bioconda -y
 
-RUN conda install conda-forge::r-base
+RUN conda install conda-forge::r-base -y
 
 
