@@ -23,8 +23,8 @@ Rscript split_gisaid_multifasta.R $1 fasta
 # Then run the genotyping
 cd fasta
 for i in *.fasta
-do
-genoflu.py -f $i
+    do
+    genoflu.py -f $i
 done
 
 # Collect the results
