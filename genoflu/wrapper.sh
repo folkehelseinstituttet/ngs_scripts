@@ -13,6 +13,12 @@ then
     rm -rf ~/miniconda3/miniconda.sh
 fi
 
+# Then install R if not installed
+if ! command -v Rscript &> /dev/null
+then
+    conda install conda-forge::r-base
+fi
+
 # Then install GenoFlu
 conda install GenoFlU -c conda-forge -c bioconda
 
