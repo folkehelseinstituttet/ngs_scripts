@@ -1,5 +1,13 @@
+#!/usr/bin/env Rscript
+
+# Check if seqinr is installed, if not install it.
+list.of.packages <- c("seqinr")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+
 library(seqinr)
-args <-
+
+args <- commandArgs(trailingOnly=TRUE)
 
 fasta <- args[1]
 prefix <- args[2]
