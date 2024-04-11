@@ -33,18 +33,24 @@ if [ $# -eq 0 ]; then
 fi
 
 # Set the variables
+SMB_AUTH=/home/ngs/.smbcreds
+SMB_HOST=//Pos1-fhi-svm01/styrt
+SMB_DIR=NGS/3-Sekvenseringsbiblioteker
 Run=$1
 Agens=$2
+
+# Make a fastq directory under home. Download files here
+mkdir -p ~/fastq
 
 # List Runs on BaseSpace and get the Run id (third column separated by | and whitespaces)
 id=$(/home/ngs/bin/bs list projects | grep "${Run}" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
 
 # Then download the fastq files
-/home/ngs/bin/bs download project -i ${id} --extension=fastq.gz -o ${Run}
+/home/ngs/bin/bs download project -i ${id} --extension=fastq.gz -o fastq/${Run}
 
 # Clean up the folder names
 
-RUN_DIR="$(pwd)/${Run}"
+RUN_DIR="$HOME/fastq/${Run}"
 # Find only directories in the current directory. Loop through them and rename
 # mindepth 1 excludes the RUN_DIR directory. maxdepth 1 includes only the sudirectories of RUN_DIR
 find "$RUN_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | while IFS= read -r -d '' folder; do
@@ -58,24 +64,11 @@ find "$RUN_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | while IFS= read -r -d 
     mv "$folder" "$RUN_DIR/$new_name"
 done
 
-### NOT FINISHED: ###
-# Move to N:
-
-# Need to change this:
-#SMB_AUTH=/home/jon.brate/.credentials
-
-# Create variable to hold the path on N to move files to
-#STAGING="/mnt/N/Virologi/JonBrate/"
-
-# Populate the smbclient bundle
-#find $RUN_DIR -type f -name "*.fastq.gz" lists the files to be moved
-#for filename in $(find $RUN_DIR -type f -name "*.fastq.gz")
-#	do
-#     # Remove home directory from file path
-#    short_name=$(echo $filename | sed "s|$HOME/||")
-#    echo "put $filename $STAGING/$short_name" >> smbclient_bundle
-#done
-
-# Doing the file smbclient file transfer
-#/usr/bin/smbclient $SMB_HOST -A=$SMB_AUTH -D $SMB_DIR < smbclient_bundle 2>> $ERRORLOG
+## Move to N:
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+prompt OFF
+recurse ON
+lcd $HOME/fastq
+mput *
+EOF
 
