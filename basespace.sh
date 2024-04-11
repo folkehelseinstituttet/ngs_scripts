@@ -37,10 +37,10 @@ Run=$1
 Agens=$2
 
 # List Runs on BaseSpace and get the Run id (third column separated by | and whitespaces)
-id=$(bs list projects | grep "${Run}" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
+id=$(/home/ngs/bin/bs list projects | grep "${Run}" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
 
 # Then download the fastq files
-bs download project -i ${id} --extension=fastq.gz -o ${Run}
+/home/ngs/bin/bs download project -i ${id} --extension=fastq.gz -o ${Run}
 
 # Clean up the folder names
 
