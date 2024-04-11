@@ -26,7 +26,7 @@ if ! test -f ~/.basespace/default.cfg; then
 fi
 
 # The script takes two arguments, the name of the Illumina run to be downloaded and the agens.
-# Check if the argument is entered correctly
+# Check if the number of arguments is zero
 if [ $# -eq 0 ]; then
     echo "Did you forget to enter the Run or Agens name?"
     echo "Usage: $0 <Run name> <Agens>"
