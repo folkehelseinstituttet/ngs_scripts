@@ -11,7 +11,7 @@
 
 # The script requires BaseSpace CLI installed (https://developer.basespace.illumina.com/docs/content/documentation/cli/cli-overview)
 # Check if the bs command is available
-if ! command -v bs &> /dev/null
+if ! command -v ./bin/bs &> /dev/null
 then
     echo "BaseSpace CLI could not be found"
     exit 1
