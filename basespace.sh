@@ -8,7 +8,6 @@
 
 # Maintained by: Jon Bråte (jon.brate@fhi.no)
 # Version: dev
-# Last updated: 2024.03.14
 
 # The script requires BaseSpace CLI installed (https://developer.basespace.illumina.com/docs/content/documentation/cli/cli-overview)
 # Check if the bs command is available
