@@ -59,13 +59,13 @@ if ! test -f ~/.smbcreds; then
 fi
 
 ## Set up environment
-
+BASE_DIR=/mnt/tempdata/
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run
 
-# Make a fastq directory under home. Download files here
-mkdir -p ~/fastq
+# Make a fastq directory under tempdata. Download files here
+mkdir -p $BASE_DIR/fastq
 
 echo "Getting the Run ID on the BaseSpace server"
 # List Runs on BaseSpace and get the Run id (third column separated by | and whitespaces)
@@ -73,13 +73,13 @@ id=$(/home/ngs/bin/bs list projects | grep "${RUN}" | awk -F '|' '{print $3}' | 
 
 echo "Downloading fastq files"
 # Then download the fastq files
-/home/ngs/bin/bs download project -i ${id} --extension=fastq.gz -o fastq/${RUN}
+/home/ngs/bin/bs download project -i ${id} --extension=fastq.gz -o $BASE_DIR/fastq/${RUN}
 
 # Execute commands based on the platform specified
 if [[ $PLATFORM == "miseq" ]]; then
     echo "Running commands for MiSeq platform..."
     # Clean up the folder names
-    RUN_DIR="$HOME/fastq/${RUN}"
+    RUN_DIR="$BASE_DIR/fastq/${RUN}"
     # Find only directories in the current directory. Loop through them and rename
     # mindepth 1 excludes the RUN_DIR directory. maxdepth 1 includes only the sudirectories of RUN_DIR
     find "$RUN_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | while IFS= read -r -d '' folder; do
@@ -99,7 +99,7 @@ if [[ $PLATFORM == "miseq" ]]; then
     smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
     prompt OFF
     recurse ON
-    lcd $HOME/fastq
+    lcd $BASE_DIR/fastq
     mput *
     EOF
     
