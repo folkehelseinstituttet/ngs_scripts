@@ -82,88 +82,95 @@ echo "Downloading fastq files"
 # Then download the fastq files
 /home/ngs/bin/bs download project -i ${id} --extension=fastq.gz -o fastq/${RUN}
 
-# Clean up the folder names
-RUN_DIR="$HOME/fastq/${RUN}"
-# Find only directories in the current directory. Loop through them and rename
-# mindepth 1 excludes the RUN_DIR directory. maxdepth 1 includes only the sudirectories of RUN_DIR
-find "$RUN_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | while IFS= read -r -d '' folder; do
-    # Extract the name of the subdirectory
-    dir_name=$(basename "$folder")
+# Execute commands based on the platform specified
+if [[ $PLATFORM == "miseq" ]]; then
+    echo "Running commands for MiSeq platform..."
+    # Clean up the folder names
+    RUN_DIR="$HOME/fastq/${RUN}"
+    # Find only directories in the current directory. Loop through them and rename
+    # mindepth 1 excludes the RUN_DIR directory. maxdepth 1 includes only the sudirectories of RUN_DIR
+    find "$RUN_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | while IFS= read -r -d '' folder; do
+        # Extract the name of the subdirectory
+        dir_name=$(basename "$folder")
     
-    # Extract the sample number and add Agens name
-    new_name="${dir_name%%-*}-${AGENS}"
+        # Extract the sample number and add Agens name
+        new_name="${dir_name%%-*}-${AGENS}"
 
-    # Rename the folder
-    mv "$folder" "$RUN_DIR/$new_name"
-done
+        # Rename the folder
+        mv "$folder" "$RUN_DIR/$new_name"
+    done
 
-echo "Transferring files to N"
-# Move to N:
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
-prompt OFF
-recurse ON
-lcd $HOME/fastq
-mput *
-EOF
+    echo "Transferring files to N"
+    
+    # Move to N:
+    smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+    prompt OFF
+    recurse ON
+    lcd $HOME/fastq
+    mput *
+    EOF
+    
+    ## Clean up
+    rm -rf fastq
+elif [[ $PLATFORM == "nextseq" ]]; then
+    echo "Running commands for NextSeq platform..."
+    # Define the input and output directories
+    RUN_NR="${RUN#Run}"
+    INPUT_DIR="fastq"
+    OUTPUT_DIR=$RUN"_NextSeq/merged"
 
-## Clean up
-rm -rf fastq
+    # Create the output directory if it doesn't exist
+    mkdir -p "$OUTPUT_DIR"
 
-
-## NextSeq
-# Define the input and output directories
-RUN_NR="${RUN#Run}"
-INPUT_DIR="fastq"
-OUTPUT_DIR=$RUN"_NextSeq/merged"
-
-# Create the output directory if it doesn't exist
-mkdir -p "$OUTPUT_DIR"
-
-# Loop through each sample directory, create new subdirectories for each sample and copy the fastq files to the corresponding directory
-for fastq in "$INPUT_DIR"/*/*.fastq.gz; do
-        # Extract the basename
-        base=$(basename $fastq)
+    # Loop through each sample directory, create new subdirectories for each sample and copy the fastq files to the corresponding directory
+    for fastq in "$INPUT_DIR"/*/*.fastq.gz; do
+            # Extract the basename
+            base=$(basename $fastq)
         
-        # Extract the sample name
-        sample_name=$(basename "$fastq"   | cut -f 1 -d "_")
+            # Extract the sample name
+            sample_name=$(basename "$fastq"   | cut -f 1 -d "_")
         
-        # Remove the run number prefix from the sample name
-        sample_name_trimmed="${sample_name#$RUN_NR}"
+            # Remove the run number prefix from the sample name
+            sample_name_trimmed="${sample_name#$RUN_NR}"
 
-        # Make directories for each sample
-        mkdir -p ~/$OUTPUT_DIR/$sample_name_trimmed
+            # Make directories for each sample
+            mkdir -p ~/$OUTPUT_DIR/$sample_name_trimmed
 
-        # Copy each fastq file
-        echo "Moving $base to directory $sample_name_trimmed"
-        cp $fastq ~/$OUTPUT_DIR/$sample_name_trimmed/$base
-done
+            # Copy each fastq file
+            echo "Moving $base to directory $sample_name_trimmed"
+            cp $fastq ~/$OUTPUT_DIR/$sample_name_trimmed/$base
+    done
 
-# Merge all R1 and R2 files for each sample
-# Loop through each directory in the "merged" directory
-for sample_dir in "$OUTPUT_DIR"/*; do
-    if [ -d "$sample_dir" ]; then
+    # Merge all R1 and R2 files for each sample
+    # Loop through each directory in the "merged" directory
+    for sample_dir in "$OUTPUT_DIR"/*; do
+        if [ -d "$sample_dir" ]; then
         
-        # Extract the sample name
-        sample_name=$(basename "$sample_dir")
+            # Extract the sample name
+            sample_name=$(basename "$sample_dir")
         
-        # Concatenate all R1 files into a single file
-        cat "$sample_dir"/*_R1_*.fastq.gz > "$sample_dir/${sample_name}_merged_R1.fastq.gz"
-        echo "Concatenated R1 files for sample $sample_name"
+            # Concatenate all R1 files into a single file
+            cat "$sample_dir"/*_R1_*.fastq.gz > "$sample_dir/${sample_name}_merged_R1.fastq.gz"
+            echo "Concatenated R1 files for sample $sample_name"
         
-        # Concatenate all R2 files into a single file
-        cat "$sample_dir"/*_R2_*.fastq.gz > "$sample_dir/${sample_name}_merged_R2.fastq.gz"
-        echo "Concatenated R2 files for sample $sample_name"
+            # Concatenate all R2 files into a single file
+            cat "$sample_dir"/*_R2_*.fastq.gz > "$sample_dir/${sample_name}_merged_R2.fastq.gz"
+            echo "Concatenated R2 files for sample $sample_name"
 
-        # Remove original files
-        rm "$sample_dir"/*_S*_L*_R*fastq.gz
-    fi
-done
+            # Remove original files
+            rm "$sample_dir"/*_S*_L*_R*fastq.gz
+        fi
+    done
 
-echo "All files merged successfully."
+    echo "All files merged successfully."
 
-echo "Moving files to the N drive"
+    echo "Moving files to the N drive"
 
-## Clean up
-rm -rf $OUTPUT_DIR
+    ## Clean up
+    rm -rf $OUTPUT_DIR
 
-echo "All done!"
+    echo "All done!"
+else
+    echo "Error: Illumina NextSeq or MiSeq platform not supported or not specified"
+    usage
+fi
