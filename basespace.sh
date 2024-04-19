@@ -18,6 +18,12 @@ usage() {
     exit 1
 }
 
+# Initialize variables
+PLATFORM=""
+RUN=""
+AGENS=""
+YEAR=""
+
 while getopts "hp:r:a:y:" opt; do
     case "$opt" in
         h) usage ;;
@@ -28,12 +34,6 @@ while getopts "hp:r:a:y:" opt; do
         ?) usage ;;
     esac
 done
-
-# Initialize variables
-PLATFORM=""
-RUN=""
-AGENS=""
-YEAR=""
 
 ## Check if necessary software and files are present
 
