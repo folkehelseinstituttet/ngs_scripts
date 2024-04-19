@@ -14,33 +14,26 @@ usage() {
     echo "  -p, --platform    Can be either nextseq or miseq"
     echo "  -r, --run         Specify run name (e.g. Run933 or NGS_SEQ-20240126-01)"
     echo "  -a, --agens       Specify agens (only required for HCV and ROV)"
+    echo "  -y, --year        Specify the year the sequencing was performed (e.g. 2024)"
     exit 1
 }
 
-# Parse command-line arguments
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -h|--help)
-            usage
-            ;;
-        -p|--platform)
-            PLATFORM="$2"
-            shift
-            ;;
-        -r|--run)
-            RUN="$2"
-            shift
-            ;;
-        -a|--agens)
-            AGENS=true
-            ;;
-        *)
-            echo "Unknown option: $1"
-            usage
-            ;;
+while getopts "hp:r:a:y:" opt; do
+    case "$opt" in
+        h) usage ;;
+        p) PLATFORM="$OPTARG" ;;
+        r) RUN="$OPTARG" ;;
+        a) AGENS="$OPTARG" ;;
+        y) YEAR="$OPTARG" ;;
+        ?) usage ;;
     esac
-    shift
 done
+
+# Initialize variables
+PLATFORM=""
+RUN=""
+AGENS=""
+YEAR=""
 
 ## Check if necessary software and files are present
 
@@ -101,7 +94,7 @@ if [[ $PLATFORM == "miseq" ]]; then
     done
 
     echo "Transferring files to N"
-    
+
     # Move to N:
     smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
     prompt OFF
