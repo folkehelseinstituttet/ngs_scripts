@@ -62,7 +62,7 @@ fi
 BASE_DIR=/mnt/tempdata/
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
-SMB_DIR=NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run
+SMB_DIR=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run
 
 # Make a fastq directory under tempdata. Download files here
 mkdir -p $BASE_DIR/fastq
