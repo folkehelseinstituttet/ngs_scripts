@@ -18,7 +18,7 @@ Run=$1
 Agens=$2
 
 cd $HOME
-mkdir $Run
+mkdir -p $Run
 
 # First mount N and 3-Sekvenseringsbiblioteker
 
