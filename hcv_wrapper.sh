@@ -12,7 +12,7 @@
 # [] Switch to local user without need for password
 
 # Switch to local user
-su jonrlocal
+sudo -u ngs /bin/bash
 
 Run=$1
 Agens=$2
@@ -42,7 +42,7 @@ docker run --rm \
     Rscript /scripts/create_samplesheet.R /mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/${Run}/ samplesheet.csv ${Agens}
 
 # Export the access token for web monitoring with tower
-export TOWER_ACCESS_TOKEN=
+#export TOWER_ACCESS_TOKEN=
 
 ### Run the main pipeline ###
 
