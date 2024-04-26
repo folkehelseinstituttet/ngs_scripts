@@ -5,11 +5,12 @@
 # Run name can be "NGS_SEQ_20240214-03" "HCV"
 
 # TODO
-# [X] Replace HCV_test_tanoti with an input variable
-# [X] Where to start the script? 
-# [X] Drop samplesheet from the params.json file and enter via the command line
-# [] Save the tower token in a hidden file
-# [] Switch to local user without need for password
+- [X] Replace HCV_test_tanoti with an input variable
+- [X] Where to start the script? 
+- [X] Drop samplesheet from the params.json file and enter via the command line
+- [] Save the tower token in a hidden file
+- [X] Switch to local user without need for password
+- Add if statement if the docker exec command for glue fails. Sometimes it throws an error
 
 # Switch to local user
 #sudo -u ngs /bin/bash
