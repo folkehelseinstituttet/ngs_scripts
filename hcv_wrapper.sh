@@ -12,7 +12,7 @@
 # [] Switch to local user without need for password
 
 # Switch to local user
-sudo -u ngs /bin/bash
+#sudo -u ngs /bin/bash
 
 Run=$1
 Agens=$2
