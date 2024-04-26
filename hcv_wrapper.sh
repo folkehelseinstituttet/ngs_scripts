@@ -10,6 +10,7 @@
 - [X] Drop samplesheet from the params.json file and enter via the command line
 - [] Save the tower token in a hidden file
 - [X] Switch to local user without need for password
+- [X] Run the script as ngs user.
 - Add if statement if the docker exec command for glue fails. Sometimes it throws an error
 
 # Switch to local user
@@ -34,6 +35,7 @@ else
 fi
 
 # Create a samplesheet by running the supplied Rscript in a docker container.
+echo "Fetching path to fastq files and creating samplesheet"
 docker run --rm \
     -v /mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/${Run}/:/mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/${Run}/ \
     -v $(pwd)/viralseq/bin:/scripts \
@@ -51,10 +53,13 @@ docker run --rm \
 conda activate NEXTFLOW
 
 # Start the pipeline
+echo "Map to references and create consensus sequences"
 nextflow run viralseq/main.nf -profile server --input "${Run}/samplesheet.csv" --outdir "${Run}" --agens $2 -with-tower -bg
 
 ## Then run HCV GLUE on the bam files
 # First make a directory for the GLUE files
+
+echo "Run HCV-GLUE for genotyping and resistance analysis"
 mkdir ${Run}/hcvglue
 
 # Pull the latest images
@@ -93,6 +98,7 @@ docker stop gluetools-mysql
 docker rm gluetools-mysql
 
 ## Run the Glue json parser to merge all the json results into one file
+echo "Parsing the GLUE results"
 docker run --rm \
     -v $(pwd)/${Run}/hcvglue:/hcvglue \
     -v $(pwd)/viralseq/bin/:/scripts \
@@ -101,6 +107,7 @@ docker run --rm \
     Rscript /scripts/GLUE_json_parser.R
 
 ## Join the Glue results with the mapping summaries
+echo "Merge GLUE and mapping results"
 docker run --rm \
     -v $(pwd)/${Run}/hcvglue:/hcvglue \
     -v $(pwd)/${Run}/summarize:/summarize \
@@ -110,6 +117,7 @@ docker run --rm \
     Rscript /scripts/join_glue_report_with_summary.R
 
 ## Then move the results to the N: drive
+echo "Moving results to the N: drive"
 
 ## Then clean up the Nextflow run work directory
 nextflow clean -f
