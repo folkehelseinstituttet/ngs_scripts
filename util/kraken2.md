@@ -61,3 +61,11 @@ docker run --rm \
         --paired \
         /input/2181022-HCV/2181022-HCV_S2_L001_R1_001.fastq.gz /input/2181022-HCV/2181022-HCV_S2_L001_R2_001.fastq.gz
 ```
+Run MultiQC to gather kraken reports:
+```bash
+docker run --rm \
+    -v /mnt/tempdata/:/home/ \
+    -w /home \
+    quay.io/biocontainers/multiqc:1.21--pyhdfd78af_0 \
+    multiqc kraken_hcv/
+```
