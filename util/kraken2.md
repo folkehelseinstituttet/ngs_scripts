@@ -45,3 +45,19 @@ docker run --rm \
     quay.io/biocontainers/mulled-v2-5799ab18b5fc681e75923b2450abaa969907ec98:87fc08d11968d081f3e8a37131c1f1f6715b6542-0 \
     kraken2-build --add-to-library /input/custom_fasta.fa--db $DBNAME
 ```
+
+Run Kraken2 analysis. Example:
+```bash
+docker run --rm \
+    -v /mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/HCV/2024/NGS-Oppsett-04_Pegivirus:/input/ \
+    -v /mnt/tempdata/:/home/ \
+    -w /home \
+    quay.io/biocontainers/mulled-v2-5799ab18b5fc681e75923b2450abaa969907ec98:87fc08d11968d081f3e8a37131c1f1f6715b6542-0 \
+    kraken2 \
+        --db /home/Kraken_db \\
+        --threads 8 \\
+        --report /home/kraken_hcv/2181022-HCV.kraken2.report.txt \\
+        --gzip-compressed \\
+        --paired \
+        /input/2181022-HCV/2181022-HCV_S2_L001_R1_001.fastq.gz /input/2181022-HCV/2181022-HCV_S2_L001_R2_001.fastq.gz
+```
