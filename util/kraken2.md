@@ -15,7 +15,7 @@ DBNAME=bunyavirales
 mkdir -p /mnt/tempdata/$DBNAME
 ```
 
-### Move the `taxonomy` directory into the Kraken db directory
+### Copy the `taxonomy` directory into the Kraken db directory (NB! remember to delete the directory after the database is built)
 ```bash
 mv /mnt/tempdata/taxonomy /mnt/tempdata/$DBNAME
 ```
