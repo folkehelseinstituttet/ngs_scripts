@@ -15,15 +15,9 @@ DBNAME=bunyavirales
 mkdir -p /mnt/tempdata/$DBNAME
 ```
 
-### Download the ncbi taxonomy
-NB! Check if this file already exists under `/mnt/tempdata/Kraken_db/taxonomy`
-
+### Move the `taxonomy` directory into the Kraken db directory
 ```bash
-docker run --rm \
-    -v /mnt/tempdata/:/home/ \
-    -w /home \
-    quay.io/biocontainers/mulled-v2-5799ab18b5fc681e75923b2450abaa969907ec98:87fc08d11968d081f3e8a37131c1f1f6715b6542-0 \
-    kraken2-build --download-taxonomy --db $DBNAME --use-ftp
+mv /mnt/tempdata/taxonomy /mnt/tempdata/$DBNAME
 ```
 
 ### Build the custom database  
