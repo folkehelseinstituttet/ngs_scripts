@@ -17,7 +17,7 @@ mkdir -p /mnt/tempdata/$DBNAME
 
 ### Copy the `taxonomy` directory into the Kraken db directory (NB! remember to delete the directory after the database is built)
 ```bash
-cp /mnt/tempdata/taxonomy /mnt/tempdata/$DBNAME
+cp -r /mnt/tempdata/taxonomy /mnt/tempdata/$DBNAME
 ```
 
 ### Build the custom database  
