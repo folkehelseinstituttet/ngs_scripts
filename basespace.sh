@@ -158,9 +158,15 @@ elif [[ $PLATFORM == "nextseq" ]]; then
     echo "All files merged successfully."
 
     echo "Moving files to the N drive"
+    smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+    prompt OFF
+    recurse ON
+    lcd $OUTPUT_DIR
+    mput *
+    EOF
 
     ## Clean up
-    rm -rf $OUTPUT_DIR
+    #rm -rf $OUTPUT_DIR
 
     echo "All done!"
 else
