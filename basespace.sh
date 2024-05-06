@@ -101,7 +101,7 @@ if [[ $PLATFORM == "miseq" ]]; then
     recurse ON
     lcd $BASE_DIR/fastq
     mput *
-    EOF
+EOF
     
     ## Clean up
     rm -rf fastq
@@ -163,7 +163,7 @@ elif [[ $PLATFORM == "nextseq" ]]; then
     recurse ON
     lcd $OUTPUT_DIR
     mput *
-    EOF
+EOF
 
     ## Clean up
     #rm -rf $OUTPUT_DIR
