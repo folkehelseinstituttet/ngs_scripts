@@ -1,9 +1,12 @@
 # Commands for building custom Kraken2 databases and running Kraken2 on the NIPH ngs server
 
-### Run as ngs user
+NB: We should do all analyses as ngs user
 ```bash
 sudo -u ngs /bin/bash
 ```
+
+## Build a new database
+Only do this if you need a new Kraken2 database  
 
 ### Name the database
 ```bash
@@ -49,7 +52,8 @@ docker run --rm \
     kraken2-build --build --db $DBNAME
 ```
 
-Run Kraken2 analysis. Example:
+## Run Kraken 2
+Example 1. For paired-end fastq reads. This will only generate a report that can be used in for example Multi QC
 ```bash
 docker run --rm \
     -v /mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/HCV/2024/NGS-Oppsett-04_Pegivirus:/input/ \
@@ -61,6 +65,7 @@ docker run --rm \
         --threads 8 \
         --report kraken_hcv/2181022-HCV.kraken2.report.txt \
         --gzip-compressed \
+        --output 2181022-HCV.kraken2.out \
         --paired \
         /input/2181022-HCV/2181022-HCV_S2_L001_R1_001.fastq.gz /input/2181022-HCV/2181022-HCV_S2_L001_R2_001.fastq.gz
 ```
