@@ -37,7 +37,16 @@ docker run --rm \
     -v /path/to/custom/fasta:/input/ \
     -w /home \
     quay.io/biocontainers/mulled-v2-5799ab18b5fc681e75923b2450abaa969907ec98:87fc08d11968d081f3e8a37131c1f1f6715b6542-0 \
-    kraken2-build --add-to-library /input/custom_fasta.fa--db $DBNAME
+    kraken2-build --add-to-library /input/custom_fasta.fa --db $DBNAME
+```
+
+And then we need to actually build the database:
+```bash
+docker run --rm \
+    -v /mnt/tempdata/:/home/ \
+    -w /home \
+    quay.io/biocontainers/mulled-v2-5799ab18b5fc681e75923b2450abaa969907ec98:87fc08d11968d081f3e8a37131c1f1f6715b6542-0 \
+    kraken2-build --build --db $DBNAME
 ```
 
 Run Kraken2 analysis. Example:
