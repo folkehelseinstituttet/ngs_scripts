@@ -116,6 +116,9 @@ docker run --rm \
     docker.io/jonbra/tidyverse_seqinr:2.0 \
     Rscript /scripts/join_glue_report_with_summary.R
 
+## Rename LW import file 
+mv $(pwd)/${Run}/summarize/Genotype_mapping_summary_long_LW_import_with_glue.tsv $(pwd)/${Run}/summarize/Genotype_mapping_summary_long_LW_import.tsv 
+
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
 
