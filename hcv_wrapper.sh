@@ -117,7 +117,7 @@ docker run --rm \
     Rscript /scripts/join_glue_report_with_summary.R
 
 ## Rename LW import file 
-mv $(pwd)/${Run}/summarize/Genotype_mapping_summary_long_LW_import_with_glue.tsv $(pwd)/${Run}/summarize/Genotype_mapping_summary_long_LW_import.tsv 
+mv $(pwd)/${Run}/summarize/Genotype_mapping_summary_long_LW_import_with_glue.csv $(pwd)/${Run}/summarize/Genotype_mapping_summary_long_LW_import.csv 
 
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
