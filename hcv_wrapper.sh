@@ -122,5 +122,17 @@ mv $(pwd)/${Run}/summarize/Genotype_mapping_summary_long_LW_import_with_glue.tsv
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
 
+## Set up environment
+SMB_AUTH=/home/ngs/.smbcreds
+SMB_HOST=//Pos1-fhi-svm01/styrt
+SMB_DIR=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run
+
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+prompt OFF
+recurse ON
+lcd $BASE_DIR/fastq
+mput *
+EOF
+
 ## Then clean up the Nextflow run work directory
 nextflow clean -f
