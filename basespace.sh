@@ -108,7 +108,7 @@ if [[ $PLATFORM == "miseq" ]]; then
 EOF
     
     ## Clean up
-    rm -rf fastq
+    rm -rf $BASE_DIR/fastq
 elif [[ $PLATFORM == "nextseq" ]]; then
     echo "Running commands for NextSeq platform..."
     # Define output directory
@@ -166,6 +166,7 @@ EOF
 
     ## Clean up
     rm -rf $BASE_DIR/$OUTPUT_DIR
+    rm -rf $BASE_DIR/${RUN}
 
     echo "All done!"
 else
