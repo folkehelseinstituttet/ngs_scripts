@@ -67,9 +67,6 @@ SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run
 
-# Make a fastq directory under tempdata. Download files here
-#mkdir -p $BASE_DIR/fastq
-
 echo "Getting the Run ID on the BaseSpace server"
 # List Runs on BaseSpace and get the Run id (third column separated by | and whitespaces)
 id=$(/home/ngs/bin/bs list projects | grep "${RUN}" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
@@ -81,20 +78,23 @@ echo "Downloading fastq files"
 # Execute commands based on the platform specified
 if [[ $PLATFORM == "miseq" ]]; then
     echo "Running commands for MiSeq platform..."
+    # Move run directiry to a sub-directory for easier copying to N: later
+    mkdir -p $BASE_DIR/fastq
+    mv $BASE_DIR/${RUN} $BASE_DIR/fastq/
+    
     # Clean up the folder names
-    RUN_DIR="$BASE_DIR/${RUN}"
+    RUN_DIR="$BASE_DIR/fastq/${RUN}"
     # Find only directories in the current directory. Loop through them and rename
     # mindepth 1 excludes the RUN_DIR directory. maxdepth 1 includes only the sudirectories of RUN_DIR
     find "$RUN_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | while IFS= read -r -d '' folder; do
         # Extract the name of the subdirectory
         dir_name=$(basename "$folder")
         
-        # DON'T ADD AGENS HERE. TAKE IT FROM THE FILE NAMES. 
         # Extract the sample number and add Agens name
-#        new_name="${dir_name%%-*}-${AGENS}"
+        new_name="${dir_name%%_*}"
 
         # Rename the folder
-#        mv "$folder" "$RUN_DIR/$new_name"
+        mv "$folder" "$RUN_DIR/$new_name"
     done
 
     echo "Transferring files to N"
