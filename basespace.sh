@@ -12,7 +12,6 @@ usage() {
     echo "Options:"
     echo "  -h, --help        Display this help message"
     echo "  -p, --platform    Can be either nextseq or miseq"
-    echo "  -r, --run         Specify run name (e.g. NGS_SEQ-20240126-01)"
     echo "  -n, --number      Specify the run number (e.g. Run933)"
     echo "  -a, --agens       Specify agens (only required for HCV and ROV)"
     echo "  -y, --year        Specify the year the sequencing was performed (e.g. 2024)"
@@ -22,7 +21,6 @@ usage() {
 # Initialize variables
 PLATFORM=""
 RUN=""
-NR=""
 AGENS=""
 YEAR=""
 
@@ -31,7 +29,6 @@ while getopts "hp:r:n:a:y:" opt; do
         h) usage ;;
         p) PLATFORM="$OPTARG" ;;
         r) RUN="$OPTARG" ;;
-        n) NR="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
         y) YEAR="$OPTARG" ;;
         ?) usage ;;
