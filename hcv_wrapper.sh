@@ -46,7 +46,8 @@ docker run --rm \
 
 # Export the access token for web monitoring with tower
 export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
-export TOWER_WORKSPACE_ID=176102546405131
+# Add workspace ID for Virus_NGS
+export TOWER_WORKSPACE_ID=150755685543204
 
 ### Run the main pipeline ###
 
