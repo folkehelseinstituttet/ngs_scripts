@@ -2,7 +2,7 @@
 
 # Maintained by: Jon Bråte (jon.brate@fhi.no)
 # Version: 1.0
-# This script downloads fastq files from the BaseSpace server and transfers them to the N-drive.
+# This script downloads fastq files from the BaseSpace server and transfers them to the NIPH N-drive.
 
 # Define the script name and usage
 SCRIPT_NAME=$(basename "$0")
@@ -85,6 +85,7 @@ if [[ $PLATFORM == "miseq" ]]; then
     # mindepth 1 excludes the RUN_DIR directory. maxdepth 1 includes only the sudirectories of RUN_DIR
     find "$RUN_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | while IFS= read -r -d '' folder; do
         # Extract the name of the subdirectory
+        
         dir_name=$(basename "$folder")
         
         # Extract the sample number and add Agens name
