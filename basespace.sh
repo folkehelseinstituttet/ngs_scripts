@@ -140,11 +140,11 @@ elif [[ $PLATFORM == "nextseq" ]]; then
             sample_name=$(basename "$sample_dir")
                 
             # Concatenate all R1 files into a single file
-            cat "$sample_dir"/*_R1_*.fastq.gz > "$sample_dir/${sample_name}_merged_R1.fastq.gz"
+            cat "$sample_dir"/*_R1_*.fastq.gz > "$sample_dir/${sample_name}_merged_R1_001.fastq.gz"
             echo "Concatenated R1 files for sample $sample_name"
         
             # Concatenate all R2 files into a single file
-            cat "$sample_dir"/*_R2_*.fastq.gz > "$sample_dir/${sample_name}_merged_R2.fastq.gz"
+            cat "$sample_dir"/*_R2_*.fastq.gz > "$sample_dir/${sample_name}_merged_R2_001.fastq.gz"
             echo "Concatenated R2 files for sample $sample_name"
 
             # Remove original files
