@@ -1,30 +1,55 @@
 #!/usr/bin/env bash
 
-# Usage:
-# bash hcv_wrapper.sh <Run_name> <Agens>
-# Run name can be "NGS_SEQ_20240214-03" "HCV"
-
 # TODO
-- [X] Replace HCV_test_tanoti with an input variable
-- [X] Where to start the script? 
-- [X] Drop samplesheet from the params.json file and enter via the command line
-- [] Save the tower token in a hidden file
-- [X] Switch to local user without need for password
-- [X] Run the script as ngs user.
+- [] Use smbclient to copy the fastq files to the server. And then create the samplesheet 
+- [] Run the script as ngs user.
 - Add if statement if the docker exec command for glue fails. Sometimes it throws an error
+
+# Maintained by: Jon Bråte (jon.brate@fhi.no)
+# Version: dev
+
+# Define the script name and usage
+SCRIPT_NAME=$(basename "$0")
+
+usage() {
+    echo "Usage: $SCRIPT_NAME [OPTIONS]"
+    echo "Options:"
+    echo "  -h, --help        Display this help message"
+    echo "  -r, --run         Specify the run name (e.g., NGS_SEQ_20240214-03)"
+    echo "  -a, --agens       Specify agens (e.g., HCV and ROV)"
+    echo "  -y, --year        Specify the year directory of the fastq files on the N-drive"
+    exit 1
+}
+
+# Initialize variables
+RUN=""
+AGENS=""
+YEAR=""
+
+while getopts "hr:a:" opt; do
+    case "$opt" in
+        h) usage ;;
+        r) RUN="$OPTARG" ;;
+        a) AGENS="$OPTARG" ;;
+        y) YEAR="$OPTARG" ;;
+        ?) usage ;;
+    esac
+done
+
+# Export the access token for web monitoring with tower
+export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
+# Add workspace ID for Virus_NGS
+export TOWER_WORKSPACE_ID=150755685543204
+
+## Set up environment
+BASE_DIR=/mnt/tempdata/
+TMP_DIR=/mnt/tempdata/fastq
+SMB_AUTH=/home/ngs/.smbcreds
+SMB_HOST=//Pos1-fhi-svm01/styrt
+SMB_DIR=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run/$RUN
 
 # Switch to local user
 #sudo -u ngs /bin/bash
-
-Run=$1
-Agens=$2
-
-cd $HOME
-mkdir -p $Run
-
-# First mount N and 3-Sekvenseringsbiblioteker
-
-### Prepare the run ###
 
 # Check if the viralseq directory exists, if not clone it from GitHub
 if [ -d "viralseq" ]; then
@@ -34,20 +59,30 @@ else
   git clone https://github.com/jonbra/viralseq.git
 fi
 
+# Create directory to hold the output of the analysis
+mkdir -p $HOME/$RUN
+mkdir $TMP_DIR
+
+### Prepare the run ###
+
+echo "Copying fastq files from the N drive"
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+prompt OFF
+recurse ON
+cd $SMB_DIR
+lcd $TMP_DIR
+mget *
+EOF
+    
 # Create a samplesheet by running the supplied Rscript in a docker container.
-echo "Fetching path to fastq files and creating samplesheet"
+echo "Creating samplesheet"
 docker run --rm \
-    -v /mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/${Run}/:/mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/${Run}/ \
+    -v $TMP_DIR/:/input \
     -v $(pwd)/viralseq/bin:/scripts \
-    -v $(pwd)/${Run}:/home \
+    -v $HOME/$RUN/:/home \
     -w /home \
     docker.io/jonbra/tidyverse_seqinr:2.0 \
-    Rscript /scripts/create_samplesheet.R /mnt/N/NGS/3-Sekvenseringsbiblioteker/2024/Illumina_Run/${Run}/ samplesheet.csv ${Agens}
-
-# Export the access token for web monitoring with tower
-export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
-# Add workspace ID for Virus_NGS
-export TOWER_WORKSPACE_ID=150755685543204
+    Rscript /scripts/create_samplesheet.R /input samplesheet.csv ${AGENS}
 
 ### Run the main pipeline ###
 
@@ -56,13 +91,13 @@ conda activate NEXTFLOW
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run viralseq/main.nf -profile server --input "${Run}/samplesheet.csv" --outdir "${Run}" --agens $2 -with-tower -bg
+nextflow run $HOME/viralseq/main.nf -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower -bg
 
 ## Then run HCV GLUE on the bam files
 # First make a directory for the GLUE files
 
 echo "Run HCV-GLUE for genotyping and resistance analysis"
-mkdir ${Run}/hcvglue
+mkdir $HOME/$RUN/hcvglue
 
 # Pull the latest images
 docker pull cvrbioinformatics/gluetools-mysql:latest
@@ -81,18 +116,18 @@ docker exec gluetools-mysql installGlueProject.sh ncbi_hcv_glue
 # Make a for loop over all bam files and run HCV-GLUE
 ## Adding || true to the end of the command to prevent the pipeline from failing if the bam file is not valid
 
-for bam in $(ls ${Run}/samtools/*nodup.bam)
+for bam in $(ls $HOME/$RUN/samtools/*nodup.bam)
 do
 input=$(basename $bam)
 docker run --rm \
     --name gluetools \
-    -v $(pwd)/${Run}/samtools:/opt/bams \
+    -v $HOME/$RUN/samtools:/opt/bams \
     -w /opt/bams \
     --link gluetools-mysql \
     cvrbioinformatics/gluetools:latest gluetools.sh \
         -p cmd-result-format:json \
         -EC \
-        -i project hcv module phdrReportingController invoke-function reportBam ${input} 15.0 > ${Run}/hcvglue/${input%".bam"}.json || true
+        -i project hcv module phdrReportingController invoke-function reportBam ${input} 15.0 > $HOME/$RUN/hcvglue/${input%".bam"}.json || true
 done
 
 docker stop gluetools-mysql 
@@ -102,7 +137,7 @@ docker rm gluetools-mysql
 ## Run the Glue json parser to merge all the json results into one file
 echo "Parsing the GLUE results"
 docker run --rm \
-    -v $(pwd)/${Run}/hcvglue:/hcvglue \
+    -v $HOME/$RUN/hcvglue:/hcvglue \
     -v $(pwd)/viralseq/bin/:/scripts \
     -w /hcvglue \
     docker.io/jonbra/tidyverse_seqinr:2.0 \
@@ -111,15 +146,15 @@ docker run --rm \
 ## Join the Glue results with the mapping summaries
 echo "Merge GLUE and mapping results"
 docker run --rm \
-    -v $(pwd)/${Run}/hcvglue:/hcvglue \
-    -v $(pwd)/${Run}/summarize:/summarize \
+    -v $HOME/$RUN/hcvglue:/hcvglue \
+    -v $HOME/$RUN/summarize:/summarize \
     -v $(pwd)/viralseq/bin/:/scripts \
     -w /summarize \
     docker.io/jonbra/tidyverse_seqinr:2.0 \
     Rscript /scripts/join_glue_report_with_summary.R
 
 ## Rename LW import file 
-mv $(pwd)/${Run}/summarize/Genotype_mapping_summary_long_LW_import_with_glue.csv $(pwd)/${Run}/summarize/Genotype_mapping_summary_long_LW_import.csv 
+mv $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import_with_glue.csv $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import.csv 
 
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
