@@ -46,7 +46,8 @@ BASE_DIR=/mnt/tempdata/
 TMP_DIR=/mnt/tempdata/fastq
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
-SMB_DIR=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run/$RUN
+SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run/$RUN
+SMB_OUTPUT=Virologi/NGS/....2-Resultater/HCV...
 
 # Switch to local user
 #sudo -u ngs /bin/bash
@@ -66,10 +67,9 @@ mkdir $TMP_DIR
 ### Prepare the run ###
 
 echo "Copying fastq files from the N drive"
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_INPUT <<EOF
 prompt OFF
 recurse ON
-cd $SMB_DIR
 lcd $TMP_DIR
 mget *
 EOF
@@ -159,12 +159,7 @@ mv $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import_with_glue.csv $H
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
 
-## Set up environment
-#SMB_AUTH=/home/ngs/.smbcreds
-#SMB_HOST=//Pos1-fhi-svm01/styrt
-#SMB_DIR=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run
-
-#smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+#smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_OUTPUT <<EOF
 #prompt OFF
 #recurse ON
 #lcd $BASE_DIR/fastq
