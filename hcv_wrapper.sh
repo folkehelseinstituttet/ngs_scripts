@@ -47,7 +47,7 @@ TMP_DIR=/mnt/tempdata/fastq
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run/$RUN
-SMB_OUTPUT=Virologi/NGS/....2-Resultater/HCV...
+SMB_OUTPUT=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/$AGENS/$YEAR/
 
 # Switch to local user
 #sudo -u ngs /bin/bash
@@ -77,12 +77,12 @@ EOF
 # Create a samplesheet by running the supplied Rscript in a docker container.
 echo "Creating samplesheet"
 docker run --rm \
-    -v $TMP_DIR/:/input \
-    -v $(pwd)/viralseq/bin:/scripts \
+    -v $TMP_DIR/:$TMP_DIR/ \
+    -v $HOME/viralseq/bin:/scripts \
     -v $HOME/$RUN/:/home \
     -w /home \
     docker.io/jonbra/tidyverse_seqinr:2.0 \
-    Rscript /scripts/create_samplesheet.R /input samplesheet.csv ${AGENS}
+    Rscript /scripts/create_samplesheet.R $TMP_DIR samplesheet.csv ${AGENS}
 
 ### Run the main pipeline ###
 
