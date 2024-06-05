@@ -138,7 +138,7 @@ docker rm gluetools-mysql
 echo "Parsing the GLUE results"
 docker run --rm \
     -v $HOME/$RUN/hcvglue:/hcvglue \
-    -v $(pwd)/viralseq/bin/:/scripts \
+    -v $HOME/viralseq/bin/:/scripts \
     -w /hcvglue \
     docker.io/jonbra/tidyverse_seqinr:2.0 \
     Rscript /scripts/GLUE_json_parser.R
