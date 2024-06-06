@@ -100,8 +100,8 @@ echo "Run HCV-GLUE for genotyping and resistance analysis"
 mkdir $HOME/$RUN/hcvglue
 
 # Pull the latest images
-docker pull cvrbioinformatics/gluetools-mysql:latest
-docker pull cvrbioinformatics/gluetools:latest
+#docker pull cvrbioinformatics/gluetools-mysql:latest
+#docker pull cvrbioinformatics/gluetools:latest
 
 # Remove the container in case it is already running
 docker stop gluetools-mysql
