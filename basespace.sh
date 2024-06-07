@@ -156,7 +156,7 @@ elif [[ $PLATFORM == "nextseq" ]]; then
 
     # Move Run and merged directories to a fastq directory for easier moving to N
     mkdir -p $BASE_DIR/fastq/
-    mv $BASE_DIR/$OUTPUT_DIR $BASE_DIR/fastq/
+    mv $BASE_DIR/$RUN $BASE_DIR/fastq/
 
     echo "Moving files to the N drive"
     smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
