@@ -12,7 +12,7 @@ usage() {
     echo "Options:"
     echo "  -h, --help        Display this help message"
     echo "  -p, --platform    Can be either nextseq or miseq"
-    echo "  -n, --number      Specify the run number (e.g. Run933)"
+    echo "  -r, --run         Specify the run name (e.g. NGS_SEQ-20240606-01)"
     echo "  -a, --agens       Specify agens (only required for HCV and ROV)"
     echo "  -y, --year        Specify the year the sequencing was performed (e.g. 2024)"
     exit 1
