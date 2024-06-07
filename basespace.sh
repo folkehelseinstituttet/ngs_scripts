@@ -167,7 +167,6 @@ elif [[ $PLATFORM == "nextseq" ]]; then
 EOF
 
     ## Clean up
-    rm -rf $BASE_DIR/$RUN
     rm -rf $BASE_DIR/fastq
 
     echo "All done!"
