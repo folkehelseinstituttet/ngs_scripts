@@ -126,9 +126,13 @@ elif [[ $PLATFORM == "nextseq" ]]; then
             # Make directories for each sample
             mkdir -p $BASE_DIR/$OUTPUT_DIR/$sample_name
 
-            # Copy each fastq file
+            # Move each fastq file
             echo "Moving $base to directory $sample_name"
-            cp $fastq $BASE_DIR/$OUTPUT_DIR/$sample_name/$base
+            mv $fastq $BASE_DIR/$OUTPUT_DIR/$sample_name/$base
+
+            # Remove original directories and keep "merged"
+            find "$BASE_DIR/$RUN" -maxdepth 1 -type d ! -name "merged" -exec rm -r {} +
+
     done
 
     # Merge all R1 and R2 files for each sample
