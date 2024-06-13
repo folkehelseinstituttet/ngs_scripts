@@ -30,12 +30,22 @@ mget *
 EOF
 
 # Untar the Gisaid files
+echo "Untaring the Gisaid files. Takes around 30 minutes..."
 cd $TMP_DIR
 tar -xf metadata*.tar.xz
 rm readme.txt
 tar -xf sequences*.tar.xz
 rm readme.txt
 rm *.tar.xz
+
+# Index the Gisaid fasta file
+echo "Indexing the Gisaid fasta file. Takes a few hours..."
+docker run --rm \
+    -v $TMP_DIR/:/home \
+    -v $HOME/ngs_scripts/nextstrain:/scripts \
+    -w /home \
+    docker.io/jonbra/rsamtools:1.0 \
+    Rscript /scripts/index_fasta.R
 
 cd $HOME
 
