@@ -29,3 +29,7 @@ lcd $TMP_DIR
 mget *
 EOF
 
+# Untar the Gisaid files
+tar -xf $TMP_DIR/*.tar.xz
+rm $TMP_DIR/*.tar.xz
+
