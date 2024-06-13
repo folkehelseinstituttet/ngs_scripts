@@ -35,5 +35,7 @@ tar -xf metadata*.tar.xz
 rm readme.txt
 tar -xf sequences*.tar.xz
 rm readme.txt
-rm $TMP_DIR/*.tar.xz
+rm *.tar.xz
+
+cd $HOME
 
