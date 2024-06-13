@@ -7,6 +7,7 @@ Run "refresh BN" R-script
 Step 3:  
 Move files from N to the server.  
 Use script: `get_files_from_N.sh`  
+Untar the Gisaid files
 
 Step 4:
 Parse Gisaid files
