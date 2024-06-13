@@ -30,6 +30,10 @@ mget *
 EOF
 
 # Untar the Gisaid files
-tar -xf $TMP_DIR/*.tar.xz
+cd $TMP_DIR
+tar -xf metadata*.tar.xz
+rm readme.txt
+tar -xf sequences*.tar.xz
+rm readme.txt
 rm $TMP_DIR/*.tar.xz
 
