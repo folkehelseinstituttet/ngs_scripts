@@ -205,10 +205,10 @@ refine:
   root: "best"
 
 files:
-  auspice_config: "my_profiles/omicron/my_auspice_config.json"
-  description: "my_profiles/omicron/my_description.md"
-  colors: "my_profiles/omicron/colors_norwaydivisions.tsv"
-  sites_to_mask: "my_profiles/omicron/sites_ignored_for_tree_topology.txt"
+  auspice_config: "my_profiles/my_auspice_config.json"
+  description: "my_profiles/my_description.md"
+  colors: "my_profiles/colors_norwaydivisions.tsv"
+  sites_to_mask: "my_profiles/sites_ignored_for_tree_topology.txt"
 #  alignment_reference: "my_profiles/omicron/reference_seq.fa"
 #  include: "my_profiles/omicron/include.txt"
 #  emerging_lineages: "my_profiles/omicron/emerging_lineages.tsv"
