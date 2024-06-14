@@ -1,14 +1,16 @@
-pacman::p_load(tidyverse, Rsamtools, lubridate)
+library(tidyverse)
+library(Rsamtools)
+library(lubridate)
 
 # Open the fasta index connection from the script index_fasta.R
 # There needs to be a file with the same filename but ending with .fai in the folder
-fa <- FaFile("/media/jonr/SATA6TB1/Gisaid/sequences.fasta")
+fa <- FaFile("/mnt/tempdata/nextstrain/sequences.fasta")
 
 # Make a GRanges object
 gr <- as(seqinfo(fa), "GRanges")
 
 # Load the metadata from the Entire Gisaid database
-metadata_Gisaid <- read_tsv("/media/jonr/SATA6TB1/Gisaid/metadata.tsv")
+metadata_Gisaid <- read_tsv("/mnt/tempdata/nextstrain/metadata.tsv")
 
 
 # Read lineage descriptions from GitHub
@@ -56,10 +58,10 @@ gc()
 new_gr <- getSeq(fa, gr[which(gsub("\\|.*", "", names(gr)) %in% metadata_filtered$`Virus name`)], as="AAStringSet")
 
 # Write files
-outfile <- paste0("/home/jonr/Prosjekter/Nextstrain_mamba/ncov/data/SC2_weekly/", "Gisaid.fasta")
+outfile <- paste0("/home/ngs/ncov/data/SC2_weekly/", "Gisaid.fasta")
 # Write the fasta file
 writeXStringSet(new_gr, outfile, format = "fasta")
 # Write metadata
-write_tsv(metadata_filtered, paste0("/home/jonr/Prosjekter/Nextstrain_mamba/ncov/data/SC2_weekly/", "Gisaid.metadata.tsv"))
+write_tsv(metadata_filtered, paste0("/home/ngs/ncov/data/SC2_weekly/", "Gisaid.metadata.tsv"))
 
 # Now, go to the script "get_data_from_BN.R" without removing any objects or variables from the environment
