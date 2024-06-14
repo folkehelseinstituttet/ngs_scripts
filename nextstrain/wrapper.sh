@@ -64,8 +64,8 @@ docker run --rm \
     -v $TMP_DIR/:$TMP_DIR \
     -v /mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/:/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/ \
     -v $HOME/ngs_scripts/nextstrain:/scripts \
-    -v $HOME/ncov/data/SC2_weekly/:/home \
-    -w /home \
+    -v $HOME/ncov/data/SC2_weekly/:$HOME/ncov/data/SC2_weekly/ \
+    -w $HOME/ncov/data/SC2_weekly/ \
     docker.io/jonbra/rsamtools:2.0 \
     Rscript /scripts/get_data_from_BN.R
 
