@@ -41,9 +41,9 @@ rm *.tar.xz
 # Index the Gisaid fasta file
 echo "Indexing the Gisaid fasta file. Takes a few hours..."
 docker run --rm \
-    -v $TMP_DIR/:/home \
+    -v $TMP_DIR/:$TMP_DIR \
     -v $HOME/ngs_scripts/nextstrain:/scripts \
-    -w /home \
+    -w $TMP_DIR \
     docker.io/jonbra/rsamtools:1.0 \
     Rscript /scripts/index_fasta.R
 
