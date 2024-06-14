@@ -69,3 +69,5 @@ docker run --rm \
     docker.io/jonbra/rsamtools:2.0 \
     Rscript /scripts/get_data_from_BN.R
 
+cp $HOME/ngs_scripts/nextstrain/builds.yaml $HOME/ncov/my_profiles
+
