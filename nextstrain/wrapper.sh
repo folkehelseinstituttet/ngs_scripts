@@ -71,3 +71,9 @@ docker run --rm \
 
 cp $HOME/ngs_scripts/nextstrain/builds.yaml $HOME/ncov/my_profiles
 
+conda activate nextstrain
+
+cd $HOME/ncov 
+
+nextstrain build . --configfile my_profiles//builds.yaml --cores 14 --forceall
+
