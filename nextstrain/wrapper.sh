@@ -56,7 +56,7 @@ docker run --rm \
     -v $HOME/ncov/data/SC2_weekly/:/home \
     -w /home \
     docker.io/jonbra/rsamtools:2.0 \
-    Rscript /scripts/parse_Gisaid_fastq_and_metadata.R
+    Rscript /scripts/parse_Gisaid_fasta_and_metadata.R
 
 # Parse BN files and prepare Nextstrain inputs
 echo "Preparing Nextstrain input files from BN..."
