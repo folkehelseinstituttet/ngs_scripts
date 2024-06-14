@@ -53,8 +53,8 @@ echo "Preparing Nextstrain input files from Gisaid..."
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR \
     -v $HOME/ngs_scripts/nextstrain:/scripts \
-    -v $HOME/ncov/data/SC2_weekly/:/home \
-    -w /home \
+    -v $HOME/ncov/data/SC2_weekly/:$HOME/ncov/data/SC2_weekly/ \
+    -w $HOME/ncov/data/SC2_weekly/ \
     docker.io/jonbra/rsamtools:2.0 \
     Rscript /scripts/parse_Gisaid_fasta_and_metadata.R
 
