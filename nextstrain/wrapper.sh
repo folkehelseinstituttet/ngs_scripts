@@ -58,3 +58,14 @@ docker run --rm \
     docker.io/jonbra/rsamtools:2.0 \
     Rscript /scripts/parse_Gisaid_fastq_and_metadata.R
 
+# Parse BN files and prepare Nextstrain inputs
+echo "Preparing Nextstrain input files from BN..."
+docker run --rm \
+    -v $TMP_DIR/:$TMP_DIR \
+    -v /mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/:/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/ \
+    -v $HOME/ngs_scripts/nextstrain:/scripts \
+    -v $HOME/ncov/data/SC2_weekly/:/home \
+    -w /home \
+    docker.io/jonbra/rsamtools:2.0 \
+    Rscript /scripts/get_data_from_BN.R
+
