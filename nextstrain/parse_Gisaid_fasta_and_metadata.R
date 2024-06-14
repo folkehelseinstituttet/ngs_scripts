@@ -64,6 +64,6 @@ outfile <- paste0("/home/ngs/ncov/data/SC2_weekly/", "Gisaid.fasta")
 # Write the fasta file
 writeXStringSet(new_gr, outfile, format = "fasta")
 # Write metadata
-write_tsv(metadata_filtered, paste0("/home/ngs/ncov/data/SC2_weekly/", "Gisaid.metadata.tsv"))
+write_tsv(metadata_filtered, paste0("Gisaid.metadata.tsv"))
 
 # Now, go to the script "get_data_from_BN.R" without removing any objects or variables from the environment
