@@ -1,3 +1,5 @@
+How to get the latest Pango queries and update the builds file?
+
 Step 1:  
 Download Gisaid fasta and metadata files to N/Virologi/NGS/tmp  
 
