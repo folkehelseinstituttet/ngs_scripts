@@ -37,6 +37,7 @@ rm readme.txt
 tar -xf sequences*.tar.xz
 rm readme.txt
 rm *.tar.xz
+cd $HOME
 
 # Index the Gisaid fasta file
 echo "Indexing the Gisaid fasta file. Takes a few hours..."
@@ -44,8 +45,16 @@ docker run --rm \
     -v $TMP_DIR/:$TMP_DIR \
     -v $HOME/ngs_scripts/nextstrain:/scripts \
     -w $TMP_DIR \
-    docker.io/jonbra/rsamtools:1.0 \
+    docker.io/jonbra/rsamtools:2.0 \
     Rscript /scripts/index_fasta.R
 
-cd $HOME
+# Parse the Gisaid files and prepare Nextstrain inputs
+echo "Preparing Nextstrain input files from Gisaid..."
+docker run --rm \
+    -v $TMP_DIR/:$TMP_DIR \
+    -v $HOME/ngs_scripts/nextstrain:/scripts \
+    -v $HOME/ncov/data/SC2_weekly/:/home \
+    -w /home \
+    docker.io/jonbra/rsamtools:2.0 \
+    Rscript /scripts/parse_Gisaid_fastq_and_metadata.R
 
