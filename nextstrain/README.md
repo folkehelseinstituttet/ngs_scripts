@@ -6,7 +6,7 @@ TODO:
 - [ ] Automate the cleaning of `N/Virologi/NGS/tmp`. See Step 2.
 
 # Step 1: Refresh the list of Pango queries  
-First run interactively on the FHI laptop the script [create_pango_queries_for_builds_file.R](create_pango_queries_for_builds_file.R).  Copy and paste the list of pangos into the [builds.yaml](builds.yaml) file [here](https://github.com/folkehelseinstituttet/ngs_scripts/blob/main/nextstrain/builds.yaml#L42).  
+First run interactively on the FHI laptop the script [create_pango_queries_for_builds_file.R](create_pango_queries_for_builds_file.R).  Copy and paste the list of pangos into the [builds.yaml](builds.yaml) file [here](https://github.com/folkehelseinstituttet/ngs_scripts/blob/main/nextstrain/builds.yaml#L42). Do it in the web browser and commit the file.  
 
 This should probably be automated. See [here](https://discussion.nextstrain.org/t/methods-to-automate-the-list-of-pangos-for-augur-filter/1665).
 
@@ -21,11 +21,10 @@ Move files from N to the server.
 Use script: `get_files_from_N.sh`  
 Untar the Gisaid files
 
-Step 4:
-Parse Gisaid files
+# Step 5: Make the Nextstrain build
+Log on to the `ngs-worker-1` VM.  
+Swith to the `ngs` user with `sudo -u ngs /bin/bash`  
+Run the wrapper script with `bash /home/ngs/ngs_scripts/nexstrain/wrapper.sh`  
 
-Step 5:
-Parse BN files
+# Step 6: Upload the build
 
-Step 6:
-Run Nextstrain
