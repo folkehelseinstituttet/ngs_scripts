@@ -14,7 +14,7 @@ BASE_DIR=/mnt/tempdata/
 TMP_DIR=/mnt/tempdata/nextstrain
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
-SMB_INPUT=Virologi/NGS/tmp/
+SMB_DIR=Virologi/NGS/tmp/
 
 ## Move input files from N
 
@@ -22,7 +22,7 @@ SMB_INPUT=Virologi/NGS/tmp/
 mkdir $TMP_DIR
 
 echo "Getting files from the N drive"
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_INPUT <<EOF
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
 recurse ON
 lcd $TMP_DIR
@@ -80,6 +80,16 @@ conda activate nextstrain
 
 cd $HOME/ncov 
 
-echo "Making the Nextstrain build..."
+echo "Making the Nextstrain build. Should not take too long. Max 1 hour..."
 nextstrain build . --configfile my_profiles//builds.yaml --cores 14 --forceall
+
+echo "Build finished. Copying auspice files to N for inspection."
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+prompt OFF
+recurse ON
+lcd $HOME/ncov/auspice
+mput *
+EOF
+
+
 
