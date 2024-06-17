@@ -27,5 +27,9 @@ Log on to the `ngs-worker-1` VM.
 Swith to the `ngs` user with `sudo -u ngs /bin/bash`  
 Run the wrapper script with `bash /home/ngs/ngs_scripts/nexstrain/wrapper.sh`  
 
-# Step 6: Upload the build
-
+# Step 6: Upload the build  
+You need to have a Nextstrain account and to remember your credentials. And make sure there are no old build files in `/home/ngs/ncov/auspice/`.  
+```bash
+nextstrain login
+nextstrain remote upload nextstrain.org/groups/niph /home/ngs/ncov/auspice/*.json
+```
