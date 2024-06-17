@@ -40,7 +40,7 @@ rm *.tar.xz
 cd $HOME
 
 # Index the Gisaid fasta file
-echo "Indexing the Gisaid fasta file. Takes a few hours..."
+echo "Indexing the Gisaid fasta file. Takes an hour or so..."
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR \
     -v $HOME/ngs_scripts/nextstrain:/scripts \
@@ -49,7 +49,7 @@ docker run --rm \
     Rscript /scripts/index_fasta.R
 
 # Parse the Gisaid files and prepare Nextstrain inputs
-echo "Preparing Nextstrain input files from Gisaid..."
+echo "Preparing Nextstrain input files from Gisaid. Takes around 30 minutes..."
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR \
     -v $HOME/ngs_scripts/nextstrain:/scripts \
@@ -59,7 +59,7 @@ docker run --rm \
     Rscript /scripts/parse_Gisaid_fasta_and_metadata.R
 
 # Parse BN files and prepare Nextstrain inputs
-echo "Preparing Nextstrain input files from BN..."
+echo "Preparing Nextstrain input files from BN. Takes around 30 minutes..."
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR \
     -v /mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/:/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/ \
@@ -79,5 +79,6 @@ conda activate nextstrain
 
 cd $HOME/ncov 
 
+echo "Making the Nextstrain build..."
 nextstrain build . --configfile my_profiles//builds.yaml --cores 14 --forceall
 
