@@ -74,6 +74,7 @@ cp $HOME/ngs_scripts/nextstrain/builds.yaml $HOME/ncov/my_profiles
 cp $HOME/ngs_scripts/nextstrain/colors_norwaydivisions.tsv $HOME/ncov/my_profiles
 cp $HOME/ngs_scripts/nextstrain/my_description.md $HOME/ncov/my_profiles
 cp $HOME/ngs_scripts/nextstrain/my_auspice_config.json $HOME/ncov/my_profiles
+cp $HOME/ngs_scripts/nextstrain/sites_ignored_for_tree_topology.txt $HOME/ncov/my_profiles 
 
 conda activate nextstrain
 
