@@ -69,15 +69,15 @@ echo "Getting the Run ID on the BaseSpace server"
 id=$(/home/ngs/bin/bs list projects | grep "${RUN}" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
 
 echo "Downloading fastq files"
+# Download to a sub-directory for easier copying to N: later
+mkdir -p $BASE_DIR/fastq
+
 # Then download the fastq files
-/home/ngs/bin/bs download project -i ${id} --extension=fastq.gz -o $BASE_DIR/${RUN}
+/home/ngs/bin/bs download project -i ${id} --extension=fastq.gz -o $BASE_DIR/fastq/$RUN
 
 # Execute commands based on the platform specified
 if [[ $PLATFORM == "miseq" ]]; then
     echo "Running commands for MiSeq platform..."
-    # Move run directiry to a sub-directory for easier copying to N: later
-    mkdir -p $BASE_DIR/fastq
-    mv $BASE_DIR/${RUN} $BASE_DIR/fastq/
     
     # Clean up the folder names
     RUN_DIR="$BASE_DIR/fastq/${RUN}"
@@ -110,13 +110,13 @@ EOF
 elif [[ $PLATFORM == "nextseq" ]]; then
     echo "Running commands for NextSeq platform..."
     # Define output directory
-    OUTPUT_DIR=$RUN/merged
+    OUTPUT_DIR=final/$RUN/merged
 
     # Create the output directory if it doesn't exist
     mkdir -p $BASE_DIR/$OUTPUT_DIR
 
     # Loop through each sample directory, create new subdirectories for each sample and copy the fastq files to the corresponding directory
-    for fastq in "$BASE_DIR/$RUN"/*/*.fastq.gz; do
+    for fastq in "$BASE_DIR/fastq/$RUN"/*/*.fastq.gz; do
             # Extract the basename
             base=$(basename $fastq)
         
@@ -130,9 +130,6 @@ elif [[ $PLATFORM == "nextseq" ]]; then
             echo "Moving $base to directory $sample_name"
             mv $fastq $BASE_DIR/$OUTPUT_DIR/$sample_name/$base
     done
-
-    # Remove original directories and keep "merged"
-    find "$BASE_DIR/$RUN" -maxdepth 1 -type d ! -name "merged" -exec rm -r {} +
 
     # Merge all R1 and R2 files for each sample
     # Loop through each directory in the "merged" directory
@@ -157,20 +154,17 @@ elif [[ $PLATFORM == "nextseq" ]]; then
 
     echo "All files merged successfully."
 
-    # Move Run and merged directories to a fastq directory for easier moving to N
-    mkdir -p $BASE_DIR/fastq/
-    mv $BASE_DIR/$RUN $BASE_DIR/fastq/
-
     echo "Moving files to the N drive"
     smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
     prompt OFF
     recurse ON
-    lcd $BASE_DIR/fastq
+    lcd $BASE_DIR/final/
     mput *
 EOF
 
     ## Clean up
     rm -rf $BASE_DIR/fastq
+    rm -rf $BASE_DIR/final
 
     echo "All done!"
 else
