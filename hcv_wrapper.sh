@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Activate conda
+source ~/miniconda3/etc/profile.d/conda.sh
+
 # TODO
 #- Add if statement if the docker exec command for glue fails. Sometimes it throws an error
 
