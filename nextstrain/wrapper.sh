@@ -11,12 +11,21 @@ SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=Virologi/NGS/tmp/
 
 # Check if the ngs_scripts directory exists, if not clone it from GitHub
-cd $BASE_DIR
+cd $HOME
 if [ -d "ngs_scripts" ]; then
   # Make sure to pull the latest version
   git -C ngs_scripts/ pull origin main
 else
   git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
+fi
+
+# Check if the ncov repo exists, if not clone it from GitHub
+cd $BASE_DIR
+if [ -d "ncov" ]; then
+  # Make sure to pull the latest version
+  git -C ncov/ pull origin master
+else
+  git clone https://github.com/nextstrain/ncov.git
 fi
 
 ## Move input files from N
