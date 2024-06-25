@@ -103,5 +103,8 @@ lcd $BASE_DIR/ncov/auspice
 mput *
 EOF
 
+# Clean up
+rm -rf $TMP_DIR
+rm $BASE_DIR/ncov/data/SC2_weekly/*
 
 
