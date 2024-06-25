@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Activate conda
+source ~/miniconda3/etc/profile.d/conda.sh
+
 # Check if the ngs_scripts directory exists, if not clone it from GitHub
 cd $HOME
 if [ -d "ngs_scripts" ]; then
