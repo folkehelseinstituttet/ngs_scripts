@@ -60,7 +60,7 @@ gc()
 new_gr <- getSeq(fa, gr[which(gsub("\\|.*", "", names(gr)) %in% metadata_filtered$`Virus name`)], as="AAStringSet")
 
 # Write files
-outfile <- paste0("/home/ngs/ncov/data/SC2_weekly/", "Gisaid.fasta")
+outfile <- paste0("Gisaid.fasta")
 # Write the fasta file
 writeXStringSet(new_gr, outfile, format = "fasta")
 # Write metadata
