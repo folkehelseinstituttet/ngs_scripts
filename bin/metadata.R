@@ -336,7 +336,7 @@ metadata_raw <- metadata_raw %>%
 
 # Create metadatafile for submission
 metadata_submit <- metadata_raw %>%
-  select(-KEY, -SEARCH_COLUMN, -SETUP)	
+  select(-KEY, -SEARCH_COLUMN, -SETUP, -code)	
 
 # Write final objects
 if (nrow(metadata_raw) > 0){
