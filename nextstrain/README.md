@@ -17,16 +17,14 @@ Download Gisaid fasta and metadata files and move to `N:\Virologi\NGS\tmp`. Reme
 # Step 3: Get data from BN    
 On a FHI laptop, run the R-script `N:\Virologi\JonBrate\Prosjekter\refresh_data_from_BN.R`. This should put a file called `BN.RData` in `N:\Virologi\NGS\tmp`.
 
-# Step 4: Move files from N to the server.    
-Use script: `get_files_from_N.sh`  
-Untar the Gisaid files
-
-# Step 5: Make the Nextstrain build
+# Step 4: Make the Nextstrain build
 Log on to the `ngs-worker-1` VM.  
 Swith to the `ngs` user with `sudo -u ngs /bin/bash`  
 Run the wrapper script with `nohup /home/ngs/ngs_scripts/nexstrain/wrapper.sh &`  
+It will run in the background and you can log out. It takes ca. 2 hours to complete. 
 
-# Step 6: Upload the build  
+# Step 5: Upload the build to Nextstrain.org  
+Log on to the VM. Without switching to the ngs user, copy the three `.json` files in `/mnt/tempdata/ncov/auspice/` to N with `sudo cp /mnt/tempdata/ncov/auspice/*.json /mnt/N/Virologi/NGS/tmp/`.  
 You need to have a Nextstrain account and to remember your credentials. And make sure there are no old build files in `/home/ngs/ncov/auspice/`.  
 ```bash
 nextstrain login
