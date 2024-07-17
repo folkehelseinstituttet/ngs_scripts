@@ -17,8 +17,7 @@ Download Gisaid fasta and metadata files and move to `N:\Virologi\NGS\tmp`. Reme
 # Step 3: Get data from BN    
 On a FHI laptop, run the R-script `N:\Virologi\JonBrate\Prosjekter\refresh_data_from_BN.R`. This should put a file called `BN.RData` in `N:\Virologi\NGS\tmp`.
 
-# Step 4:  
-Move files from N to the server.  
+# Step 4: Move files from N to the server.    
 Use script: `get_files_from_N.sh`  
 Untar the Gisaid files
 
