@@ -14,6 +14,7 @@ process METADATA {
 
     output:
     tuple path("*raw.csv"), path("*raw.RData"), emit: metadata_raw
+    path "*submit.csv"
     path "*.{log,sh,txt}"
 
     script:
