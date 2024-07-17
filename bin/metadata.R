@@ -334,10 +334,15 @@ metadata_raw <- metadata_raw %>%
   distinct(covv_virus_name, .keep_all = TRUE) %>%
   filter(!is.na(code))
 
+# Create metadatafile for submission
+metadata_submit <- metadata_raw %>%
+  select(-KEY, -SEARCH_COLUMN, -SETUP)	
+
 # Write final objects
 if (nrow(metadata_raw) > 0){
   save(metadata_raw, file = "metadata_raw.RData")
   write_csv(metadata_raw, file = paste0(Sys.Date(), "_metadata_raw.csv"))
+  write_csv(metadata_submit, file = paste0(Sys.Date(), "_metadata_submit.csv"))
 } else {
   print("Nothing to save. Check the log file")
 }
