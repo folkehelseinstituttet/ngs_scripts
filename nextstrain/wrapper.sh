@@ -93,7 +93,7 @@ conda activate nextstrain
 cd $BASE_DIR/ncov 
 
 echo "Making the Nextstrain build. Should not take too long. Max 1 hour..."
-nextstrain build . --configfile my_profiles//builds.yaml --cores 14 --forceall
+nextstrain build . --configfile my_profiles/builds.yaml --cores 14 --forceall
 
 echo "Build finished. Copying auspice files to N for inspection."
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
