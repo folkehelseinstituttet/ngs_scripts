@@ -16,7 +16,8 @@ This should probably be automated. See [here](https://discussion.nextstrain.org/
 Download Gisaid fasta and metadata files and move to `N:\Virologi\NGS\tmp`. Remember to delete files from this folder after the build is finished. Should probably be automated. Can perhaps be done with `smbclient` from the server side after the files are moved. 
 
 # Step 3: Get data from BN    
-On a FHI laptop, run the R-script `N:\Virologi\JonBrate\Prosjekter\refresh_data_from_BN.R`. This should put a file called `BN.RData` in `N:\Virologi\NGS\tmp`.
+On a FHI laptop, run the R-script `N:\Virologi\JonBrate\Prosjekter\refresh_data_from_BN.R`. This should put a file called `BN.RData` in `N:\Virologi\NGS\tmp`.  
+Command: `source("N:/Virologi/JonBrate/Prosjekter/refresh_data_from_BN.R")`
 
 # Step 4: Make the Nextstrain build
 Log on to the `ngs-worker-1` VM.  
