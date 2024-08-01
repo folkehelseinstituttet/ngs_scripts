@@ -1,85 +1,25 @@
 # FHI_Gisaid
 
-Pipeline to prepare and create files for submitting SARS-CoV-2 consensus sequences to GISAID. The pipeline only requires Nextflow and Docker installed in order to run. However, there are several features of the various scripts that will only work on the internal datastructures of NIPH. 
+Pipeline to prepare and create files for submitting SARS-CoV-2 consensus sequences to GISAID. The pipeline only requires Nextflow and Docker installed in order to run. However, there are several features of the various scripts that will only work on the internal datastructures of NIPH.   
 
-## First time use
+## Prepare input files  
+- Get the latest data from the BioNumerics Covid19 server. **On a NIPH windows PC**, execute the R script `N:\Virologi\JonBrate\Prosjekter\refresh_data_from_BN.R`.  
+- Get the latest approved samples from LabWare. In "sikker sone", execute the R script `lese_LW_uttrekk.R`. The result file needs to be moved to `N:NGS_FHI_statistikk`.  
 
-You need to have Ubuntu installed using WSL2 on your windows laptop. In Ubuntu, make sure you have `Git`, `Nextflow` and `Docker` installed and running on your computer. 
-
-Install Nextflow:
+## Prepare the submission  
+Log on to the VM `ngs-worker-1` and switch to the local user `sudo -u ngs /bin/bash`.  
+Fetch the latest updates with `git -C ~/ngs_scripts pull origin main`.  
+Enter the gisaid directory `cd ~/ngs_scripts/gisad`.  
+Run the Nextflow pipeline `nextflow run main.nf -profile local --submitter USERNAME --LW /mnt/N/NGS_FHI_statistikk/latest_file.tsv --min_date "2023-01-01"`.
+  
+## Upload to Gisaid
+Upload to GISAID using version 4 of the cli:
 ```
-# Java
-
-# Nextflow
-```
-
-Install Docker:
-```
-```
-
-Install Git:
-```
-```
-
-Then clone this repo (run `git pull` frequently to have the latest updates):
-```
-git clone git@github.com:jonbra/FHI_Gisaid.git
-```
-
-Set up a directory to mount the N-drive:
-```
-mkdir -p /mnt/N
-```
-
-## Weekly updates
-First retrieve the latest updates from the BioNumerics Covid19 server. **This has to be done using the Windows installation of R, not in Ubuntu**. Open a Power Shell terminal and type (replace the R-version number with your current version):
-```
-H:\>"C:\Program Files\R\R-4.0.4\bin\Rscript.exe" N:\Virologi\JonBrate\Prosjekter\refresh_data_from_BN.R
-```
-
-Then, in Ubuntu go to the cloned `FHI_Gisaid` directory.
-
-Make sure the N-drive is mounted to `/mnt/N`:
-```
-sudo mount -t drvfs N: /mnt/N 
-```
-
-Run the pipeline:
-```
-nextflow run main.nf -profile local --submitter jonbra --LW path/to/LW-uttrekk --min_date "2023-01-01"
-```
-
-Upload to GISAID using gisaid_cl3:   
-```
-source /home/jonr/Downloads/gisaid_cli3/cli3venv/bin/activate
-
-cli3 upload --metadata Gisaid_files/2023-05-03.csv --fasta Gisaid_files/2023-05-03.fasta --frameshift catch_none --failed Gisaid_files/2023-05-03_failed_samples.out --log Gisaid_files/2023-05-03_submission.log --token /home/jonr/Downloads/gisaid_cli3/gisaid.authtoken
-```
-
-```
-deactivate
-```
-Using version 4 of the cli:
-```
-covCLI upload --username jonbra --password PASSWORD --clientid cid-3a1ebf9db899m --log Gisaid_files/2024-01-09_submission.log --metadata Gisaid_files/2024-01-09_metadata_raw_submit.csv --fasta Gisaid_files/2024-01-09_raw.fasta --frameshifts catch_novel --dateformat YYYYMMDD
+covCLI upload --username USERNAME --password PASSWORD --clientid CLIENTID --log Gisaid_files/2024-01-09_submission.log --metadata Gisaid_files/2024-01-09_metadata_raw_submit.csv --fasta Gisaid_files/2024-01-09_raw.fasta --frameshifts catch_novel --dateformat YYYYMMDD
 ```
 
 Create BioNumerics import file:
 ```
 Rscript bin/create_BN_import.R Gisaid_files/2023-05-03_submission.log Gisaid_files/2023-05-03_frameshift_results.csv
 ```
-
-
-
-
-On the Ubuntu partition/WSL2 on the windows laptopts:
-If R is not installed (you need the R-packages pdbc and tidyverse installed):
-```
-sudo apt-get update
-sudo apt install r-base-core
-```
-
-Dependencies for odbc:
-unixodbc-dev
-
 
