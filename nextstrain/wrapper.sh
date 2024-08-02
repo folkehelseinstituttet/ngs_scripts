@@ -6,6 +6,7 @@ source ~/miniconda3/etc/profile.d/conda.sh
 ## Set up environment
 BASE_DIR=/mnt/tempdata/
 TMP_DIR=/mnt/tempdata/nextstrain
+OUT_DIR=/mnt/tempdata/out
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=Virologi/NGS/tmp/
@@ -96,12 +97,24 @@ echo "Making the Nextstrain build. Should not take too long. Max 1 hour..."
 nextstrain build . --configfile my_profiles/builds.yaml --cores 14 --forceall
 
 echo "Build finished. Copying auspice files to N for inspection."
-# Copy the nohup output file to the auspice folder for easier copying to N
-cp $HOME/nohup.out $BASE_DIR/ncov/auspice
+# Copy the nohup output file to the OUT_DIR folder for easier copying to N
+cp $HOME/nohup.out $OUT_DIR
+
+# Copy and rename the builds files
+cp $BASE_DIR/ncov/auspice/*.json $OUT_DIR
+
+# Get the date
+DATE=$(date +%Y-%m-%d)
+
+# Rename builds
+mv $OUT_DIR/ncov_omicron-ba-2-86.json $OUT_DIR/ncov_omicron-ba-2-86_${DATE}.json
+mv $OUT_DIR/ncov_omicron-ba-2-86_root-sequence.json $OUT_DIR/ncov_omicron-ba-2-86_${DATE}_root-sequence.json
+mv $OUT_DIR/ncov_omicron-ba-2-86_tip-frequencies.json $OUT_DIR/ncov_omicron-ba-2-86_${DATE}_tip-frequencies.json
+
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
 recurse ON
-lcd $BASE_DIR/ncov/auspice
+lcd $OUT_DIR
 mput *
 EOF
 
