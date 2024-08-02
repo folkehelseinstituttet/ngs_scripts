@@ -1,5 +1,5 @@
 TODO:
-- [ ] Update (colors_norwaydivisions.tsv)[colors_norwaydivisions.tsv] with new counties.
+- [X] Update (colors_norwaydivisions.tsv)[colors_norwaydivisions.tsv] with new counties.
 - [ ] Fix the naming scheme of the Nextstrain build files
 - [ ] Consider changing the reference sequence for alignment. Currently original wuhan is used [https://github.com/nextstrain/ncov/blob/master/defaults/reference_seq.fasta](https://github.com/nextstrain/ncov/blob/master/defaults/reference_seq.fasta). Can be specified in the [builds.yaml](builds.yaml) for example.
 - [ ] Consider updating/changing the alignment masking. See [sites_ignored_for_tree_topology.txt](sites_ignored_for_tree_topology.txt)
