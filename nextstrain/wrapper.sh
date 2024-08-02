@@ -96,6 +96,8 @@ echo "Making the Nextstrain build. Should not take too long. Max 1 hour..."
 nextstrain build . --configfile my_profiles/builds.yaml --cores 14 --forceall
 
 echo "Build finished. Copying auspice files to N for inspection."
+# Copy the nohup output file to the auspice folder for easier copying to N
+cp $HOME/nohup.out $BASE_DIR/ncov/auspice
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
 recurse ON
