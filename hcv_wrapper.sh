@@ -48,7 +48,9 @@ TMP_DIR=/mnt/tempdata/fastq
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run/$RUN
-SMB_OUTPUT=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/$AGENS/$YEAR/
+# For testing
+SMB_OUTPUT=Virologi/NGS/tmp/
+#SMB_OUTPUT=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/$AGENS/$YEAR/
 
 # Switch to local user
 #sudo -u ngs /bin/bash
