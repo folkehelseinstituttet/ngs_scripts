@@ -64,13 +64,14 @@ SMB_OUTPUT=Virologi/NGS/tmp/
 # Switch to local user
 #sudo -u ngs /bin/bash
 
+# DEPRECATED CODE. NOW PULLS DIRECTLY FROM GITHUB
 # Check if the viralseq directory exists, if not clone it from GitHub
-if [ -d "viralseq" ]; then
+#if [ -d "viralseq" ]; then
   # Make sure to pull the latest version
-  git -C viralseq/ pull origin master
-else
-  git clone https://github.com/jonbra/viralseq.git
-fi
+#  git -C viralseq/ pull origin master
+#else
+#  git clone https://github.com/jonbra/viralseq.git
+#fi
 
 # Create directory to hold the output of the analysis
 mkdir -p $HOME/$RUN
@@ -103,7 +104,7 @@ conda activate NEXTFLOW
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run $HOME/viralseq/main.nf -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower -bg
+nextflow run jonbra/viralseq/main.nf -r master -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower -bg
 
 ## Then run HCV GLUE on the bam files
 # First make a directory for the GLUE files
