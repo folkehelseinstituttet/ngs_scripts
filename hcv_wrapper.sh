@@ -27,7 +27,7 @@ RUN=""
 AGENS=""
 YEAR=""
 
-while getopts "hr:a:" opt; do
+while getopts "hr:a:y:" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
