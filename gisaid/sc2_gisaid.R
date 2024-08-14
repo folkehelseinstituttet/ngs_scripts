@@ -1,5 +1,5 @@
 # For testing. Should take input argument
-min_date <- "2024-04-01"
+min_date <- "2024-01-01"
 submitter <- "jonbra"
 
 Sys.setlocale("LC_CTYPE", "nb_NO.UTF-8")  # For Norwegian Bokmål
@@ -10,6 +10,7 @@ library(tidyverse)
 library(stringr)
 library(lubridate)
 library(base64enc)
+library(seqinr)
 
 # Connect to BN
 con <- dbConnect(odbc(),
@@ -390,7 +391,14 @@ decompressed_seq <- seq %>%
   select(KEY, EXPERIMENT, Sequence) %>%
   rename(Sequence = "Sequence")
 
+# Join with metadata_raw to get the virus name. This needs to be in the fasta header to match the metadata file
+decompressed_seq <- left_join(decompressed_seq, metadata_raw, by = c("KEY")) %>% 
+  # Keep relevant columns
+  select(covv_virus_name, Sequence)
 
+# Convert to list to write as fasta using seqinr
+# Need to name the elements with the covv_sequence_name
+fasta_list <- setNames(as.list(decompressed_seq$Sequence), decompressed_seq$covv_virus_name)
 
 # Define the output file path and filename
 output_path <- "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/4-GISAIDsubmisjon/"
@@ -403,33 +411,20 @@ if (!dir.exists(paste0(output_path, output_dir))) {
   print("Directiry already exists")
 }
 
-### HIT ###
-
-output_filename_csv <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".xlsx")
-output_path_csv <- file.path(output_dir, output_filename_csv)
+output_filename_csv <- paste0(Sys.Date(), "_metadata.csv")
+output_path_csv <- file.path(output_path, output_dir, output_filename_csv)
 
 
-# Write the submission dataframe to an Excel file
-write.xlsx(tmp, output_path_csv, rownames = FALSE)
+# Write the submission dataframe to a csv file
+write_csv(metadata_submit, output_path_csv)
 
 
 # Create the output filename for the FASTA file
-output_filename_fasta <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".fasta")
-output_path_fasta <- file.path(output_dir, output_filename_fasta)
+output_filename_fasta <- paste0(Sys.Date(), "_sequences.fasta")
+output_path_fasta <- file.path(output_path, output_dir, output_filename_fasta)
 
-# Create the FASTA file
-file_con <- file(output_path_fasta, open = "w") # open the file in write mode
+# Write fasta file
+write.fasta(fasta_list, names =names(fasta_list), file.out = output_path_fasta)
 
-# Loop through each row in filtered_seq to create the FASTA entries and write to file
-for (i in 1:nrow(filtered_seq)) {
-  header <- paste(filtered_seq$EXPERIMENT[i], filtered_seq$KEY[i], sep = "|")
-  sequence <- filtered_seq$Sequence[i]
-  
-  # Write the header and sequence to file
-  cat(">", header, "\n", sequence, "\n", file = file_con, sep = "")
-}
-
-# Close the file connection
-close(file_con)
 
 
