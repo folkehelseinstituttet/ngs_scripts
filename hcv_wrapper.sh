@@ -4,7 +4,6 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 
 # TODO
-#- Add command to delete old volumes of glue-tools containers
 
 # Maintained by: Jon Bråte (jon.brate@fhi.no)
 # Version: dev
