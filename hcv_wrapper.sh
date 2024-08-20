@@ -4,7 +4,7 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 
 # TODO
-#- Add if statement if the docker exec command for glue fails. Sometimes it throws an error
+#- Add command to delete old volumes of glue-tools containers
 
 # Maintained by: Jon Bråte (jon.brate@fhi.no)
 # Version: dev
