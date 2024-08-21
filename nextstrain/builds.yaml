@@ -68,7 +68,7 @@ builds:
 
 subsampling:
 
-  omicron_ba_2_86-scheme:
+  omicron-ba-2-86-scheme:
     country:
       min_date: "--min-date 2023-08-01"
       query: --query "(country == '{country}') & (pango_lineage in {pango_lineage})"
