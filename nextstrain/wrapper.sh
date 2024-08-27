@@ -88,6 +88,7 @@ docker run --rm \
     
 # Copy nextstrain build files into the ncov directory
 cp $HOME/ngs_scripts/nextstrain/builds.yaml $BASE_DIR/ncov/my_profiles
+cp $HOME/ngs_scripts/nextstrain/pango_list.txt $BASE_DIR/ncov/my_profiles
 cp $HOME/ngs_scripts/nextstrain/colors_norwaydivisions.tsv $BASE_DIR/ncov/my_profiles
 cp $HOME/ngs_scripts/nextstrain/my_description.md $BASE_DIR/ncov/my_profiles
 cp $HOME/ngs_scripts/nextstrain/my_auspice_config.json $BASE_DIR/ncov/my_profiles
