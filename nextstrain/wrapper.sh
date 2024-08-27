@@ -23,8 +23,12 @@ fi
 # Check if the ncov repo exists, if not clone it from GitHub
 cd $BASE_DIR
 if [ -d "ncov" ]; then
+  cd ncov
   # Make sure to pull the latest version
-  git -C ncov/ pull origin master
+  git pull origin master
+  git stash
+  git pull origin master
+  git stash pop
 else
   git clone https://github.com/nextstrain/ncov.git
 fi
