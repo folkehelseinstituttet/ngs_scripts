@@ -40,11 +40,13 @@ After files are created delete the `ngs_scripts` folder in `N:\Virologi\NGS\tmp`
 
 ### Upload to Gisaid (Linux)  
 Upload to GISAID using version 4 of the cli.
+
 Either run this command with the generated metadata-file and fasta-file on a Linux-system:
 ```
 covCLI upload --username USERNAME --password PASSWORD --clientid CLIENTID --log YYYY-MM-DD_submission.log --metadata YYYY-MM-DD_metadata.csv --fasta YYYY-MM-DD_sequences.fasta --frameshifts catch_novel --dateformat YYYYMMDD
 ```
 Or use our Linux-server system as follows:
+
 Prepare a "credentials.txt" file with this content and format:
 ```
 password=your_password
