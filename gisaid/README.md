@@ -82,7 +82,7 @@ For the moment we need to wait until Gisaid confirms the release of the sequence
 ```
 Import file for BioNumerics is stored at `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\SARS-CoV-2\4-GISAIDsubmisjon\BN-import-filer` and is ready for import.
 
-### Import data into BioNUmerics and update Excel-sheet
+### Import data into BioNumerics and update Excel-sheet
 Open BioNumerics and import the generated import file using the import-template `GISAID`. 
 Remember to update the excel sheet that tracks all the submissions with the BN import date. 
 
