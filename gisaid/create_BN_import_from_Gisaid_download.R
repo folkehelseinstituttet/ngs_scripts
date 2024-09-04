@@ -6,7 +6,7 @@ library(tidyverse)
 args <- commandArgs(trailingOnly = TRUE)
 
 # Assign the arguments to variables
-gisaid <- args[1]
+gisaid_file <- args[1]
 
 # Read the TSV file into a data frame
 gisaid <- read_tsv(gisaid_file)
