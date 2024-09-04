@@ -50,7 +50,19 @@ Prepare a "credentials.txt" file with this content and format:
 password=your_password
 clientid=your_clientid
 ```
-Run GISAID-submission_SC2.sh   
+Using Linux-system, clone the repo:
+```
+git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
+```
+Using Linux-system, naviagte into gisaid-repo:
+```
+cd .\ngs_scripts\gisaid\
+```
+Run submision-script:
+```
+./GISAID_submission_SC2.sh -m metadata.csv -f sequences.fasta -c my_credentials.txt -u username
+```
+   
 ### Copy submission log file N
 Copy the covCLI upload log file to the directory created when you prepared the submission files.  
 
@@ -59,6 +71,8 @@ For the moment we need to wait until Gisaid confirms the release of the sequence
 
 ### Copy import file to N
 Copy the BN import file to the directory `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\SARS-CoV-2\4-GISAIDsubmisjon\BN-import-filer`.  Remember to update the excel sheet that tracks all the submissions with the BN import date. 
+
+__________________________________________________________________________________________
 
 ## Old procedure based on Nextflow
 Pipeline to prepare and create files for submitting SARS-CoV-2 consensus sequences to GISAID. The pipeline only requires Nextflow and Docker installed in order to run. However, there are several features of the various scripts that will only work on the internal datastructures of NIPH.   
