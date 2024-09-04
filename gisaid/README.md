@@ -88,6 +88,73 @@ Remember to update the excel sheet that tracks all the submissions with the BN i
 
 # Influenza
 
+### Open the excel submission log document
+Missing log file!
+
+### Prepare input files (PowerShell)
+Prerequisite: PowerShell, R and git.
+
+Using PowerShell, naviagte to N:\Virologi\NGS\tmp 
+```
+cd N:\Virologi\NGS\tmp
+```
+Using PowerShell on a FHI laptop, clone the repo:
+```
+git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
+```
+Using PowerShell, naviagte into gisaid-repo:
+```
+cd .\ngs_scripts\gisaid\
+```
+Using PowerShell on a FHI laptop, run the script `influenza_gisaid.R` by typing in:
+```
+& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" ".\ngs_scripts\gisaid\influenza_gisaid.R" "RUNID"
+```
+Remeber to replace RUNID with run-id for samples you want to submit.
+
+This should create a directory with today's date here: `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\10-GISAID`.  
+That directory should contain two files. One csv file with metadata and one fasta file.
+
+After files are created delete the `ngs_scripts` folder in `N:\Virologi\NGS\tmp`.
+
+### Upload to Gisaid (Linux)  
+Upload to GISAID using version 4 of the cli.
+
+Either run this command with the generated metadata-file and fasta-file on a Linux-system:
+```
+./fluCLI upload --username USERNAME --password PASSWORD --clientid CLIENTID --metadata *metadata.csv --fasta *fasta.fasta
+
+```
+Or use our Linux-server system as follows:
+
+Prepare a "credentials.txt" file with this content and format:c
+```
+password=your_password
+clientid=your_clientid
+```
+Using Linux-system, clone the repo:
+```
+git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
+```
+Using Linux-system, naviagte into gisaid-repo:
+```
+cd .\ngs_scripts\gisaid\
+```
+Run submision-script:
+```
+./GISAID_submission_INF.sh -m metadata.csv -f sequences.fasta -c my_credentials.txt -u username
+```
+   
+### Copy submission log file N
+Copy the fluCLI upload log file to the directory created when you prepared the submission files.  
+
+### Create BioNumerics import file 
+Missing procedure
+
+### Import data into BioNumerics and update Excel-sheet
+Open BioNumerics and import the generated import file using the import-template `XXXX`. 
+Missing log-file for submission.
+
 # RSV
 
 __________________________________________________________________________________________
