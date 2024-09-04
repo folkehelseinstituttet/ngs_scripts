@@ -1,3 +1,10 @@
+# SUBMISSION TO GISAID
+
+# Table of Contents
+1. [SARS-CoV-2](#prepare-gisaid-submission-files-for-sars-cov-2)
+2. [Influenza](#prepare-gisaid-submission-files-for-influenza)
+3. [RSV](#prepare-gisaid-submission-files-for-rsv)
+
 # Prepare Gisaid submission files for SARS-CoV-2
 
 ## TODO
@@ -73,6 +80,10 @@ For the moment we need to wait until Gisaid confirms the release of the sequence
 
 ### Copy import file to N
 Copy the BN import file to the directory `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\SARS-CoV-2\4-GISAIDsubmisjon\BN-import-filer`.  Remember to update the excel sheet that tracks all the submissions with the BN import date. 
+
+# Prepare Gisaid submission files for Influenza
+
+# Prepare Gisaid submission files for RSV
 
 __________________________________________________________________________________________
 
