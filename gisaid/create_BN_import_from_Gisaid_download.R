@@ -2,7 +2,12 @@ library(tidyverse)
 
 # Download sequencing technology metadata from Gisaid
 
-gisaid <- read_tsv("/home/jonr/Downloads/gisaid_hcov-19_2023_11_08_16.tsv")
+# Capture command-line arguments
+args <- commandArgs(trailingOnly = TRUE)
+
+# Assign the arguments to variables
+gisaid <- args[1]
+#gisaid <- read_tsv("/home/jonr/Downloads/gisaid_hcov-19_2023_11_08_16.tsv")
 
 BN <- gisaid %>% 
   # Remove Ahus
@@ -27,6 +32,6 @@ BN <- gisaid %>%
 
 # Write file
 write.csv(BN, 
-          file = paste0("/home/jonr/Prosjekter/FHI_Gisaid/Gisaid_files/", format(Sys.Date(), format = "%Y.%m.%d"), "_BN_import.csv"),
+          file = paste0("N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/4-GISAIDsubmisjon/BN-import-filer/", format(Sys.Date(), format = "%Y.%m.%d"), "_BN_import.csv"),
           quote = TRUE,
           row.names = FALSE)
