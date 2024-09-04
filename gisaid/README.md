@@ -1,20 +1,37 @@
 # Prepare Gisaid submission files for SARS-CoV-2
 
 ## TODO
-- [v] How to run the R-script with `min_date` and `submitter` arguments?
+- [ ] How to run the R-script with `min_date` and `submitter` arguments?
 - [ ] Include procedure to exclude samples from submission. Probably add column to BN and update script accordingly
 - [ ] Run the covCLI uploader? Need Linux
 - [ ] Copy the submission log to N?
 - [ ] Create BN import file and import to BN 
 
-## New procedure using only R and BioNumerics  
+## New procedure using only PowerShell, R and BioNumerics  
 
 ### Open the excel submission log document
 Open this file and fill in accordingly:
 `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\SARS-CoV-2\4-GISAIDsubmisjon\OVERSIKT submisjoner til GISAID og andre_V2.xlsx`  
 
-### Prepare input files  
-Using R on a FHI laptop, run the script `sc2_gisaid.R`.  
+### Prepare input files 
+Using PowerShell, naviagte to N:\Virologi\NGS\tmp 
+```
+cd N:\Virologi\NGS\tmp
+```
+Using PowerShell on a FHI laptop, clone the repo:  run the script `sc2_gisaid.R` by typing in:
+```
+git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
+```
+Using PowerShell, naviagte into gisaid-repo:
+```
+cd .\ngs_scripts\gisaid\
+```
+Using PowerShell on a FHI laptop, run the script `sc2_gisaid.R` by typing in:
+```
+& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" ".\ngs_scripts\gisaid\sc2_gisaid.R" "DATE" "USER"
+```
+Remeber to replace DATE with date (YYYY-MM-DD) for oldest sample to include in submission and USER wither your GISAID username. 
+
 This should create a directory with today's date here: `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\SARS-CoV-2\4-GISAIDsubmisjon`.  
 That directory should contain two files. One csv file with metadata and one fasta file.  
 
