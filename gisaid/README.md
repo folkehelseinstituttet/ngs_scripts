@@ -76,10 +76,15 @@ Run submision-script:
 Copy the covCLI upload log file to the directory created when you prepared the submission files.  
 
 ### Create BioNumerics import file 
-For the moment we need to wait until Gisaid confirms the release of the sequences. Then we need to go into Gisaid using the browser, search for the newly submitted sequences, select them click "Download" and choose "Sequencing technology metadata". The downloaded file can be processed with the script `create_BN_import_from_Gisaid_download.R`.  
+For the moment we need to wait until Gisaid confirms the release of the sequences. Then we need to go into Gisaid using the browser, search for the newly submitted sequences, select them click "Download" and choose "Sequencing technology metadata". The downloaded file can be processed with the script `create_BN_import_from_Gisaid_download.R in PowerShell:
+```
+& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" ".\ngs_scripts\gisaid\create_BN_import_from_Gisaid_download.R" "FILE_FROM_GISAID.tsv" 
+```
+Import file for BioNumerics is stored at `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\SARS-CoV-2\4-GISAIDsubmisjon\BN-import-filer` and is ready for import.
 
-### Copy import file to N
-Copy the BN import file to the directory `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\SARS-CoV-2\4-GISAIDsubmisjon\BN-import-filer`.  Remember to update the excel sheet that tracks all the submissions with the BN import date. 
+### Import data into BioNUmerics and update Excel-sheet
+Open BioNumerics and import the generated import file using the import-template `GISAID`. 
+Remember to update the excel sheet that tracks all the submissions with the BN import date. 
 
 # Influenza
 
