@@ -1,6 +1,9 @@
-# For testing. Should take input argument
-min_date <- "2024-01-01"
-submitter <- "jonbra"
+# Capture command-line arguments
+args <- commandArgs(trailingOnly = TRUE)
+
+# Assign the arguments to variables
+min_date <- args[1]
+submitter <- args[2]
 
 Sys.setlocale("LC_CTYPE", "nb_NO.UTF-8")  # For Norwegian Bokmål
 
