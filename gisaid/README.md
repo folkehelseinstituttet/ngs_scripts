@@ -13,7 +13,7 @@
 - [ ] Copy the submission log to N?
 - [ ] Create BN import file and import to BN 
 
-## Procedure using PowerShell, R and BioNumerics  
+## Step-by-step procedure  
 
 ### Open the excel submission log document
 Open this file and fill in accordingly:
