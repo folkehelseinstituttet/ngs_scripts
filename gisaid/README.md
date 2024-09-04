@@ -1,7 +1,7 @@
 # Prepare Gisaid submission files for SARS-CoV-2
 
 ## TODO
-- [ ] How to run the R-script with `min_date` and `submitter` arguments?
+- [v] How to run the R-script with `min_date` and `submitter` arguments?
 - [ ] Include procedure to exclude samples from submission. Probably add column to BN and update script accordingly
 - [ ] Run the covCLI uploader? Need Linux
 - [ ] Copy the submission log to N?
