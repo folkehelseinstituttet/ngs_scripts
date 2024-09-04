@@ -14,11 +14,13 @@ Open this file and fill in accordingly:
 `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\SARS-CoV-2\4-GISAIDsubmisjon\OVERSIKT submisjoner til GISAID og andre_V2.xlsx`  
 
 ### Prepare input files 
+Prerequisite: PowerShell, R and git.
+
 Using PowerShell, naviagte to N:\Virologi\NGS\tmp 
 ```
 cd N:\Virologi\NGS\tmp
 ```
-Using PowerShell on a FHI laptop, clone the repo:  run the script `sc2_gisaid.R` by typing in:
+Using PowerShell on a FHI laptop, clone the repo:
 ```
 git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
 ```
@@ -33,7 +35,9 @@ Using PowerShell on a FHI laptop, run the script `sc2_gisaid.R` by typing in:
 Remeber to replace DATE with date (YYYY-MM-DD) for oldest sample to include in submission and USER wither your GISAID username. 
 
 This should create a directory with today's date here: `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\SARS-CoV-2\4-GISAIDsubmisjon`.  
-That directory should contain two files. One csv file with metadata and one fasta file.  
+That directory should contain two files. One csv file with metadata and one fasta file.
+
+After files are created delete the `ngs_scripts` folder in `N:\Virologi\NGS\tmp`.
 
 ### Upload to Gisaid  
 Upload to GISAID using version 4 of the cli:
