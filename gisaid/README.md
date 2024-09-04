@@ -1,7 +1,6 @@
 # Prepare Gisaid submission files for SARS-CoV-2
 
 ## TODO
-- [ ] How to run the R-script with `min_date` and `submitter` arguments?
 - [ ] Include procedure to exclude samples from submission. Probably add column to BN and update script accordingly
 - [ ] Run the covCLI uploader? Need Linux
 - [ ] Copy the submission log to N?
@@ -13,7 +12,7 @@
 Open this file and fill in accordingly:
 `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\SARS-CoV-2\4-GISAIDsubmisjon\OVERSIKT submisjoner til GISAID og andre_V2.xlsx`  
 
-### Prepare input files 
+### Prepare input files (PowerShell)
 Prerequisite: PowerShell, R and git.
 
 Using PowerShell, naviagte to N:\Virologi\NGS\tmp 
@@ -39,12 +38,19 @@ That directory should contain two files. One csv file with metadata and one fast
 
 After files are created delete the `ngs_scripts` folder in `N:\Virologi\NGS\tmp`.
 
-### Upload to Gisaid  
-Upload to GISAID using version 4 of the cli:
+### Upload to Gisaid (Linux)  
+Upload to GISAID using version 4 of the cli.
+Either run this command with the generated metadata-file and fasta-file on a Linux-system:
 ```
 covCLI upload --username USERNAME --password PASSWORD --clientid CLIENTID --log YYYY-MM-DD_submission.log --metadata YYYY-MM-DD_metadata.csv --fasta YYYY-MM-DD_sequences.fasta --frameshifts catch_novel --dateformat YYYYMMDD
 ```
-  
+Or use our Linux-server system as follows:
+Prepare a "credentials.txt" file with this content and format:
+```
+password=your_password
+clientid=your_clientid
+```
+Run GISAID-submission_SC2.sh   
 ### Copy submission log file N
 Copy the covCLI upload log file to the directory created when you prepared the submission files.  
 
