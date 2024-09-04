@@ -142,7 +142,7 @@ cd .\ngs_scripts\gisaid\
 ```
 Run submision-script:
 ```
-./GISAID_submission_INF.sh -m metadata.csv -f sequences.fasta -c my_credentials.txt -u username
+./GISAID_INF_submission.sh -m metadata.csv -f sequences.fasta -c my_credentials.txt -u username
 ```
    
 ### Copy submission log file N
