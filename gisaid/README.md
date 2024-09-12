@@ -67,7 +67,7 @@ Prepare a "credentials.txt" file with this content and format and save at `.\ngs
 password=your_password
 clientid=your_clientid
 ```
-Run submision-script:
+Run submission-script:
 ```
 .\GISAID_SC2_submission.ps1 -m "metadata.csv" -f sequences.fasta" -c "credentials.txt" -u "username"
 ```
@@ -95,7 +95,7 @@ Using Linux-system, naviagte into gisaid-repo:
 ```
 cd .\ngs_scripts\gisaid\
 ```
-Run submision-script:
+Run submission-script:
 ```
 ./GISAID_SC2_submission.sh -m metadata.csv -f sequences.fasta -c my_credentials.txt -u username
 ```
