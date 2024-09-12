@@ -43,6 +43,34 @@ Remeber to replace DATE with date (YYYY-MM-DD) for oldest sample to include in s
 This should create a directory with today's date here: `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\SARS-CoV-2\4-GISAIDsubmisjon`.  
 That directory should contain two files. One csv file with metadata and one fasta file.
 
+Chose either upload by Linux or Windows:
+
+### Upload to Gisaid (Windows)  
+Upload to GISAID using version 4 of the cli.
+
+No need do naviagte and clone repo if already done.
+
+Using PowerShell, naviagte to N:\Virologi\NGS\tmp 
+```
+cd N:\Virologi\NGS\tmp
+```
+Using PowerShell on a FHI laptop, clone the repo:
+```
+git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
+```
+Using PowerShell, naviagte into gisaid-repo:
+```
+cd .\ngs_scripts\gisaid\
+```
+Prepare a "credentials.txt" file with this content and format and save at `.\ngs_scripts\gisaid\`:
+```
+password=your_password
+clientid=your_clientid
+```
+Run submision-script:
+```
+.\GISAID_SC2_submission.ps1 -m "metadata.csv" -f sequences.fasta" -c "credentials.txt" -u "username"
+```
 After files are created delete the `ngs_scripts` folder in `N:\Virologi\NGS\tmp`.
 
 ### Upload to Gisaid (Linux)  
@@ -69,7 +97,7 @@ cd .\ngs_scripts\gisaid\
 ```
 Run submision-script:
 ```
-./GISAID_submission_SC2.sh -m metadata.csv -f sequences.fasta -c my_credentials.txt -u username
+./GISAID_SC2_submission.sh -m metadata.csv -f sequences.fasta -c my_credentials.txt -u username
 ```
    
 ### Copy submission log file N
