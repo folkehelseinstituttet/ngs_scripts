@@ -9,7 +9,6 @@
 
 ## TODO
 - [ ] Include procedure to exclude samples from submission. Probably add column to BN and update script accordingly
-- [ ] Run the covCLI uploader? Need Linux
 - [ ] Copy the submission log to N?
 - [ ] Create BN import file and import to BN 
 
