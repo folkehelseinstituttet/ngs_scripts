@@ -70,6 +70,8 @@ Run submission-script:
 ```
 .\GISAID_SC2_submission.ps1 -m "metadata.csv" -f sequences.fasta" -c "credentials.txt" -u "username"
 ```
+If .\GISAID_SC2_submission.ps1 is not executable try `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process`
+
 After files are created delete the `ngs_scripts` folder in `N:\Virologi\NGS\tmp`.
 
 ### Upload to Gisaid (Linux)  
