@@ -144,6 +144,34 @@ Remeber to replace RUNID with run-id for samples you want to submit.
 This should create a directory with today's date here: `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\10-GISAID`.  
 That directory should contain two files. One csv file with metadata and one fasta file.
 
+### Upload to Gisaid (Windows)  
+Upload to GISAID using version 4 of the cli.
+
+No need do naviagte and clone repo if already done.
+
+Using PowerShell, naviagte to N:\Virologi\NGS\tmp 
+```
+cd N:\Virologi\NGS\tmp
+```
+Using PowerShell on a FHI laptop, clone the repo:
+```
+git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
+```
+Using PowerShell, naviagte into gisaid-repo:
+```
+cd .\ngs_scripts\gisaid\
+```
+Prepare a "credentials.txt" file with this content and format and save at `.\ngs_scripts\gisaid\`:
+```
+password=your_password
+clientid=your_clientid
+```
+Run submission-script:
+```
+.\GISAID_INF_submission.ps1 -m "metadata.csv" -f sequences.fasta" -c "credentials.txt" -u "username"
+```
+If .\GISAID_INF_submission.ps1 is not executable try `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process`
+
 After files are created delete the `ngs_scripts` folder in `N:\Virologi\NGS\tmp`.
 
 ### Upload to Gisaid (Linux)  
