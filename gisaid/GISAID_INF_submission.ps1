@@ -44,7 +44,7 @@ if (-not $credentials.password -or -not $credentials.clientid) {
 }
 
 # Execute the command with the read credentials and username
-& ".\covCLI.exe" upload --username $username `
+& ".\fluCLI.exe" upload --username $username `
                 --password $credentials.password `
                 --clientid $credentials.clientid `
                 --metadata $metadata_files `
