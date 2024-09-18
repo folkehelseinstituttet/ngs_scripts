@@ -30,7 +30,7 @@ Location <- "Norway"
 sub_lab <- "Norwegian Institute of Public Health, Department of Virology"
 address <- "P.O.Box 222 Skoyen, 0213 Oslo, Norway"
 authors <- "Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; Knutsen, MF"
-GISAIDnr <- 1123  # Converting directly to numeric
+GISAIDnr <- 3869  # Converting directly to numeric
 
 # Read Lab_ID data
 Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Laboratory.xlsx")
@@ -40,11 +40,11 @@ source("N:/Virologi/Influensa/ARoh/Influenza/Analysis Script/BN FLU 24-25.R")
 
 # Proceed with data filtering and selection
 fludb <- fludb %>%
-  filter(ngs_run_id == SID) %>%  # Ensure SID is defined and matches the column
-  filter(ngs_sekvens_resultat != "")   # Remove empty results
-  filter(ngs_sekvens_resultat == "NA")
-  filter(ngs_sekvens_resultat == "N2")
-  filter(ngs_sekvens_resultat == "N1")
+  filter(ngs_run_id == SID) %>%                      # Ensure SID is defined and matches the column
+  filter(ngs_sekvens_resultat != "") %>%             # Remove empty results
+  filter(!(ngs_sekvens_resultat %in% c("NA", "N2", "N1")))  # Keep rows that are NOT NA, N2, or N1
+
+
 
 # Now select the required columns
 fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "tessy_variable", "pasient_kjonn", "prove_innsender_id", "pasient_fylke_name")
