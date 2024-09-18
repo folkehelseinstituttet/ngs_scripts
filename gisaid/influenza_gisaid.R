@@ -42,6 +42,9 @@ source("N:/Virologi/Influensa/ARoh/Influenza/Analysis Script/BN FLU 24-25.R")
 fludb <- fludb %>%
   filter(ngs_run_id == SID) %>%  # Ensure SID is defined and matches the column
   filter(ngs_sekvens_resultat != "")   # Remove empty results
+  filter(ngs_sekvens_resultat == "NA")
+  filter(ngs_sekvens_resultat == "N2")
+  filter(ngs_sekvens_resultat == "N1")
 
 # Now select the required columns
 fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "tessy_variable", "pasient_kjonn", "prove_innsender_id", "pasient_fylke_name")
