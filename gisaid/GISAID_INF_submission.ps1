@@ -56,7 +56,7 @@ $base_folder = "N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\1
 
 # Create the folder with today's date appended
 $today = Get-Date -Format "yyyy-MM-dd"
-$folder_name = Join-Path -Path $base_folder -ChildPath "GISAID_SC2_submission_$today"
+$folder_name = Join-Path -Path $base_folder -ChildPath "GISAID_INF_submission_$today"
 
 # Create the folder at the specified path
 New-Item -ItemType Directory -Path $folder_name -Force
