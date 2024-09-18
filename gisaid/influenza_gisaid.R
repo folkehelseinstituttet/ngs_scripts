@@ -3,7 +3,6 @@ args <- commandArgs(trailingOnly = TRUE)
 
 # Assign the arguments to variables
 SID <- args[1] #RunID from argument
-
 source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
 source("N:/Virologi/Influensa/ARoh/Influenza/Analysis Script/BN FLU 24-25.R")
 
@@ -41,7 +40,7 @@ source("N:/Virologi/Influensa/ARoh/Influenza/Analysis Script/BN FLU 24-25.R")
 
 # Proceed with data filtering and selection
 fludb <- fludb %>%
-  #filter(ngs_run_id == SID) %>%  # Ensure SID is defined and matches the column
+  filter(ngs_run_id == SID) %>%  # Ensure SID is defined and matches the column
   filter(ngs_sekvens_resultat != "")   # Remove empty results
 
 # Now select the required columns
@@ -78,7 +77,6 @@ merged_df$GISAID_Nr <- ifelse(is.na(merged_df$GISAID_Nr) | is.na(merged_df$GISAI
 rm(fludb)
 
 ################### FASTA FILE :
-
 tmp <- merged_df %>%
   add_column(
     "Isolate_Id" = "",
@@ -222,5 +220,4 @@ for (i in 1:nrow(filtered_seq)) {
 
 # Close the file connection
 close(file_con)
-
 
