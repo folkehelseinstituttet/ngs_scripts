@@ -44,7 +44,7 @@ if (-not $credentials.password -or -not $credentials.clientid) {
 }
 
 # Execute the command with the read credentials and username
-& ".\fluCLI.exe" upload --username $username `
+& "N:\Virologi\NGS\1-NGS-Analyser\8-Skript\1-GISAID\fluCLI\fluCLI.exe" upload --username $username `
                 --password $credentials.password `
                 --clientid $credentials.clientid `
                 --metadata $metadata_files `
