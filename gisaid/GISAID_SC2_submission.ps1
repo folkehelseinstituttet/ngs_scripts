@@ -44,7 +44,7 @@ if (-not $credentials.password -or -not $credentials.clientid) {
 }
 
 # Execute the command with the read credentials and username
-& ".\covCLI.exe" upload --username $username `
+& "N:\Virologi\NGS\1-NGS-Analyser\8-Skript\1-GISAID\covCLI\covCLI.exe" upload --username $username `
                 --password $credentials.password `
                 --clientid $credentials.clientid `
                 --log "YYYY-MM-DD_submission.log" `
