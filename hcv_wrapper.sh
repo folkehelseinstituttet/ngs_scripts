@@ -90,11 +90,9 @@ EOF
 echo "Creating samplesheet"
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR/ \
-    -v $HOME/viralseq/bin:/scripts \
-    -v $HOME/$RUN/:/home \
-    -w /home \
-    docker.io/jonbra/tidyverse_seqinr:2.0 \
-    Rscript /scripts/create_samplesheet.R $TMP_DIR samplesheet.csv ${AGENS}
+	-v $HOME/$RUN:/out \
+    docker.io/jonbra/create_samplesheet:1.0 \
+    Rscript create_samplesheet.R $TMP_DIR /out/samplesheet.csv ${AGENS}
 
 ### Run the main pipeline ###
 
