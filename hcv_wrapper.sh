@@ -36,6 +36,9 @@ while getopts "hr:a:y:" opt; do
     esac
 done
 
+# Sometimes the pipeline has been cloned locally. Remove it to avoid version conflicts
+rm -rf $HOME/viralseq
+
 # Export the access token for web monitoring with tower
 export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
 # Add workspace ID for Virus_NGS
@@ -188,7 +191,7 @@ docker rm gluetools-mysql
 echo "Parsing the GLUE results"
 docker run --rm \
     -v $HOME/$RUN/hcvglue:/hcvglue \
-    -v $HOME/viralseq/bin/:/scripts \
+    -v $HOME/.nextflow/assets/jonbra/viralseq/bin/:/scripts \
     -w /hcvglue \
     docker.io/jonbra/tidyverse_seqinr:2.0 \
     Rscript /scripts/GLUE_json_parser.R
@@ -198,7 +201,7 @@ echo "Merge GLUE and mapping results"
 docker run --rm \
     -v $HOME/$RUN/hcvglue:/hcvglue \
     -v $HOME/$RUN/summarize:/summarize \
-    -v $(pwd)/viralseq/bin/:/scripts \
+    -v $HOME/.nextflow/assets/jonbra/viralseq/bin/:/scripts \
     -w /summarize \
     docker.io/jonbra/tidyverse_seqinr:2.0 \
     Rscript /scripts/join_glue_report_with_summary.R
