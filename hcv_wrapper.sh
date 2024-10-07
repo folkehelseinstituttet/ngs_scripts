@@ -90,7 +90,7 @@ EOF
 echo "Creating samplesheet"
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR/ \
-	-v $HOME/$RUN:/out \
+    -v $HOME/$RUN:/out \
     docker.io/jonbra/create_samplesheet:1.0 \
     Rscript create_samplesheet.R $TMP_DIR /out/samplesheet.csv ${AGENS}
 
