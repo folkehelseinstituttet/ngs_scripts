@@ -194,7 +194,7 @@ docker run --rm \
     -v $HOME/.nextflow/assets/jonbra/viralseq/bin/:/scripts \
     -w /hcvglue \
     docker.io/jonbra/tidyverse_seqinr:2.0 \
-    Rscript /scripts/GLUE_json_parser.R
+    Rscript /scripts/GLUE_json_parser.R major
 
 ## Join the Glue results with the mapping summaries
 echo "Merge GLUE and mapping results"
