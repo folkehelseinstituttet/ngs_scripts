@@ -15,7 +15,7 @@ usage() {
     echo "Usage: $SCRIPT_NAME [OPTIONS]"
     echo "Options:"
     echo "  -h, --help        Display this help message"
-    echo "  -r, --run         Specify the run name (e.g., NGS_SEQ_20240214-03)"
+    echo "  -r, --run         Specify the run name (e.g., NGS_SEQ-20240214-03)"
     echo "  -a, --agens       Specify agens (e.g., HCV and ROV)"
     echo "  -y, --year        Specify the year directory of the fastq files on the N-drive"
     exit 1
