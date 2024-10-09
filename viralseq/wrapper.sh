@@ -36,6 +36,23 @@ while getopts "hr:a:y:" opt; do
     esac
 done
 
+# Make sure the latest version of the ngs_scripts repo is present locally
+
+# Define the directory and the GitHub repository URL
+REPO="$HOME/ngs_scripts"
+REPO_URL="https://github.com/folkehelseinstituttet/ngs_scripts.git"
+
+# Check if the directory exists
+if [ -d $REPO" ]; then
+    echo "Directory 'ngs_scripts' exists. Pulling latest changes..."
+    cd "$REPO"
+    git pull
+else
+    echo "Directory 'ngs_scripts' does not exist. Cloning repository..."
+    git clone "$REPO_URL" "$REPO"
+fi
+
+
 # Sometimes the pipeline has been cloned locally. Remove it to avoid version conflicts
 rm -rf $HOME/viralseq
 
