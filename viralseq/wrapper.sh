@@ -150,32 +150,29 @@ docker run --detach --name gluetools-mysql cvrbioinformatics/gluetools-mysql:lat
 # Install the pre-built GLUE HCV project
 # Sometimes the docker execution fails. Retry up to 5 times
 
-# Function to start the second container and check its status
-start_second_container() {
-    docker exec gluetools-mysql installGlueProject.sh ncbi_hcv_glue
-    
-    # Check if the second container started successfully
-    for i in {1..5}; do
-        if docker exec gluetools-mysql installGlueProject.sh ncbi_hcv_glue; then
-            echo "Second container started successfully."
-            return 0
-        else
-            echo "Retrying to start the second container... Attempt $i"
-            sleep 5
-        fi
-    done
+# Set the timeout duration (in seconds)
+TIMEOUT=300
+START_TIME=$(date +%s)
 
-    echo "Failed to start the second container after multiple attempts."
-    return 1
-}
+until docker exec gluetools-mysql mysql --user=root --password=root123 -e "status" &> /dev/null
+do
+  echo "Waiting for database connection..."
+  # Wait for two seconds before checking again
+  sleep 2
 
-# Attempt to start the second container
-if ! start_second_container; then
-    echo "Exiting script due to failure in starting the second container."
+# Check if the timeout has been reached
+  CURRENT_TIME=$(date +%s)
+  ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
+  if [ $ELAPSED_TIME -ge $TIMEOUT ]; then
+    echo "Timeout reached. Exiting script."
     exit 1
-fi
+  fi
+done
 
-echo "Both containers are running successfully."
+echo "MySQL is up!"
+
+# When the MySQL database is ready, Install a pre-built HCV GLUE dataset in the gluetools-mysql container
+docker exec gluetools-mysql installGlueProject.sh ncbi_hcv_glue
 
 # Make a for loop over all bam files and run HCV-GLUE
 ## Adding || true to the end of the command to prevent the pipeline from failing if the bam file is not valid
