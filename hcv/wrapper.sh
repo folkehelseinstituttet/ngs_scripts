@@ -222,6 +222,6 @@ mput *
 EOF
 
 ## Clean up
-nextflow clean -f
-rm -rf $HOME/out
-rm -rf $TMP_DIR
+#nextflow clean -f
+#rm -rf $HOME/out
+#rm -rf $TMP_DIR
