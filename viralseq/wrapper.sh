@@ -43,7 +43,7 @@ REPO="$HOME/ngs_scripts"
 REPO_URL="https://github.com/folkehelseinstituttet/ngs_scripts.git"
 
 # Check if the directory exists
-if [ -d $REPO" ]; then
+if [ -d "$REPO" ]; then
     echo "Directory 'ngs_scripts' exists. Pulling latest changes..."
     cd "$REPO"
     git pull
