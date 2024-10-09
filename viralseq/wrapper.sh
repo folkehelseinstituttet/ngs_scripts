@@ -149,41 +149,33 @@ docker run --detach --name gluetools-mysql cvrbioinformatics/gluetools-mysql:lat
 
 # Install the pre-built GLUE HCV project
 # Sometimes the docker execution fails. Retry up to 5 times
-# Set the maximum number of attempts
-max_attempts=5
 
-# Set a counter for the number of attempts
-attempt_num=1
+# Function to start the second container and check its status
+start_second_container() {
+    docker exec gluetools-mysql installGlueProject.sh ncbi_hcv_glue
+    
+    # Check if the second container started successfully
+    for i in {1..5}; do
+        if docker exec gluetools-mysql installGlueProject.sh ncbi_hcv_glue; then
+            echo "Second container started successfully."
+            return 0
+        else
+            echo "Retrying to start the second container... Attempt $i"
+            sleep 5
+        fi
+    done
 
-# Set a flag to indicate whether the command was successful
-success=false
+    echo "Failed to start the second container after multiple attempts."
+    return 1
+}
 
-# Loop until the command is successful or the maximum number of attempts is reached
-while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
-  # Execute the command
-  docker exec gluetools-mysql installGlueProject.sh ncbi_hcv_glue
-
-  # Check the exit code of the command
-  if [ $? -eq 0 ]; then
-    # The command was successful
-    success=true
-  else
-    # The command was not successful
-    echo "Attempt $attempt_num failed. Trying again..."
-    # Increment the attempt counter
-    attempt_num=$(( attempt_num + 1 ))
-  fi
-done
-
-# Check if the command was successful
-if [ $success = true ]; then
-  # The command was successful
-  echo "The command was successful after $attempt_num attempts."
-else
-  # The command was not successful
-  echo "The command failed after $max_attempts attempts."
+# Attempt to start the second container
+if ! start_second_container; then
+    echo "Exiting script due to failure in starting the second container."
+    exit 1
 fi
 
+echo "Both containers are running successfully."
 
 # Make a for loop over all bam files and run HCV-GLUE
 ## Adding || true to the end of the command to prevent the pipeline from failing if the bam file is not valid
