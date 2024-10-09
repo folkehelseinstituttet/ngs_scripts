@@ -82,18 +82,6 @@ fi
 SMB_OUTPUT=Virologi/NGS/tmp/
 #SMB_OUTPUT=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/$AGENS/$YEAR/
 
-# Switch to local user
-#sudo -u ngs /bin/bash
-
-# DEPRECATED CODE. NOW PULLS DIRECTLY FROM GITHUB
-# Check if the viralseq directory exists, if not clone it from GitHub
-#if [ -d "viralseq" ]; then
-  # Make sure to pull the latest version
-#  git -C viralseq/ pull origin master
-#else
-#  git clone https://github.com/jonbra/viralseq.git
-#fi
-
 # Create directory to hold the output of the analysis
 mkdir -p $HOME/$RUN
 mkdir $TMP_DIR
@@ -134,14 +122,9 @@ nextflow run jonbra/viralseq/main.nf -r master -profile server --input "$HOME/$R
 echo "Run HCV-GLUE for genotyping and resistance analysis"
 mkdir $HOME/$RUN/hcvglue
 
-# Pull the latest images
-#docker pull cvrbioinformatics/gluetools-mysql:latest
-#docker pull cvrbioinformatics/gluetools:latest
-
 # Remove the container in case it is already running
 docker stop gluetools-mysql
 docker rm gluetools-mysql
-#docker run --detach --name gluetools-mysql cvrbioinformatics/gluetools-mysql:latest
 
 # Start the gluetools-mysql container in the background
 #docker start gluetools-mysql
