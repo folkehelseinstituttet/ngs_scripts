@@ -52,6 +52,8 @@ else
     git clone "$REPO_URL" "$REPO"
 fi
 
+cd $HOME
+
 
 # Sometimes the pipeline has been cloned locally. Remove it to avoid version conflicts
 rm -rf $HOME/viralseq
