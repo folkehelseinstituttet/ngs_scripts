@@ -87,12 +87,12 @@ docker run --rm \
     Rscript /scripts/get_data_from_BN.R
     
 # Copy nextstrain build files into the ncov directory
-cp $HOME/ngs_scripts/nextstrain/builds.yaml $BASE_DIR/ncov/my_profiles
-cp $HOME/ngs_scripts/nextstrain/pango_list.txt $BASE_DIR/ncov/my_profiles
-cp $HOME/ngs_scripts/nextstrain/colors_norwaydivisions.tsv $BASE_DIR/ncov/my_profiles
-cp $HOME/ngs_scripts/nextstrain/my_description.md $BASE_DIR/ncov/my_profiles
-cp $HOME/ngs_scripts/nextstrain/my_auspice_config.json $BASE_DIR/ncov/my_profiles
-cp $HOME/ngs_scripts/nextstrain/sites_ignored_for_tree_topology.txt $BASE_DIR/ncov/my_profiles 
+cp $HOME/ngs_scripts/nextstrain/sars-cov-2/builds.yaml $BASE_DIR/ncov/my_profiles
+cp $HOME/ngs_scripts/nextstrain/sars-cov-2/pango_list.txt $BASE_DIR/ncov/my_profiles
+cp $HOME/ngs_scripts/nextstrain/sars-cov-2/colors_norwaydivisions.tsv $BASE_DIR/ncov/my_profiles
+cp $HOME/ngs_scripts/nextstrain/sars-cov-2/my_description.md $BASE_DIR/ncov/my_profiles
+cp $HOME/ngs_scripts/nextstrain/sars-cov-2/my_auspice_config.json $BASE_DIR/ncov/my_profiles
+cp $HOME/ngs_scripts/nextstrain/sars-cov-2/sites_ignored_for_tree_topology.txt $BASE_DIR/ncov/my_profiles 
 
 conda activate nextstrain
 
