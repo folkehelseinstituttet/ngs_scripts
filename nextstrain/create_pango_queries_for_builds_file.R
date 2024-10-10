@@ -12,6 +12,18 @@ pango_str <- pango %>%
   # Pull all the aliases into a character vector
   pull(Lineage)
 
+# Create a list of queries to add to the builds.yaml file
+# NB: The list needs to be enclosed by double quotes ("").
+# These are actually not there now, but when the vector is printed they are shown,
+# and copied when I copy and paste
+tmp <- str_flatten(pango_str, collapse = "', '")
+# Insert "[' in the beginning
+tmp <- str_c('[\'', tmp)
+# Insert ']" at the end
+tmp <- str_c(tmp, '\']')
+print(tmp)
+
+
 # 2023.08.16: Including XBB abbreviations
 # Create list of XBB lineages for the Nextstrain build file. This is copied and manually hardcoded into the build file.
 pango_str <- pango %>%
@@ -31,7 +43,7 @@ tmp <- str_flatten(pango_str, collapse = "', '")
 tmp <- str_c('[\'', tmp)
 # Insert ']" at the end
 tmp <- str_c(tmp, '\']')
-print(tmp)
+#print(tmp)
 
 # Create list of BA.5 lineages for the Nextstrain build file
 pango_str <- pango %>% 
@@ -51,7 +63,7 @@ tmp <- str_flatten(pango_str, collapse = "', '")
 tmp <- str_c('[\'', tmp)
 # Insert ']" at the end
 tmp <- str_c(tmp, '\']')
-print(tmp)
+#print(tmp)
 
 # Create list of BA.2.75 lineages for the Nextstrain build file
 pango_str <- pango %>% 
@@ -71,4 +83,4 @@ tmp <- str_flatten(pango_str, collapse = "', '")
 tmp <- str_c('[\'', tmp)
 # Insert ']" at the end
 tmp <- str_c(tmp, '\']')
-print(tmp)
+#print(tmp)
