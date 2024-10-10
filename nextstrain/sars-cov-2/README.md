@@ -23,7 +23,7 @@ Command: `source("N:/Virologi/JonBrate/Prosjekter/refresh_data_from_BN.R")`
 # Step 4: Make the Nextstrain build
 Log on to the `ngs-worker-1` VM.  
 Swith to the `ngs` user with `sudo -u ngs /bin/bash`  
-Run the wrapper script with `nohup bash /ngs_scripts/nexstrain/wrapper.sh &`  
+Run the wrapper script with `nohup bash /ngs_scripts/nextstrain/sars-cov-2/wrapper.sh &`  
 It will run in the background and you can log out. It takes ca. 2 hours to complete. 
 
 # Step 5: Upload the build to Nextstrain.org  
