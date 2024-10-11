@@ -60,7 +60,7 @@ cd $HOME
 echo "Indexing the Gisaid fasta file. Takes an hour or so..."
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR \
-    -v $HOME/ngs_scripts/nextstrain:/scripts \
+    -v $HOME/ngs_scripts/nextstrain/sars-cov-2:/scripts \
     -w $TMP_DIR \
     docker.io/jonbra/rsamtools:2.0 \
     Rscript /scripts/index_fasta.R
@@ -69,7 +69,7 @@ docker run --rm \
 echo "Preparing Nextstrain input files from Gisaid. Takes around 30 minutes..."
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR \
-    -v $HOME/ngs_scripts/nextstrain:/scripts \
+    -v $HOME/ngs_scripts/nextstrain/sars-cov-2:/scripts \
     -v $BASE_DIR/ncov/data/SC2_weekly/:$BASE_DIR/ncov/data/SC2_weekly/ \
     -w $BASE_DIR/ncov/data/SC2_weekly/ \
     docker.io/jonbra/rsamtools:2.0 \
@@ -80,7 +80,7 @@ echo "Preparing Nextstrain input files from BN. Takes around 30 minutes..."
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR \
     -v /mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/:/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/ \
-    -v $HOME/ngs_scripts/nextstrain:/scripts \
+    -v $HOME/ngs_scripts/nextstrain/sars-cov-2:/scripts \
     -v $BASE_DIR/ncov/data/SC2_weekly/:$BASE_DIR/ncov/data/SC2_weekly/ \
     -w $BASE_DIR/ncov/data/SC2_weekly/ \
     docker.io/jonbra/rsamtools:2.0 \
