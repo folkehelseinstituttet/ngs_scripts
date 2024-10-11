@@ -111,10 +111,16 @@ cp $BASE_DIR/ncov/auspice/*.json $OUT_DIR
 # Get the date
 DATE=$(date +%Y-%m-%d)
 
-# Rename builds
+# Rename builds with date
 mv $OUT_DIR/ncov_omicron-ba-2-86.json $OUT_DIR/ncov_omicron-ba-2-86_${DATE}.json
 mv $OUT_DIR/ncov_omicron-ba-2-86_root-sequence.json $OUT_DIR/ncov_omicron-ba-2-86_${DATE}_root-sequence.json
 mv $OUT_DIR/ncov_omicron-ba-2-86_tip-frequencies.json $OUT_DIR/ncov_omicron-ba-2-86_${DATE}_tip-frequencies.json
+
+# Rename builds with "latest"
+cp $OUT_DIR/ncov_omicron-ba-2-86_${DATE}.json $OUT_DIR/ncov_omicron-ba-2-86_latest.json
+cp $OUT_DIR/ncov_omicron-ba-2-86_${DATE}_root-sequence.json $OUT_DIR/ncov_omicron-ba-2-86_latest_root-sequence.json
+cp $OUT_DIR/ncov_omicron-ba-2-86_${DATE}_tip-frequencies.json $OUT_DIR/ncov_omicron-ba-2-86_latest_tip-frequencies.json
+
 
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
