@@ -204,7 +204,7 @@ mv $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import_with_glue.csv $H
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
 mkdir $HOME/out
-mv $RUN/ out/
+tar -cf $HOME/out/$RUN.tar $HOME/$RUN/
 
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_OUTPUT <<EOF
 prompt OFF
