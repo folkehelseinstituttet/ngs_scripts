@@ -160,7 +160,8 @@ docker exec gluetools-mysql installGlueProject.sh ncbi_hcv_glue
 # Make a for loop over all bam files and run HCV-GLUE
 ## Adding || true to the end of the command to prevent the pipeline from failing if the bam file is not valid
 
-for bam in $(ls $HOME/$RUN/samtools/*nodup.bam)
+# Don't loop over bam files from first mapping against all references
+for bam in $(ls $HOME/$RUN/samtools/*or.nodup.bam)
 do
 input=$(basename $bam)
 docker run --rm \
