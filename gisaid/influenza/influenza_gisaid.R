@@ -133,7 +133,7 @@ tmp <- merged_df %>%
     "Health_Status" = "",
     "Note" = "",
     "PMID" = "",
-    "Sample Strategy" = ifelse(merged_df$prove_kategori == 1, 
+    "Sample Strategy" = ifelse(merged_df$prove_kategori == "P1_", 
                                "Sentinel surveillance (ARI)", 
                                ifelse(merged_df$pasient_status == "Inneliggende", 
                                       "Non-sentinel surveillance (hospital)", 
