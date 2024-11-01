@@ -3,6 +3,7 @@ args <- commandArgs(trailingOnly = TRUE)
 
 # Assign the arguments to variables
 SID <- args[1] #RunID from argument
+
 source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
 source("N:/Virologi/Influensa/ARoh/Influenza/Analysis Script/BN FLU 24-25.R")
 
@@ -47,7 +48,7 @@ fludb <- fludb %>%
 
 
 # Now select the required columns
-fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "tessy_variable", "pasient_kjonn", "prove_innsender_id", "pasient_fylke_name")
+fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "tessy_variable", "pasient_kjonn", "prove_innsender_id", "pasient_fylke_name", "pasient_status", "prove_kategori")
 
 # Data cleaning and manipulation
 fludb <- fludb %>% 
@@ -131,7 +132,12 @@ tmp <- merged_df %>%
     "Host_Age_Unit" = "Y",
     "Health_Status" = "",
     "Note" = "",
-    "PMID" = ""
+    "PMID" = "",
+    "Sample Strategy" = ifelse(merged_df$prove_kategori == 1, 
+                               "Sentinel surveillance (ARI)", 
+                               ifelse(merged_df$pasient_status == "Inneliggende", 
+                                      "Non-sentinel surveillance (hospital)", 
+                                      ""))
   )
 
 # Define the desired column order
@@ -181,7 +187,8 @@ desired_order <- c(
   "Host_Gender",
   "Health_Status",
   "Note",
-  "PMID"
+  "PMID",
+  "Sample Strategy"
 )
 
 rm(merged_df)
@@ -223,4 +230,3 @@ for (i in 1:nrow(filtered_seq)) {
 
 # Close the file connection
 close(file_con)
-
