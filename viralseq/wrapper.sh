@@ -68,6 +68,10 @@ BASE_DIR=/mnt/tempdata/
 TMP_DIR=/mnt/tempdata/fastq
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
+SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/${AGENS}/${YEAR}
+# Uncomment for testing
+#SMB_DIR=Virologi/NGS/tmp/
+
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
@@ -78,9 +82,7 @@ else
 	echo "Error: Year cannot be larger than $current_year"
 	exit 1
 fi
-# For testing
-SMB_OUTPUT=Virologi/NGS/tmp/
-#SMB_OUTPUT=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/$AGENS/$YEAR/
+
 
 # Create directory to hold the output of the analysis
 mkdir -p $HOME/$RUN
@@ -206,7 +208,7 @@ echo "Moving results to the N: drive"
 mkdir $HOME/out
 mv $RUN/ out/
 
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_OUTPUT <<EOF
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
 recurse ON
 lcd $HOME/out/
