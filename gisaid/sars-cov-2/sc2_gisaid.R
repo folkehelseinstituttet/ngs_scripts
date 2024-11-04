@@ -93,7 +93,8 @@ tmp <- BN %>%
          FYLKENAVN,
          INNSENDER,
          MELDT_SMITTESPORING,
-         P)
+         P,
+         ST)
 
 # Keep samples taken after min_date
 tmp <- tmp %>% filter(PROVE_TATT >= min_date)
@@ -126,7 +127,7 @@ for (i in 1:nrow(tmp)) {
         mutate(SETUP = SEKV_OPPSETT_SWIFT7) %>%
         # Create a column to join with "code" later
         add_column("code" = "FHI")
-    # Check if MIK sample
+      # Check if MIK sample
     } else if (grepl("MIK", tmp$SEKV_OPPSETT_SWIFT7[i])) { # MIK samples
       dummy <- tmp[i,] %>% 
         # Create common columns for looping through later
@@ -136,7 +137,7 @@ for (i in 1:nrow(tmp)) {
         # Create a column to join with "code" later
         add_column("code" = "MIK")
     }
-  # Then check if this is a sample sequenced internally with Artic and Illumina
+    # Then check if this is a sample sequenced internally with Artic and Illumina
   } else if (!is.na(tmp$SAMPLE_CATEGORY[i])) { # Artic_Illumina sample
     dummy <- tmp[i,] %>% 
       # Create common columns for looping through later
@@ -145,7 +146,7 @@ for (i in 1:nrow(tmp)) {
       mutate(SETUP = SAMPLE_CATEGORY) %>% 
       # Create a column to join with "code" later
       add_column("code" = "Artic_Ill")
-  # Then check if this is a sample sequenced internally with Artic and Nanopore
+    # Then check if this is a sample sequenced internally with Artic and Nanopore
   } else if (!is.na(tmp$SEKV_OPPSETT_NANOPORE[i])) { # Artic_Nanopore sample
     dummy <- tmp[i,] %>% 
       # Create common columns for looping through later
@@ -174,8 +175,9 @@ df_2 <- df %>%
   separate(PROVE_TATT, into = c("Year", NA, NA), sep = "-", remove = FALSE) %>% 
   # Add info on sentinel sample (Fyrtårn)
   mutate("covv_sampling_strategy" = case_when(
-    P == "1" ~ "Sentinel surveillance (ARI)",
-    P != "1" ~ "Unknown"
+    P == "P1_" ~ "Sentinel surveillance (ARI)",
+    ST == "Inneliggende"  ~ "Non-sentinel surveillance (hospital)",
+    TRUE ~ "Unknown"
   )
   )
 
@@ -356,7 +358,7 @@ seq <- tbl(con, "SEQUENCEDATA") %>%
   select(KEY, EXPERIMENT, DATA) %>% 
   collect()
 
-  
+
 # Close connection
 dbDisconnect(con)
 
@@ -428,6 +430,5 @@ output_path_fasta <- file.path(output_path, output_dir, output_filename_fasta)
 
 # Write fasta file
 write.fasta(fasta_list, names =names(fasta_list), file.out = output_path_fasta)
-
 
 
