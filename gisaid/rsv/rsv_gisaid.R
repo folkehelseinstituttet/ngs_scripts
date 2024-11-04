@@ -137,7 +137,7 @@ submission <- merged_df %>%
     "authors" = authors,
     "comment" = "", 
     "comment_type" = "",
-    "Sample Strategy" = ifelse(merged_df$prove_kategori == 1, 
+    "sampling_strategy" = ifelse(merged_df$prove_kategori == 1, 
                                "Sentinel surveillance (ARI)", 
                                ifelse(merged_df$pasient_status == "Inneliggende", 
                                       "Non-sentinel surveillance (hospital)", 
