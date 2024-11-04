@@ -79,9 +79,9 @@ rsvdb <- fludb %>%
 
 
 # Now select the required columns
-rsvdb <- rsvdb %>% select("key", "ngs_sekvens_resultat", "pasient_alder", "prove_tatt", "pasient_kjonn", "prove_innsender_id", "pasient_fylke_name", 
-                          "ngs_coverage", "prove_innsender_adresse", "prove_innsender_navn")
-
+rsvdb <- rsvdb %>% select("key", "ngs_sekvens_resultat", "pasient_alder","prove_tatt", "pasient_kjonn", "prove_innsender_id", "pasient_fylke_name",
+                          "ngs_coverage", "prove_innsender_adresse", "prove_innsender_navn", "pasient_status", "prove_kategori")
+                                                  
 # Data cleaning and manipulation
 rsvdb <- rsvdb %>% 
   mutate(
@@ -136,7 +136,12 @@ submission <- merged_df %>%
     "subm_sample_id" = "",
     "authors" = authors,
     "comment" = "", 
-    "comment_type" = ""
+    "comment_type" = "",
+    "Sample Strategy" = ifelse(merged_df$prove_kategori == 1, 
+                               "Sentinel surveillance (ARI)", 
+                               ifelse(merged_df$pasient_status == "Inneliggende", 
+                                      "Non-sentinel surveillance (hospital)", 
+                                      ""))
   )
     
 # Define the output file path and filename
