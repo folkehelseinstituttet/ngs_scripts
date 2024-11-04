@@ -69,6 +69,15 @@ echo "Getting the Run ID on the BaseSpace server"
 id=$(/home/ngs/bin/bs list projects | grep "${RUN}" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
 
 echo "Downloading fastq files"
+# First clean up the tempdrive
+DIRECTORY="$BASE_DIR/fastq"
+if [ -d "$DIRECTORY" ]; then
+    echo "Directory $DIRECTORY exists. Deleting..."
+    rm -rf "$DIRECTORY"
+    echo "Directory $DIRECTORY has been deleted."
+else
+    echo "Directory $DIRECTORY does not exist."
+fi
 # Download to a sub-directory for easier copying to N: later
 mkdir -p $BASE_DIR/fastq
 
