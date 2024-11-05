@@ -163,6 +163,7 @@ docker exec gluetools-mysql installGlueProject.sh ncbi_hcv_glue
 ## Adding || true to the end of the command to prevent the pipeline from failing if the bam file is not valid
 
 # Don't loop over bam files from first mapping against all references
+# First create json files
 for bam in $(ls $HOME/$RUN/samtools/*or.nodup.bam)
 do
 input=$(basename $bam)
@@ -175,6 +176,20 @@ docker run --rm \
         -p cmd-result-format:json \
         -EC \
         -i project hcv module phdrReportingController invoke-function reportBam ${input} 15.0 > $HOME/$RUN/hcvglue/${input%".bam"}.json || true
+done
+
+# Then create html files
+for bam in $(ls $HOME/$RUN/samtools/*or.nodup.bam)
+do
+input=$(basename $bam)
+docker run --rm \
+    --name gluetools \
+    -v $HOME/$RUN/samtools:/opt/bams \
+    -w /opt/bams \
+    --link gluetools-mysql \
+    cvrbioinformatics/gluetools:latest gluetools.sh \
+    	--console-option log-level:FINEST \
+        --inline-cm project hcv module phdrReportingController invoke-function reportBamAsHtml ${input} 15.0 $HOME/$RUN/hcvglue/${input%".bam"}.html || true
 done
 
 docker stop gluetools-mysql 
