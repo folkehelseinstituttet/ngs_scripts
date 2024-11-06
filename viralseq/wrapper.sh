@@ -185,11 +185,12 @@ input=$(basename $bam)
 docker run --rm \
     --name gluetools \
     -v $HOME/$RUN/samtools:/opt/bams \
+    -v $HOME/$RUN/hcvglue:/hcvglue \
     -w /opt/bams \
     --link gluetools-mysql \
     cvrbioinformatics/gluetools:latest gluetools.sh \
     	--console-option log-level:FINEST \
-        --inline-cm project hcv module phdrReportingController invoke-function reportBamAsHtml ${input} 15.0 $HOME/$RUN/hcvglue/${input%".bam"}.html || true
+        --inline-cmd project hcv module phdrReportingController invoke-function reportBamAsHtml ${input} 15.0 /hcvglue/${input%".bam"}.html || true
 done
 
 docker stop gluetools-mysql 
