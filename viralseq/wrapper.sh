@@ -218,6 +218,7 @@ docker run --rm \
 
 ## Rename LW import file 
 mv $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import_with_glue.tsv $HOME/$RUN/summarize/${RUN}_HCV_genotype_and_GLUE_summary.tsv
+rm $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import.csv
 
 
 ## Then move the results to the N: drive
