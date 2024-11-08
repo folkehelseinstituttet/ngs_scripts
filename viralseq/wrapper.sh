@@ -201,7 +201,7 @@ docker rm gluetools-mysql
 echo "Parsing the GLUE results"
 docker run --rm \
     -v $HOME/$RUN/hcvglue:/hcvglue \
-    -v $HOME/.nextflow/assets/jonbra/viralseq/bin/:/scripts \
+    -v $HOME/.nextflow/assets/folkehelseinstituttet/viralseq/bin/:/scripts \
     -w /hcvglue \
     docker.io/jonbra/tidyverse_seqinr:2.0 \
     Rscript /scripts/GLUE_json_parser.R major
@@ -211,7 +211,7 @@ echo "Merge GLUE and mapping results"
 docker run --rm \
     -v $HOME/$RUN/hcvglue:/hcvglue \
     -v $HOME/$RUN/summarize:/summarize \
-    -v $HOME/.nextflow/assets/jonbra/viralseq/bin/:/scripts \
+    -v $HOME/.nextflow/assets/folkehelseinstituttet/viralseq/bin/:/scripts \
     -w /summarize \
     docker.io/jonbra/tidyverse_seqinr:2.0 \
     Rscript /scripts/join_glue_report_with_summary.R
