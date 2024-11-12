@@ -66,6 +66,9 @@ sub_lab <- "Norwegian Institute of Public Health, Department of Virology"
 address <- "P.O.Box 222 Skoyen, 0213 Oslo, Norway"
 authors <- "Bragstad, K; Hungnes, O; Riis, R; Fossum E."
 GISAIDnr <- 3869  # Converting directly to numeric
+Sequencing_Technology <- "Oxford Nanopore"
+Assembly_Method <- "IRMA FLU-minion"
+Sequencing_Strategy <- "Targeted-amplification "
 
 # Read Lab_ID data
 Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Laboratory.xlsx")
@@ -117,7 +120,13 @@ submission <- merged_df %>%
     "add_location" = "",
     "host" = host,
     "add_host_info" = "",
-    "sampling_strategy" = "",
+        "sampling_strategy" = ifelse(merged_df$prove_kategori == "P1_", 
+                               "Sentinel surveillance (ARI)", 
+                               ifelse(merged_df$pasient_status == "Inneliggende", 
+                                      "Non-sentinel surveillance (hospital)", 
+                                      ifelse(merged_df$prove_kategori == "P2_" & merged_df$pasient_status == "Poliklinisk", 
+                                             "Non-sentinel surveillance (outpatient)", 
+                                             ""))),
     "gender" = merged_df$Host_Gender,
     "patient_age" = merged_df$age,
     "patient_status" = "unknown",
@@ -125,8 +134,8 @@ submission <- merged_df %>%
     "outbreak" = "",
     "last_vaccinated" = "",
     "treatment" = "",
-    "seq_technology" = "Oxford Nanopore",
-    "assembly_method" = "",
+    "seq_technology" = Sequencing_Technology,
+    "assembly_method" = Assembly_Method,
     "coverage" = "",
     "orig_lab" = merged_df$prove_innsender_navn,
     "orig_lab_addr" =merged_df$prove_innsender_adresse,
@@ -136,12 +145,8 @@ submission <- merged_df %>%
     "subm_sample_id" = "",
     "authors" = authors,
     "comment" = "", 
-    "comment_type" = "",
-    "sampling_strategy" = ifelse(merged_df$prove_kategori == 1, 
-                               "Sentinel surveillance (ARI)", 
-                               ifelse(merged_df$pasient_status == "Inneliggende", 
-                                      "Non-sentinel surveillance (hospital)", 
-                                      ""))
+    "comment_type" = ""
+
   )
     
 # Define the output file path and filename
