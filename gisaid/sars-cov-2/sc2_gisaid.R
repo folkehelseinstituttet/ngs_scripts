@@ -332,7 +332,7 @@ metadata_raw <- df_4 %>%
 # Change name of primers used for Nanopore depending on date
 metadata_raw <- metadata_raw %>% 
   mutate(covv_seq_technology = case_when(
-    covv_collection_date > "2023-07-01" & str_detect(covv_seq_technology, "Nanopore") ~ "Nanopore GridIon, Artic V5.3.2 protocol modified",
+    covv_collection_date > "2024-05-01" & str_detect(covv_seq_technology, "Nanopore") ~ "Nanopore GridIon, Artic V5.4.2",
     .default = covv_seq_technology)
   )
 
