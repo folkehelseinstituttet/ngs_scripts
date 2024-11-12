@@ -32,6 +32,9 @@ sub_lab <- "Norwegian Institute of Public Health, Department of Virology"
 address <- "P.O.Box 222 Skoyen, 0213 Oslo, Norway"
 authors <- "Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; Knutsen, MF"
 GISAIDnr <- 3869  # Converting directly to numeric
+Sequencing_Technology <- "Nanopore"
+Assembly_Method <- "IRMA FLU-minion"
+Sequencing_Strategy <- "Targeted-amplification "
 
 # Read Lab_ID data
 Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Laboratory.xlsx")
@@ -48,7 +51,9 @@ fludb <- fludb %>%
 
 
 # Now select the required columns
-fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "tessy_variable", "pasient_kjonn", "prove_innsender_id", "pasient_fylke_name", "pasient_status", "prove_kategori")
+fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "tessy_variable", "pasient_kjonn", 
+                          "prove_innsender_id", "pasient_fylke_name", "pasient_status", "prove_kategori", "prove_material", "ngs_reads_ha",
+                          "ngs_reads_na", "ngs_reads_m", "ngs_reads_ns", "ngs_reads_np", "ngs_reads_pa", "ngs_reads_pb1", "ngs_reads_pb2")
 
 # Data cleaning and manipulation
 fludb <- fludb %>% 
@@ -69,8 +74,15 @@ fludb <- fludb %>%
     Year = year(as.Date(prove_tatt)),  # Extracting year from Sampledate
     age = pasient_alder, 
     Uniq_nr = str_sub(key, start = 5, end = 9),  # Extracting unique number
-    Isolate_Name = paste(INFType, "Norway", Uniq_nr, Year, sep = "/")  # Creating Isolate_Name
+    Isolate_Name = paste(INFType, "Norway", Uniq_nr, Year, sep = "/"),  # Creating Isolate_Name
+    Specimen_Source = case_when(  # Creating Specimen_Source column
+      str_starts(prove_material, "SEKRET") ~ "",
+      str_starts(prove_material, "NAPHSEKR") ~ "nasopharyngeal swab",
+      TRUE ~ ""
+    ),
+    Coverage = rowMeans(across(contains("reads"), ~ as.numeric(replace_na(.x, 0))), na.rm = TRUE)  # Calculating average coverage
   )
+
 
 # Merging with Lab_ID
 merged_df <- merge(fludb, Lab_ID, by.x = "prove_innsender_id", by.y = "Innsender nr", all.x = TRUE)
@@ -132,12 +144,18 @@ tmp <- merged_df %>%
     "Host_Age_Unit" = "Y",
     "Health_Status" = "",
     "Note" = "",
-    "PMID" = "",
-    "Sample Strategy" = ifelse(merged_df$prove_kategori == "P1_", 
+    "provider_sample_id" = "",
+    "Sampling_Strategy" = ifelse(merged_df$prove_kategori == "P1_", 
                                "Sentinel surveillance (ARI)", 
                                ifelse(merged_df$pasient_status == "Inneliggende", 
                                       "Non-sentinel surveillance (hospital)", 
-                                      ""))
+                                      ifelse(merged_df$prove_kategori == "P2_" & merged_df$pasient_status == "Poliklinisk", 
+                                             "Non-sentinel surveillance (outpatient)", 
+                                             ""))),
+    "Sequencing_Technology" = Sequencing_Technology,
+    "Assembly_Method" = Assembly_Method,
+    "Sequencing_Strategy" = Sequencing_Strategy
+    
   )
 
 # Define the desired column order
@@ -154,6 +172,12 @@ desired_order <- c(
   "Location_Additional_info",
   "Host",
   "Host_Additional_info",
+  "Specimen_Source",
+  "Sampling_Strategy",
+  "Sequencing_Strategy",
+  "Sequencing_Technology",
+  "Assembly_Method",
+  "Coverage",
   "Seq_Id (HA)",
   "Seq_Id (NA)",
   "Seq_Id (PB1)",
@@ -187,8 +211,7 @@ desired_order <- c(
   "Host_Gender",
   "Health_Status",
   "Note",
-  "PMID",
-  "Sample Strategy"
+  "provider_sample_id"
 )
 
 rm(merged_df)
