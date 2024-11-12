@@ -32,7 +32,7 @@ sub_lab <- "Norwegian Institute of Public Health, Department of Virology"
 address <- "P.O.Box 222 Skoyen, 0213 Oslo, Norway"
 authors <- "Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; Knutsen, MF"
 GISAIDnr <- 3869  # Converting directly to numeric
-Sequencing_Technology <- "Nanopore"
+Sequencing_Technology <- "Oxford Nanopore"
 Assembly_Method <- "IRMA FLU-minion"
 Sequencing_Strategy <- "Targeted-amplification "
 
