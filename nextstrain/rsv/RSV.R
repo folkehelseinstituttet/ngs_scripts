@@ -119,19 +119,19 @@ desired_order <- c(
 submission <- tmp %>%
   select(all_of(desired_order))
 
-# Function to write filtered FASTA file
+# Function to write filtered FASTA file with nc_id as header
 write_fasta <- function(output_path, filtered_data) {
   # Open the file in write mode
   file_con <- file(output_path, open = "w")
   
   # Loop through each row in the filtered data and write the FASTA entry
   for (i in 1:nrow(filtered_data)) {
-    header <- paste(filtered_data$experiment[i], filtered_data$key[i], sep = "|")
+    header <- paste(filtered_data$experiment[i], filtered_data$nc_id[i], sep = "|")  # Use nc_id instead of key
     
-    # Remove "Genome|" from sequences
+    # Remove "Genome|" from sequences if applicable
     if (filtered_data$experiment[i] == "Genome") {
       header <- gsub("^Genome\\|", "", header)
-    } 
+    }
     
     sequence <- filtered_data$sequence[i]
     cat(">", header, "\n", sequence, "\n", file = file_con, sep = "")
@@ -165,9 +165,13 @@ write_xlsx(submission, file.path(output_dir, "metadata.xls"))
 write.table(submission, file.path(output_dir, "metadata.tsv"), sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 
+# Add `nc_id` to `filtered_seq` by joining with `rsvdb` on `key`
+filtered_seq <- filtered_seq %>%
+  left_join(rsvdb %>% select(key, nc_id), by = "key")
 
-# Step 1: Filter `filtered_seq` by Isolate_Name
-filtered_seq <- filtered_seq %>% filter(key %in% submission$strain)
+
+# Filter `filtered_seq` based on `nc_id`
+filtered_seq <- filtered_seq %>% filter(nc_id %in% submission_ids)
 filtered_seq <- filtered_seq %>% filter(experiment == "Genome")
 
 
