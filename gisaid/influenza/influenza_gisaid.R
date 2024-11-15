@@ -225,7 +225,7 @@ output_filename_excel <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%
 output_path_excel <- file.path(output_dir, output_filename_excel)
 
 # Write the submission dataframe to an Excel file
-write.xlsx(tmp, output_path_excel, rownames = FALSE)
+#write.xlsx(tmp, output_path_excel, rownames = FALSE)
 
 # Set the output file path and filename for CSV
 output_dir_csv <- "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/10-GISAID"
