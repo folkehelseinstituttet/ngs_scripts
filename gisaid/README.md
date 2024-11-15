@@ -137,7 +137,7 @@ cd .\ngs_scripts\gisaid\
 ```
 Using PowerShell on a FHI laptop, run the script `influenza_gisaid.R` by typing in:
 ```
-& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" ".\ngs_scripts\gisaid\influenza_gisaid.R" "RUNID"
+& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" ".\influenza\influenza_gisaid.R" "RUNID"
 ```
 Remeber to replace RUNID with run-id for samples you want to submit.
 
@@ -168,7 +168,7 @@ clientid=your_clientid
 ```
 Run submission-script:
 ```
-.\GISAID_INF_submission.ps1 -m "metadata.csv" -f sequences.fasta" -c "credentials.txt" -u "username"
+.\influenza\GISAID_INF_submission.ps1 -m "metadata.csv" -f "sequences.fasta" -c "credentials.txt" -u "username"
 ```
 If .\GISAID_INF_submission.ps1 is not executable try `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process`
 
