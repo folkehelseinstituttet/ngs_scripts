@@ -6,7 +6,7 @@ source ~/miniconda3/etc/profile.d/conda.sh
 # TODO
 
 # Maintained by: Jon Bråte (jon.brate@fhi.no)
-# Version: dev
+# Version: 1.0
 
 # Define the script name and usage
 SCRIPT_NAME=$(basename "$0")
@@ -118,7 +118,7 @@ nextflow pull folkehelseinstituttet/viralseq
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run folkehelseinstituttet/viralseq/main.nf -r master -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina"
+nextflow run folkehelseinstituttet/viralseq/main.nf -r v1.0.1 -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina"
 
 ## Then run HCV GLUE on the bam files
 # First make a directory for the GLUE files
