@@ -126,7 +126,7 @@ conda activate NEXTFLOW
 echo "Map to references and create consensus sequences"
 nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   -r master \
-  -profile server \
+  -profile docker,server \
   --input "$SAMPLESHEET" \
   --samplesDir "$SAMPLEDIR" \
   --outdir "$HOME/$RUN" \
