@@ -74,7 +74,7 @@ SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/results
 SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
-SAMPLESHEET=$(find "$TMP_DIR" -type f -path "*csv" -print -quit)
+SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
 # Uncomment for testing
 #SMB_DIR=Virologi/NGS/tmp/
 
@@ -117,7 +117,7 @@ conda activate NEXTFLOW
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run RasmusKoRiis/nf-core-fluseq/main.nf -r master -profile server --input "$SAMPLESHEET" --sampleDir "$SAMPLEDIR" --outdir "$HOME/$RUN" -with-tower
+nextflow run RasmusKoRiis/nf-core-fluseq/main.nf -r master -profile server --input "$SAMPLESHEET" --samplesDir "$SAMPLEDIR" --outdir "$HOME/$RUN" -with-tower
 
 
 ## Then move the results to the N: drive
