@@ -78,7 +78,7 @@ SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
 
 ## Set up databases
 HA_DATABASE=/mnt/tempdata/influensa_db/flu_se_db/human_HA.fasta
-NA_DATABASE=/mnt/tempdata/influensa_db/flu_se_db/human_HA.fasta
+NA_DATABASE=/mnt/tempdata/influensa_db/flu_se_db/human_NA.fasta
 MAMMALIAN_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_se_db/Mammalian_Mutations_of_Intrest_2324.xlsx
 INHIBTION_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_se_db/Inhibtion_Mutations_of_Intrest_2324.xlsx
 SEQUENCE_REFERENCES=/mnt/tempdata/influensa_db/flu_se_db/sequence_references
