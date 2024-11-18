@@ -75,8 +75,15 @@ SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/results
 SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
 SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
-# Uncomment for testing
-#SMB_DIR=Virologi/NGS/tmp/
+
+## Set up databases
+HA_DATABASE=/mnt/tempdata/influensa_db/flu_se_db/human_HA.fasta
+NA_DATABASE=/mnt/tempdata/influensa_db/flu_se_db/human_HA.fasta
+MAMMALIAN_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_se_db/Mammalian_Mutations_of_Intrest_2324.xlsx
+INHIBTION_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_se_db/Inhibtion_Mutations_of_Intrest_2324.xlsx
+SEQUENCE_REFERENCES=/mnt/tempdata/influensa_db/flu_se_db/sequence_references
+NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_se_db/nextclade_datasets
+
 
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
@@ -117,8 +124,19 @@ conda activate NEXTFLOW
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run RasmusKoRiis/nf-core-fluseq/main.nf -r master -profile server --input "$SAMPLESHEET" --samplesDir "$SAMPLEDIR" --outdir "$HOME/$RUN" -with-tower
-
+nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
+  -r master \
+  -profile server \
+  --input "$SAMPLESHEET" \
+  --samplesDir "$SAMPLEDIR" \
+  --outdir "$HOME/$RUN" \
+  --ha_database "$HA_DATABASE" \
+  --na_database "$NA_DATABASE" \
+  --mamalian_mutation_db "$MAMMALIAN_MUTATION_DATABASE" \
+  --inhibtion_mutation_db "$INHIBTION_MUTATION_DATABASE" \
+  --sequence_references "$SEQUENCE_REFERENCES" \
+  --nextclade_dataset  "$NEXTCLADE_DATASET" \
+  -with-tower
 
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
