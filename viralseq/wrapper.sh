@@ -225,17 +225,17 @@ rm $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import.csv
 
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
-mkdir $HOME/out
-mv $RUN/ out/
+mkdir $HOME/out_hcv
+mv $RUN/ out_hcv/
 
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
 recurse ON
-lcd $HOME/out/
+lcd $HOME/out_hcv/
 mput *
 EOF
 
 ## Clean up
 #nextflow clean -f
-#rm -rf $HOME/out
+#rm -rf $HOME/out_hcv
 #rm -rf $TMP_DIR
