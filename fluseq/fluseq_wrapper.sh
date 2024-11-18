@@ -6,7 +6,7 @@ source ~/miniconda3/etc/profile.d/conda.sh
 
 # TODO
 
-# Maintained by: Jon Bråte (jon.brate@fhi.no)
+# Maintained by: Rasmus Kopperud Riis (rasmuskopperud.riis@fhi.no)
 # Version: dev
 
 # Define the script name and usage
