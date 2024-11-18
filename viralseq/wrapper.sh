@@ -56,7 +56,9 @@ cd $HOME
 
 
 # Sometimes the pipeline has been cloned locally. Remove it to avoid version conflicts
-rm -rf $HOME/viralseq
+if [ -d "$HOME/viralseq" ]; then 
+    rm -rf $HOME/viralseq
+fi
 
 # Export the access token for web monitoring with tower
 export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
