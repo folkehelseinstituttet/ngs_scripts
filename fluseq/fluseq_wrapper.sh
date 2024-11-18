@@ -73,15 +73,17 @@ TMP_DIR=/mnt/tempdata/fastq
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/results
+SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
+SAMPLESHEET=$(find "$TMP_DIR" -type f -path "*csv" -print -quit)
 # Uncomment for testing
 #SMB_DIR=Virologi/NGS/tmp/
 
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
-    SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Nanopore_Grid_Run/$RUN
+    SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Nanopore_Grid_Run/${RUN}_data
 elif [ "$YEAR" -lt "$current_year" ]; then 
-	SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/Arkiv/${YEAR}/Nanopore_Grid_Run/$RUN
+	SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/Arkiv/${YEAR}/Nanopore_Grid_Run/${RUN}_data
 else 
 	echo "Error: Year cannot be larger than $current_year"
 	exit 1
@@ -115,7 +117,7 @@ conda activate NEXTFLOW
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run RasmusKoRiis/nf-core-fluseq/main.nf -r master -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" -with-tower
+nextflow run RasmusKoRiis/nf-core-fluseq/main.nf -r master -profile server --input "$SAMPLESHEET" --sampleDir "$SAMPLEDIR" --outdir "$HOME/$RUN" -with-tower
 
 
 ## Then move the results to the N: drive
