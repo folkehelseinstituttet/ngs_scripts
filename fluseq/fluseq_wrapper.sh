@@ -115,7 +115,7 @@ conda activate NEXTFLOW
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run RasmusKoRiis/nf-core-fluseq/main.nf -r master -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina"
+nextflow run RasmusKoRiis/nf-core-fluseq/main.nf -r master -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" -with-tower
 
 
 ## Then move the results to the N: drive
