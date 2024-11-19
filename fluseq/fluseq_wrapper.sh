@@ -149,7 +149,7 @@ mv $RUN/ out_fluseq/
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
 recurse ON
-lcd $HOME/out/
+lcd $HOME/out_fluseq/
 mput *
 EOF
 
