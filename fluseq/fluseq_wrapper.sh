@@ -73,8 +73,10 @@ TMP_DIR=/mnt/tempdata/fastq
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/results
+SMB_DIR_ANALYSIS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/powerBI
 SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
 SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
+
 
 ## Set up databases
 HA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_HA.fasta
@@ -146,10 +148,19 @@ echo "Moving results to the N: drive"
 mkdir $HOME/out_fluseq
 mv $RUN/ out_fluseq/
 
+## Move all result files to storeage
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
 recurse ON
 lcd $HOME/out_fluseq/
+mput *
+EOF
+
+## Move result report to analysis folder
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+prompt OFF
+recurse ON
+lcd $HOME/out_fluseq/${RUN}/reporthuman/${RUN}.csv
 mput *
 EOF
 
