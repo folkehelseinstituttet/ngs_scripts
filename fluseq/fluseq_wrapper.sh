@@ -143,7 +143,7 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
 
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
-mkdir $HOME/out
+mkdir $HOME/out_fluseq
 mv $RUN/ out_fluseq/
 
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
