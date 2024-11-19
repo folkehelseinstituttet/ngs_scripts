@@ -157,12 +157,13 @@ mput *
 EOF
 
 ## Move result report to analysis folder
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_ANALYSIS <<EOF
 prompt OFF
-recurse ON
-lcd $HOME/out_fluseq/${RUN}/reporthuman/${RUN}.csv
-mput *
+lcd $HOME/out_fluseq/${RUN}/reporthuman/
+cd ${SMB_DIR_ANALYSIS}
+mput *.csv
 EOF
+
 
 ## Clean up
 #nextflow clean -f
