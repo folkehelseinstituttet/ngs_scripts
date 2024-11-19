@@ -124,6 +124,7 @@ conda activate NEXTFLOW
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
+nextflow pull RasmusKoRiis/nf-core-fluseq
 nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   -r master \
   -profile docker,server \
