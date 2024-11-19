@@ -85,6 +85,7 @@ SEQUENCE_REFERENCES=/mnt/tempdata/influensa_db/flu_seq_db/sequence_references
 NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
 
 
+
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
@@ -137,6 +138,7 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   --inhibtion_mutation_db "$INHIBTION_MUTATION_DATABASE" \
   --sequence_references "$SEQUENCE_REFERENCES" \
   --nextclade_dataset  "$NEXTCLADE_DATASET" \
+  --runid "$RUN" \
   -with-tower
 
 ## Then move the results to the N: drive
