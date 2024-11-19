@@ -17,7 +17,7 @@ usage() {
     echo "Options:"
     echo "  -h, --help        Display this help message"
     echo "  -r, --run         Specify the run name (e.g., INF077)"
-    echo "  -a, --agens       Specify agens (e.g., Influensa and Avian)"
+    echo "  -a, --agens       Specify agens (e.g., influensa and avian)"
     echo "  -s, --season      Specify the season directory of the fastq files on the N-drive (e.g. Ses2425)"
     echo "  -y, --year        Specify the year directory of the fastq files on the N-drive"
     exit 1
@@ -29,7 +29,7 @@ AGENS=""
 SEASON=""
 YEAR=""
 
-while getopts "hr:a:y:" opt; do
+while getopts "hr:a:s:y:" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
