@@ -91,9 +91,9 @@ NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
-    SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Nanopore_Grid_Run/${RUN}_data
+    SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Nanopore_Grid_Run/${RUN}
 elif [ "$YEAR" -lt "$current_year" ]; then 
-	SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/Arkiv/${YEAR}/Nanopore_Grid_Run/${RUN}_data
+	SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/Arkiv/${YEAR}/Nanopore_Grid_Run/${RUN}
 else 
 	echo "Error: Year cannot be larger than $current_year"
 	exit 1
