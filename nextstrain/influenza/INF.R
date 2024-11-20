@@ -67,7 +67,8 @@ fludb <- fludb %>%
     Year = year(as.Date(prove_tatt)),  # Extracting year from Sampledate
     age = pasient_alder, 
     Uniq_nr = str_sub(key, start = 5, end = 9),  # Extracting unique number
-    Isolate_Name = key  # Creating Isolate_Name
+    Isolate_Name = ifelse(grepl("Ref", prove_kategori), key, paste(INFType, "Norway", Uniq_nr, Year, sep = "/"))
+    
   )
 
 # Merging with Lab_ID
@@ -137,6 +138,10 @@ tmp <- merged_df %>%
     
   )
 
+# Add Isolate_Name to filtered_seq
+filtered_seq <- filtered_seq %>%
+  left_join(tmp %>% select(key, Isolate_Name), by = "key")
+
 # Define the desired column order
 desired_order <- c(
   "Isolate_Name",
@@ -171,14 +176,16 @@ submission_vic <- tmp_vic %>%
   select(all_of(desired_order))
 
 
-# Function to write filtered FASTA files and remove HA| or NA| from headers
+
+# Function to write filtered FASTA files and use Isolate_Name in headers
 write_fasta <- function(output_path, filtered_data) {
   # Open the file in write mode
   file_con <- file(output_path, open = "w")
   
   # Loop through each row in the filtered data and write the FASTA entry
   for (i in 1:nrow(filtered_data)) {
-    header <- paste(filtered_data$experiment[i], filtered_data$key[i], sep = "|")
+    # Construct the header with Isolate_Name instead of key
+    header <- paste(filtered_data$experiment[i], filtered_data$Isolate_Name[i], sep = "|")
     
     # Remove "HA|" from HA sequences and "NA|" from NA sequences
     if (filtered_data$experiment[i] == "HA") {
@@ -194,6 +201,7 @@ write_fasta <- function(output_path, filtered_data) {
   # Close the file connection
   close(file_con)
 }
+
 
 ############## Write CSV, XLS & FASTA #################
 
@@ -221,9 +229,9 @@ write_xlsx(submission_h3, file.path(output_dir_h3, "metadata.xls"))
 write_xlsx(submission_vic, file.path(output_dir_vic, "metadata.xls"))
 
 # Step 1: Filter `filtered_seq` by Isolate_Name for each group (H1, H3, VIC)
-filtered_h1 <- filtered_seq %>% filter(key %in% submission_h1$Isolate_Name)
-filtered_h3 <- filtered_seq %>% filter(key %in% submission_h3$Isolate_Name)
-filtered_vic <- filtered_seq %>% filter(key %in% submission_vic$Isolate_Name)
+filtered_h1 <- filtered_seq %>% filter(Isolate_Name %in% submission_h1$Isolate_Name)
+filtered_h3 <- filtered_seq %>% filter(Isolate_Name %in% submission_h3$Isolate_Name)
+filtered_vic <- filtered_seq %>% filter(Isolate_Name %in% submission_vic$Isolate_Name)
 
 # Step 2: Filter HA and NA sequences for each group
 
