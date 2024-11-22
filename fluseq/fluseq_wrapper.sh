@@ -74,19 +74,6 @@ SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/results
 SMB_DIR_ANALYSIS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/powerBI
-SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
-SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
-
-
-## Set up databases
-HA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_HA.fasta
-NA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_NA.fasta
-MAMMALIAN_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Mammalian_Mutations_of_Intrest_2324.xlsx
-INHIBTION_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Inhibtion_Mutations_of_Intrest_2324.xlsx
-SEQUENCE_REFERENCES=/mnt/tempdata/influensa_db/flu_seq_db/sequence_references
-NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
-
-
 
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
@@ -113,6 +100,17 @@ recurse ON
 lcd $TMP_DIR
 mget *
 EOF
+
+
+## Set up databases
+SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
+SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
+HA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_HA.fasta
+NA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_NA.fasta
+MAMMALIAN_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Mammalian_Mutations_of_Intrest_2324.xlsx
+INHIBTION_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Inhibtion_Mutations_of_Intrest_2324.xlsx
+SEQUENCE_REFERENCES=/mnt/tempdata/influensa_db/flu_seq_db/sequence_references
+NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
     
 # Create a samplesheet by running the supplied Rscript in a docker container.
 #ADD CODE FOR HANDLING OF SAMPLESHEET
