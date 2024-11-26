@@ -4,7 +4,7 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 
 ## Set up environment
-BASE_DIR=/mnt/tempdata/
+BASE_DIR=/mnt/tempdata
 TMP_DIR=/mnt/tempdata/flu_nextstrain
 OUT_DIR=/mnt/tempdata/flu_nextstrain_out
 SMB_AUTH=/home/ngs/.smbcreds
