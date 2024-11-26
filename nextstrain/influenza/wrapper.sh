@@ -33,9 +33,16 @@ else
   git clone https://github.com/nextstrain/seasonal-flu.git
 fi
 
+## Make output dir
+mkdir $OUT_DIR
+
 ## Make NIPH-profile
-cd seasonal-flu/profiles
-mkdir niph
+cd seasonal-flu
+mkdir profiles/niph
+mkdir data
+mkdir data/h1n1pdm
+mkdir data/h3n2
+mkdir data/vic
 cd $BASE_DIR
 
 ## Move input files from N
@@ -56,27 +63,70 @@ cp $HOME/ngs_scripts/nextstrain/influenza/fhi/builds.yaml $BASE_DIR/seasonal-flu
 cp $HOME/ngs_scripts/nextstrain/influenza/fhi/config.yaml $BASE_DIR/seasonal-flu/profiles/niph
 cp $HOME/ngs_scripts/nextstrain/influenza/fhi/prepare_data.smk $BASE_DIR/seasonal-flu/profiles/niph
 
+cp $BASE_DIR/flu_nextstrain/H1/metadata.xls $BASE_DIR/seasonal-flu/data/h1n1pdm
+cp $BASE_DIR/flu_nextstrain/H1/raw_sequences_ha.fasta $BASE_DIR/seasonal-flu/data/h1n1pdm
+cp $BASE_DIR/flu_nextstrain/H1/raw_sequences_na.fasta $BASE_DIR/seasonal-flu/data/h1n1pdm
+cp $BASE_DIR/flu_nextstrain/H3/metadata.xls $BASE_DIR/seasonal-flu/data/h3n2
+cp $BASE_DIR/flu_nextstrain/H3/raw_sequences_ha.fasta $BASE_DIR/seasonal-flu/data/h3n2
+cp $BASE_DIR/flu_nextstrain/H3/raw_sequences_na.fasta $BASE_DIR/seasonal-flu/data/h3n2
+cp $BASE_DIR/flu_nextstrain/VIC/metadata.xls $BASE_DIR/seasonal-flu/data/vic
+cp $BASE_DIR/flu_nextstrain/VIC/raw_sequences_ha.fasta $BASE_DIR/seasonal-flu/data/vic
+cp $BASE_DIR/flu_nextstrain/VIC/raw_sequences_na.fasta $BASE_DIR/seasonal-flu/data/vic
+
 conda activate nextstrain
 
-cd $BASE_DIR/seasonal_flu 
+cd $BASE_DIR/seasonal-flu 
 
-echo "Making the Nextstrain build.
-nextstrain build .  --configfile profiles/niph/builds.yaml --cores 14 --forceall
+echo "Making the Nextstrain build."
+nextstrain build .  --configfile profiles/niph/builds.yaml --cores 14 
 
 echo "Build finished. Copying auspice files to N for inspection."
-# Copy the nohup output file to the OUT_DIR folder for easier copying to N
-cp $HOME/nohup.out $OUT_DIR
 
 # Copy and rename the builds files
-cp $BASE_DIR/ncov/auspice/*.json $OUT_DIR
+cp $BASE_DIR/seasonal-flu/auspice/*.json $OUT_DIR
 
 # Get the date
 DATE=$(date +%Y-%m-%d)
 
 # Rename builds
-mv $OUT_DIR/ncov_omicron-ba-2-86.json $OUT_DIR/ncov_omicron-ba-2-86_${DATE}.json
-mv $OUT_DIR/ncov_omicron-ba-2-86_root-sequence.json $OUT_DIR/ncov_omicron-ba-2-86_${DATE}_root-sequence.json
-mv $OUT_DIR/ncov_omicron-ba-2-86_tip-frequencies.json $OUT_DIR/ncov_omicron-ba-2-86_${DATE}_tip-frequencies.json
+# H1N1
+cp $OUT_DIR/h1n1_fhi_ha.json $OUT_DIR/flu_a_h1n1_ha.json_${DATE}.json
+mv $OUT_DIR/h1n1_fhi_ha.json $OUT_DIR/flu_a_h1n1_ha.json_latest.json
+
+cp $OUT_DIR/h1n1_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h1n1_ha.json_${DATE}_tip-frequencies.json
+mv $OUT_DIR/h1n1_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h1n1_ha.json_latest_tip-frequencies.json
+
+cp $OUT_DIR/h1n1_fhi_na.json $OUT_DIR/flu_a_h1n1_na.json_${DATE}.json
+mv $OUT_DIR/h1n1_fhi_na.json $OUT_DIR/flu_a_h1n1_na.json_latest.json
+
+cp $OUT_DIR/h1n1_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h1n1_na.json_${DATE}_tip-frequencies.json
+mv $OUT_DIR/h1n1_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h1n1_na.json_latest_tip-frequencies.json
+
+# H3N2
+cp $OUT_DIR/h3n2_fhi_ha.json $OUT_DIR/flu_a_h3n2_ha.json_${DATE}.json
+mv $OUT_DIR/h3n2_fhi_ha.json $OUT_DIR/flu_a_h3n2_ha.json_latest.json
+
+cp $OUT_DIR/h3n2_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h3n2_ha.json_${DATE}_tip-frequencies.json
+mv $OUT_DIR/h3n2_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h3n2_ha.json_latest_tip-frequencies.json
+
+cp $OUT_DIR/h3n2_fhi_na.json $OUT_DIR/flu_a_h3n2_na.json_${DATE}.json
+mv $OUT_DIR/h3n2_fhi_na.json $OUT_DIR/flu_a_h3n2_na.json_latest.json
+
+cp $OUT_DIR/h3n2_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h3n2_na.json_${DATE}_tip-frequencies.json
+mv $OUT_DIR/h3n2_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h3n2_na.json_latest_tip-frequencies.json
+
+# VIC
+cp $OUT_DIR/vic_fhi_ha.json $OUT_DIR/flu_b_vic_ha.json_${DATE}.json
+mv $OUT_DIR/vic_fhi_ha.json $OUT_DIR/flu_b_vic_ha.json_latest.json
+
+cp $OUT_DIR/vic_fhi_ha_tip-frequencies.json $OUT_DIR/flu_b_vic_ha.json_${DATE}_tip-frequencies.json
+mv $OUT_DIR/vic_fhi_ha_tip-frequencies.json $OUT_DIR/flu_b_vic_ha.json_latest_tip-frequencies.json
+
+cp $OUT_DIR/vic_fhi_na.json $OUT_DIR/flu_b_vic_na.json_${DATE}.json
+mv $OUT_DIR/vic_fhi_na.json $OUT_DIR/flu_b_vic_na.json_latest.json
+
+cp $OUT_DIR/vic_fhi_na_tip-frequencies.json $OUT_DIR/flu_b_vic_na.json_${DATE}_tip-frequencies.json
+mv $OUT_DIR/vic_fhi_na_tip-frequencies.json $OUT_DIR/flu_b_vic_na.json_latest_tip-frequencies.json
 
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
@@ -87,6 +137,6 @@ EOF
 
 # Clean up
 rm -rf $TMP_DIR
-rm $BASE_DIR/ncov/data/SC2_weekly/*
+
 
 
