@@ -34,7 +34,7 @@ else
 fi
 
 ## Make NIPH-profile
-cd seasonal_flu/profiles
+cd seasonal-flu/profiles
 mkdir niph
 cd $BASE_DIR
 
