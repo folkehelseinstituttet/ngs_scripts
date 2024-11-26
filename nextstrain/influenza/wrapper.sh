@@ -52,9 +52,9 @@ mget *
 EOF
 
 # Copy nextstrain build files into the ncov directory
-cp $HOME/ngs_scripts/nextstrain/influenza/fhi/builds.yaml $BASE_DIR/seasonal_flu/profile/niph
-cp $HOME/ngs_scripts/nextstrain/influenza/fhi/config.yaml $BASE_DIR/seasonal_flu/profile/niph
-cp $HOME/ngs_scripts/nextstrain/influenza/fhi/prepare_data.smk $BASE_DIR/seasonal_flu/profile/niph
+cp $HOME/ngs_scripts/nextstrain/influenza/fhi/builds.yaml $BASE_DIR/seasonal_flu/profiles/niph
+cp $HOME/ngs_scripts/nextstrain/influenza/fhi/config.yaml $BASE_DIR/seasonal_flu/profiles/niph
+cp $HOME/ngs_scripts/nextstrain/influenza/fhi/prepare_data.smk $BASE_DIR/seasonal_flu/profiles/niph
 
 conda activate nextstrain
 
