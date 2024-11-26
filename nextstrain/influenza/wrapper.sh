@@ -20,9 +20,9 @@ else
   git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
 fi
 
-# Check if the ncov repo exists, if not clone it from GitHub
+# Check if the seasonal_flu repo exists, if not clone it from GitHub
 cd $BASE_DIR
-if [ -d "ncov" ]; then
+if [ -d "seasonal-flu" ]; then
   cd seasonal-flu
   # Make sure to pull the latest version
   git pull origin master
