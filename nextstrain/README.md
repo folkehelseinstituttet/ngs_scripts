@@ -45,7 +45,7 @@ bash ngs_scripts/nextstrain/influenza/wrapper.sh
 ```
 This will save the Nextstrain-tree files at N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\11-Nextstrain\{DATE}_Nextstrain_Build
 
-All *json files can be viewd at https://auspice.us/
+All *json files can uploaded to https://auspice.us/ for analysis. 
 
 # SARS-CoV-2
 
