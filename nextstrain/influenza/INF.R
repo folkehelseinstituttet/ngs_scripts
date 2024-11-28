@@ -292,3 +292,30 @@ write_fasta(output_fasta_h3_na, filtered_h3_na)
 # Write VIC FASTA files
 write_fasta(output_fasta_vic_ha, filtered_vic_ha)
 write_fasta(output_fasta_vic_na, filtered_vic_na)
+
+# Define the target directory for copying
+flu_nextstrain_dir <- "N:/Virologi/NGS/tmp/flu_nextstrain"
+
+# Create the target directory if it doesn't exist
+if (!dir.exists(flu_nextstrain_dir)) {
+  dir.create(flu_nextstrain_dir, recursive = TRUE, showWarnings = FALSE)
+}
+
+# Copy directories to the flu_nextstrain directory
+file.copy(from = output_dir_h1, 
+          to = file.path(flu_nextstrain_dir, "H1"), 
+          recursive = TRUE, 
+          overwrite = TRUE)
+
+file.copy(from = output_dir_h3, 
+          to = file.path(flu_nextstrain_dir, "H3"), 
+          recursive = TRUE, 
+          overwrite = TRUE)
+
+file.copy(from = output_dir_vic, 
+          to = file.path(flu_nextstrain_dir, "VIC"), 
+          recursive = TRUE, 
+          overwrite = TRUE)
+
+cat("Folders H1, H3, and VIC with their contents have been copied to", flu_nextstrain_dir, "\n")
+
