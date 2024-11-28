@@ -28,7 +28,7 @@ Using PowerShell on a FHI laptop, run the script `INF.R` by typing in:
 This should create a directory with today's date here: `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\11-Nextstrain`.  
 That directory should contain three directories (H1, H3 and VIC) which each should contain three files.
 
-### Build Nextstrain-tree
+### Build Nextstrain-tree (VM)
 
 Using PowerShell, log on the server following the description in 702-VIN-AR-032-document. 
 After a sucessful log-in write the command under in the terminal window.
