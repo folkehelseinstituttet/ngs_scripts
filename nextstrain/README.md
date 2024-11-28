@@ -6,9 +6,6 @@
 
 # Influenza
 
-### Open the excel submission log document
-Missing log file!
-
 ### Prepare input files (PowerShell)
 Prerequisite: PowerShell, R and git.
 
@@ -20,47 +17,35 @@ Using PowerShell on a FHI laptop, clone the repo:
 ```
 git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
 ```
-Using PowerShell, naviagte into gisaid-repo:
+Using PowerShell, naviagte into nextstrain-repo:
 ```
-cd .\ngs_scripts\gisaid\
+cd .\ngs_scripts\nextstrain\influenza
 ```
-Using PowerShell on a FHI laptop, run the script `influenza_gisaid.R` by typing in:
+Using PowerShell on a FHI laptop, run the script `INF.R` by typing in:
 ```
-& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" ".\influenza\influenza_gisaid.R" "RUNID"
+& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" "INF.R"
 ```
-Remeber to replace RUNID with run-id for samples you want to submit.
+This should create a directory with today's date here: `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\11-Nextstrain`.  
+That directory should contain three directories (H1, H3 and VIC) which each should contain three files.
 
-This should create a directory with today's date here: `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\10-GISAID`.  
-That directory should contain two files. One csv file with metadata and one fasta file.
+### Build Nextstrain-tree
 
-### Upload to Gisaid (Windows)  
-Upload to GISAID using version 4 of the cli.
-
-No need do naviagte and clone repo if already done.
-
-Using PowerShell, naviagte to N:\Virologi\NGS\tmp 
+Using PowerShell, log on the server following the description in 702-VIN-AR-032-document. 
+After a sucessful log-in write the command under in the terminal window.
 ```
-cd N:\Virologi\NGS\tmp
+cd $HOME
 ```
-Using PowerShell on a FHI laptop, clone the repo:
+If ngs_script-directory dosent exist:
 ```
 git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
 ```
-Using PowerShell, naviagte into gisaid-repo:
+Start Nextstrain-script with:
 ```
-cd .\ngs_scripts\gisaid\
+bash ngs_scripts/nextstrain/influenza/wrapper.sh
 ```
-Prepare a "credentials.txt" file with this content and format and save at `.\ngs_scripts\gisaid\`:
-```
-password=your_password
-clientid=your_clientid
-```
-Run submission-script:
-```
-.\influenza\GISAID_INF_submission.ps1 -m "metadata.csv" -f "sequences.fasta" -c "credentials.txt" -u "username"
-```
-If .\GISAID_INF_submission.ps1 is not executable try `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process`
+This will save the Nextstrain-tree files at N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\11-Nextstrain\{DATE}_Nextstrain_Build
 
+All *json files can be viewd at https://auspice.us/
 
 # SARS-CoV-2
 
