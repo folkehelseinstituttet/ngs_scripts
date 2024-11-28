@@ -1,4 +1,70 @@
-TODO:
+# GENERATING NEXTSTRAIN-TREES
+
+# Table of Contents
+1. [Influenza](#influenza)
+2. [SARS-CoV-2](#sars-cov-2)
+
+# Influenza
+
+### Open the excel submission log document
+Missing log file!
+
+### Prepare input files (PowerShell)
+Prerequisite: PowerShell, R and git.
+
+Using PowerShell, naviagte to N:\Virologi\NGS\tmp 
+```
+cd N:\Virologi\NGS\tmp
+```
+Using PowerShell on a FHI laptop, clone the repo:
+```
+git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
+```
+Using PowerShell, naviagte into gisaid-repo:
+```
+cd .\ngs_scripts\gisaid\
+```
+Using PowerShell on a FHI laptop, run the script `influenza_gisaid.R` by typing in:
+```
+& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" ".\influenza\influenza_gisaid.R" "RUNID"
+```
+Remeber to replace RUNID with run-id for samples you want to submit.
+
+This should create a directory with today's date here: `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\10-GISAID`.  
+That directory should contain two files. One csv file with metadata and one fasta file.
+
+### Upload to Gisaid (Windows)  
+Upload to GISAID using version 4 of the cli.
+
+No need do naviagte and clone repo if already done.
+
+Using PowerShell, naviagte to N:\Virologi\NGS\tmp 
+```
+cd N:\Virologi\NGS\tmp
+```
+Using PowerShell on a FHI laptop, clone the repo:
+```
+git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
+```
+Using PowerShell, naviagte into gisaid-repo:
+```
+cd .\ngs_scripts\gisaid\
+```
+Prepare a "credentials.txt" file with this content and format and save at `.\ngs_scripts\gisaid\`:
+```
+password=your_password
+clientid=your_clientid
+```
+Run submission-script:
+```
+.\influenza\GISAID_INF_submission.ps1 -m "metadata.csv" -f "sequences.fasta" -c "credentials.txt" -u "username"
+```
+If .\GISAID_INF_submission.ps1 is not executable try `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process`
+
+
+# SARS-CoV-2
+
+After files are created delete the `ngs_scripts` folder in `N:\Virologi\NGS\tmp`.TODO:
 - [X] Update (colors_norwaydivisions.tsv)[colors_norwaydivisions.tsv] with new counties.
 - [ ] Fix the naming scheme of the Nextstrain build files
 - [ ] Consider changing the reference sequence for alignment. Currently original wuhan is used [https://github.com/nextstrain/ncov/blob/master/defaults/reference_seq.fasta](https://github.com/nextstrain/ncov/blob/master/defaults/reference_seq.fasta). Can be specified in the [builds.yaml](builds.yaml) for example.
