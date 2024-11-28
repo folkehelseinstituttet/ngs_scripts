@@ -301,21 +301,38 @@ if (!dir.exists(flu_nextstrain_dir)) {
   dir.create(flu_nextstrain_dir, recursive = TRUE, showWarnings = FALSE)
 }
 
-# Copy directories to the flu_nextstrain directory
-file.copy(from = output_dir_h1, 
-          to = file.path(flu_nextstrain_dir, "H1"), 
-          recursive = TRUE, 
-          overwrite = TRUE)
+# Function to copy the folder and its contents
+copy_folder <- function(source_dir, target_dir) {
+  if (dir.exists(source_dir)) {
+    # Ensure the target directory exists
+    if (!dir.exists(target_dir)) {
+      dir.create(target_dir, recursive = TRUE, showWarnings = FALSE)
+    }
+    # Get the list of all files and subdirectories in the source directory
+    files <- list.files(source_dir, full.names = TRUE, recursive = TRUE)
+    for (file in files) {
+      # Determine the relative path of the file
+      rel_path <- gsub(paste0("^", normalizePath(source_dir, winslash = "/")), "", normalizePath(file, winslash = "/"))
+      # Create the corresponding directory in the target location if needed
+      target_file <- file.path(target_dir, rel_path)
+      if (dir.exists(file)) {
+        dir.create(target_file, recursive = TRUE, showWarnings = FALSE)
+      } else {
+        # Copy the file to the corresponding location
+        file.copy(file, target_file, overwrite = TRUE)
+      }
+    }
+    cat("Copied folder:", source_dir, "to", target_dir, "\n")
+  } else {
+    cat("Source folder does not exist:", source_dir, "\n")
+  }
+}
 
-file.copy(from = output_dir_h3, 
-          to = file.path(flu_nextstrain_dir, "H3"), 
-          recursive = TRUE, 
-          overwrite = TRUE)
+# Copy each folder (H1, H3, VIC) to the flu_nextstrain directory
+copy_folder(output_dir_h1, file.path(flu_nextstrain_dir, "H1"))
+copy_folder(output_dir_h3, file.path(flu_nextstrain_dir, "H3"))
+copy_folder(output_dir_vic, file.path(flu_nextstrain_dir, "VIC"))
 
-file.copy(from = output_dir_vic, 
-          to = file.path(flu_nextstrain_dir, "VIC"), 
-          recursive = TRUE, 
-          overwrite = TRUE)
+cat("All folders and their contents have been successfully copied to", flu_nextstrain_dir, "\n")
 
-cat("Folders H1, H3, and VIC with their contents have been copied to", flu_nextstrain_dir, "\n")
 
