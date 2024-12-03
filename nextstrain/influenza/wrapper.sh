@@ -95,43 +95,43 @@ DATE=$(date +%Y-%m-%d)
 
 # Rename builds
 # H1N1
-cp $OUT_DIR/h1n1_fhi_ha.json $OUT_DIR/flu_a_h1n1_ha.json_${DATE}.json
-mv $OUT_DIR/h1n1_fhi_ha.json $OUT_DIR/flu_a_h1n1_ha.json_latest.json
+cp $OUT_DIR/h1n1_fhi_ha.json $OUT_DIR/flu_a_h1n1_ha_${DATE}.json
+mv $OUT_DIR/h1n1_fhi_ha.json $OUT_DIR/flu_a_h1n1_ha_latest.json
 
-cp $OUT_DIR/h1n1_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h1n1_ha.json_${DATE}_tip-frequencies.json
-mv $OUT_DIR/h1n1_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h1n1_ha.json_latest_tip-frequencies.json
+cp $OUT_DIR/h1n1_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h1n1_ha_${DATE}_tip-frequencies.json
+mv $OUT_DIR/h1n1_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h1n1_ha_latest_tip-frequencies.json
 
-cp $OUT_DIR/h1n1_fhi_na.json $OUT_DIR/flu_a_h1n1_na.json_${DATE}.json
-mv $OUT_DIR/h1n1_fhi_na.json $OUT_DIR/flu_a_h1n1_na.json_latest.json
+cp $OUT_DIR/h1n1_fhi_na.json $OUT_DIR/flu_a_h1n1_na_${DATE}.json
+mv $OUT_DIR/h1n1_fhi_na.json $OUT_DIR/flu_a_h1n1_na_latest.json
 
-cp $OUT_DIR/h1n1_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h1n1_na.json_${DATE}_tip-frequencies.json
-mv $OUT_DIR/h1n1_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h1n1_na.json_latest_tip-frequencies.json
+cp $OUT_DIR/h1n1_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h1n1_na_${DATE}_tip-frequencies.json
+mv $OUT_DIR/h1n1_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h1n1_na_latest_tip-frequencies.json
 
 # H3N2
-cp $OUT_DIR/h3n2_fhi_ha.json $OUT_DIR/flu_a_h3n2_ha.json_${DATE}.json
-mv $OUT_DIR/h3n2_fhi_ha.json $OUT_DIR/flu_a_h3n2_ha.json_latest.json
+cp $OUT_DIR/h3n2_fhi_ha.json $OUT_DIR/flu_a_h3n2_ha_${DATE}.json
+mv $OUT_DIR/h3n2_fhi_ha.json $OUT_DIR/flu_a_h3n2_ha_latest.json
 
-cp $OUT_DIR/h3n2_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h3n2_ha.json_${DATE}_tip-frequencies.json
-mv $OUT_DIR/h3n2_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h3n2_ha.json_latest_tip-frequencies.json
+cp $OUT_DIR/h3n2_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h3n2_ha_${DATE}_tip-frequencies.json
+mv $OUT_DIR/h3n2_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h3n2_ha_latest_tip-frequencies.json
 
-cp $OUT_DIR/h3n2_fhi_na.json $OUT_DIR/flu_a_h3n2_na.json_${DATE}.json
-mv $OUT_DIR/h3n2_fhi_na.json $OUT_DIR/flu_a_h3n2_na.json_latest.json
+cp $OUT_DIR/h3n2_fhi_na.json $OUT_DIR/flu_a_h3n2_na_${DATE}.json
+mv $OUT_DIR/h3n2_fhi_na.json $OUT_DIR/flu_a_h3n2_na_latest.json
 
-cp $OUT_DIR/h3n2_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h3n2_na.json_${DATE}_tip-frequencies.json
-mv $OUT_DIR/h3n2_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h3n2_na.json_latest_tip-frequencies.json
+cp $OUT_DIR/h3n2_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h3n2_na_${DATE}_tip-frequencies.json
+mv $OUT_DIR/h3n2_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h3n2_na_latest_tip-frequencies.json
 
 # VIC
-cp $OUT_DIR/vic_fhi_ha.json $OUT_DIR/flu_b_vic_ha.json_${DATE}.json
-mv $OUT_DIR/vic_fhi_ha.json $OUT_DIR/flu_b_vic_ha.json_latest.json
+cp $OUT_DIR/vic_fhi_ha.json $OUT_DIR/flu_b_vic_ha_${DATE}.json
+mv $OUT_DIR/vic_fhi_ha.json $OUT_DIR/flu_b_vic_ha_latest.json
 
-cp $OUT_DIR/vic_fhi_ha_tip-frequencies.json $OUT_DIR/flu_b_vic_ha.json_${DATE}_tip-frequencies.json
-mv $OUT_DIR/vic_fhi_ha_tip-frequencies.json $OUT_DIR/flu_b_vic_ha.json_latest_tip-frequencies.json
+cp $OUT_DIR/vic_fhi_ha_tip-frequencies.json $OUT_DIR/flu_b_vic_ha_${DATE}_tip-frequencies.json
+mv $OUT_DIR/vic_fhi_ha_tip-frequencies.json $OUT_DIR/flu_b_vic_ha_latest_tip-frequencies.json
 
-cp $OUT_DIR/vic_fhi_na.json $OUT_DIR/flu_b_vic_na.json_${DATE}.json
-mv $OUT_DIR/vic_fhi_na.json $OUT_DIR/flu_b_vic_na.json_latest.json
+cp $OUT_DIR/vic_fhi_na.json $OUT_DIR/flu_b_vic_na_${DATE}.json
+mv $OUT_DIR/vic_fhi_na.json $OUT_DIR/flu_b_vic_na_latest.json
 
-cp $OUT_DIR/vic_fhi_na_tip-frequencies.json $OUT_DIR/flu_b_vic_na.json_${DATE}_tip-frequencies.json
-mv $OUT_DIR/vic_fhi_na_tip-frequencies.json $OUT_DIR/flu_b_vic_na.json_latest_tip-frequencies.json
+cp $OUT_DIR/vic_fhi_na_tip-frequencies.json $OUT_DIR/flu_b_vic_na_${DATE}_tip-frequencies.json
+mv $OUT_DIR/vic_fhi_na_tip-frequencies.json $OUT_DIR/flu_b_vic_na_latest_tip-frequencies.json
 
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_ANALYSIS <<EOF
 prompt OFF
