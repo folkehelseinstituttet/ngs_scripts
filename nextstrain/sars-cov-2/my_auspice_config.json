@@ -1,8 +1,5 @@
 {
   "title": "SARS-CoV-2 Sequences in Norway",
-  "maintainers": [
-    {"name": "Jon Bråte", "url": "https://nextstrain.org/groups/niph"}
-  ],
   "colorings": [
     {
       "key": "location",
