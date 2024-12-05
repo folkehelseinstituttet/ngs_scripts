@@ -67,7 +67,7 @@ address <- "P.O.Box 222 Skoyen, 0213 Oslo, Norway"
 authors <- "Bragstad, K; Hungnes, O; Riis, R; Fossum E."
 GISAIDnr <- 3869  # Converting directly to numeric
 Sequencing_Technology <- "Oxford Nanopore"
-Assembly_Method <- "IRMA FLU-minion"
+Assembly_Method <- "IRMA RSV-minion"
 Sequencing_Strategy <- "Targeted-amplification "
 
 # Read Lab_ID data
