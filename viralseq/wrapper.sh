@@ -114,7 +114,7 @@ docker run --rm \
 conda activate NEXTFLOW
 
 # Make sure the latest pipeline is available
-nextflow pull folkehelseinstituttet/viralseq
+nextflow pull folkehelseinstituttet/viralseq -r v1.0.2
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
