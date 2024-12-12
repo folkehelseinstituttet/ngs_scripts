@@ -75,7 +75,7 @@ Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Labo
 
 
 # Proceed with data filtering and selection
-rsvdb <- fludb %>%
+rsvdb <- rsvdb %>%
   filter(ngs_run_id == SID) %>%                      # Ensure SID is defined and matches the column
   filter(ngs_sekvens_resultat != "") %>%             # Remove empty results
   filter(prove_kategori != "Ref")              # Remove references
