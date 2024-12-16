@@ -7,13 +7,6 @@
 
 # SARS-CoV-2
 
-## TODO
-- [ ] Include procedure to exclude samples from submission. Probably add column to BN and update script accordingly
-- [ ] Copy the submission log to N?
-- [ ] Create BN import file and import to BN 
-
-## Step-by-step procedure  
-
 ### Open the excel submission log document
 Open this file and fill in accordingly:
 `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\SARS-CoV-2\4-GISAIDsubmisjon\OVERSIKT submisjoner til GISAID og andre_V2.xlsx`  
