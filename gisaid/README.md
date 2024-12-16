@@ -162,7 +162,7 @@ Using PowerShell, naviagte into gisaid-repo:
 ```
 cd .\ngs_scripts\gisaid\
 ```
-Using PowerShell on a FHI laptop, run the script `influenza_gisaid.R` by typing in:
+Using PowerShell on a FHI laptop, run the script `rsv_gisaid.R` by typing in:
 ```
 & "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" ".\rsv\rsv_gisaid.R" "RUNID"
 ```
