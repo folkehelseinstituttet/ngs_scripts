@@ -100,6 +100,7 @@ Run submission-script:
 ```
 ./GISAID_SC2_submission.sh -m metadata.csv -f sequences.fasta -c my_credentials.txt -u username
 ```
+Remember to give the command your metadata-,sequences- and credentials-file, and also your GISAID-username.
    
 ### Copy submission log file N
 Copy the covCLI upload log file to the directory created when you prepared the submission files.  
