@@ -82,16 +82,14 @@ seqkit rmdup -n ${DATA_DIR}/combined_sequences.fasta -o ${DATA_DIR}/sequences.fa
 rm ${DATA_DIR}/combined_sequences.fasta
 xz -f ${DATA_DIR}/sequences.fasta
 
-# Remove intermediate files, keep only metadata.tsv.gz and sequences.fasta
-rm ${DATA_DIR}/metadata.tsv
-rm ${DATA_DIR}/metadata_world.tsv.gz
-rm ${DATA_DIR}/sequences.fasta
-rm ${DATA_DIR}/sequences_world.fasta
-rm ${DATA_DIR}/metadata_cleaned.tsv
-
-# Zip files
+# Zip metadata_cleaned.tsv before removing it
 gzip ${DATA_DIR}/metadata_cleaned.tsv
 mv ${DATA_DIR}/metadata_cleaned.tsv.gz ${DATA_DIR}/metadata.tsv.gz
+
+# Remove intermediate files, keep only metadata.tsv.gz and sequences.fasta.xz
+rm ${DATA_DIR}/metadata.tsv
+rm ${DATA_DIR}/metadata_world.tsv.gz
+rm ${DATA_DIR}/sequences_world.fasta
 
 # Organize and quality checks RSV B data
 cp $BASE_DIR/rsv_nextstrain/virus_RSV_B/metadata.tsv $BASE_DIR/rsv/data/b
@@ -112,16 +110,14 @@ seqkit rmdup -n ${DATA_DIR}/combined_sequences.fasta -o ${DATA_DIR}/sequences.fa
 rm ${DATA_DIR}/combined_sequences.fasta
 xz -f ${DATA_DIR}/sequences.fasta
 
-# Remove intermediate files, keep only metadata.tsv.gz and sequences.fasta
-rm ${DATA_DIR}/metadata.tsv
-rm ${DATA_DIR}/metadata_world.tsv.gz
-rm ${DATA_DIR}/sequences.fasta
-rm ${DATA_DIR}/sequences_world.fasta
-rm ${DATA_DIR}/metadata_cleaned.tsv
-
-# Zip files
+# Zip metadata_cleaned.tsv before removing it
 gzip ${DATA_DIR}/metadata_cleaned.tsv
 mv ${DATA_DIR}/metadata_cleaned.tsv.gz ${DATA_DIR}/metadata.tsv.gz
+
+# Remove intermediate files, keep only metadata.tsv.gz and sequences.fasta.xz
+rm ${DATA_DIR}/metadata.tsv
+rm ${DATA_DIR}/metadata_world.tsv.gz
+rm ${DATA_DIR}/sequences_world.fasta
 
 
 conda activate nextstrain
