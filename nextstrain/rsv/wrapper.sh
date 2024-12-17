@@ -8,13 +8,13 @@ DATE=$(date +%Y-%m-%d)
 
 ## Set up environment
 BASE_DIR=/mnt/tempdata
-TMP_DIR=/mnt/tempdata/flu_nextstrain
-OUT_DIR=/mnt/tempdata/flu_nextstrain_out
+TMP_DIR=/mnt/tempdata/rsv_nextstrain
+OUT_DIR=/mnt/tempdata/rsv_nextstrain_out
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
-SMB_DIR=Virologi/NGS/tmp/flu_nextstrain
-SMB_DIR_ANALYSIS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/11-Nextstrain/${DATE}_Nextstrain_Build 
-SMB_DIR_UPLOAD=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/11-Nextstrain/${DATE}_Nextstrain_Build 
+SMB_DIR=Virologi/NGS/tmp/rsv_nextstrain
+SMB_DIR_ANALYSIS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/RSV/11-Nextstrain/${DATE}_Nextstrain_Build 
+SMB_DIR_UPLOAD=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/RSV/11-Nextstrain/${DATE}_Nextstrain_Build 
 
 # Check if the ngs_scripts directory exists, if not clone it from GitHub
 cd $HOME
