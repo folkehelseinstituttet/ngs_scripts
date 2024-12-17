@@ -41,11 +41,11 @@ fi
 ## Make output dir
 mkdir $OUT_DIR
 
-## Make NIPH-profile
+## Make dir structure for NIPH
 cd rsv
-mkdir profiles/niph
-mkdir data
-cd $BASE_DIR
+rm -rf data && mkdir -p data/{a,b}
+rm -f config/configfile.yaml
+cd "$BASE_DIR"
 
 ## Move input files from N
 
@@ -61,74 +61,40 @@ mget *
 EOF
 
 # Copy nextstrain build files into the ncov directory
-cp $HOME/ngs_scripts/nextstrain/influenza/fhi/builds.yaml $BASE_DIR/seasonal-flu/profiles/niph
-cp $HOME/ngs_scripts/nextstrain/influenza/fhi/config.yaml $BASE_DIR/seasonal-flu/profiles/niph
-cp $HOME/ngs_scripts/nextstrain/influenza/fhi/prepare_data.smk $BASE_DIR/seasonal-flu/profiles/niph
+cp $HOME/ngs_scripts/nextstrain/rsv/config.yaml $BASE_DIR/rsv/config
 
-cp $BASE_DIR/flu_nextstrain/H1/metadata.xls $BASE_DIR/seasonal-flu/data/h1n1pdm
-cp $BASE_DIR/flu_nextstrain/H1/raw_sequences_ha.fasta $BASE_DIR/seasonal-flu/data/h1n1pdm
-cp $BASE_DIR/flu_nextstrain/H1/raw_sequences_na.fasta $BASE_DIR/seasonal-flu/data/h1n1pdm
-cp $BASE_DIR/flu_nextstrain/H3/metadata.xls $BASE_DIR/seasonal-flu/data/h3n2
-cp $BASE_DIR/flu_nextstrain/H3/raw_sequences_ha.fasta $BASE_DIR/seasonal-flu/data/h3n2
-cp $BASE_DIR/flu_nextstrain/H3/raw_sequences_na.fasta $BASE_DIR/seasonal-flu/data/h3n2
-cp $BASE_DIR/flu_nextstrain/VIC/metadata.xls $BASE_DIR/seasonal-flu/data/vic
-cp $BASE_DIR/flu_nextstrain/VIC/raw_sequences_ha.fasta $BASE_DIR/seasonal-flu/data/vic
-cp $BASE_DIR/flu_nextstrain/VIC/raw_sequences_na.fasta $BASE_DIR/seasonal-flu/data/vic
+cp $BASE_DIR/rsv_nextstrain/virus_RSV_A/metadata.tsv $BASE_DIR/rsv/data/a
+cp $BASE_DIR/rsv_nextstrain/virus_RSV_A/sequences.fasta $BASE_DIR/rsv/data/a
+cp $BASE_DIR/rsv_nextstrain/Nextstrain_Ref_database/RSVA/metadata_world.tsv.gz $BASE_DIR/rsv/data/a
+cp $BASE_DIR/rsv_nextstrain/Nextstrain_Ref_database/RSVA/sequences_world.fasta.xz   $BASE_DIR/rsv/data/a
+
+cp $BASE_DIR/rsv_nextstrain/virus_RSV_B/metadata.tsv $BASE_DIR/rsv/data/b
+cp $BASE_DIR/rsv_nextstrain/virus_RSV_B/sequences.fasta $BASE_DIR/rsv/data/b
+cp $BASE_DIR/rsv_nextstrain/Nextstrain_Ref_database/RSVB/metadata_world.tsv.gz $BASE_DIR/rsv/data/b
+cp $BASE_DIR/rsv_nextstrain/Nextstrain_Ref_database/RSVB/sequences_world.fasta.xz   $BASE_DIR/rsv/data/b
+
 
 conda activate nextstrain
 
-cd $BASE_DIR/seasonal-flu 
+cd $BASE_DIR/rsv
 
 echo "Making the Nextstrain build."
-nextstrain build .  --configfile profiles/niph/builds.yaml --cores 14 
+snakemake -j4 -p --configfile config/configfile.yaml
 
 echo "Build finished. Copying auspice files to N for inspection."
 
 # Copy and rename the builds files
-cp $BASE_DIR/seasonal-flu/auspice/*.json $OUT_DIR
+cp $BASE_DIR/rsv/auspice/*.json $OUT_DIR
 
 # Get the date
 DATE=$(date +%Y-%m-%d)
 
 # Rename builds
-# H1N1
-cp $OUT_DIR/h1n1_fhi_ha.json $OUT_DIR/flu_a_h1n1_ha_${DATE}.json
-mv $OUT_DIR/h1n1_fhi_ha.json $OUT_DIR/flu_a_h1n1_ha_latest.json
+cp $OUT_DIR/rsv_a_genome_all-time.json $OUT_DIR/rsv_a_${DATE}.json
+mv $OUT_DIR/rsv_a_genome_all-time.json $OUT_DIR/rsv_a_latest.json
 
-cp $OUT_DIR/h1n1_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h1n1_ha_${DATE}_tip-frequencies.json
-mv $OUT_DIR/h1n1_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h1n1_ha_latest_tip-frequencies.json
-
-cp $OUT_DIR/h1n1_fhi_na.json $OUT_DIR/flu_a_h1n1_na_${DATE}.json
-mv $OUT_DIR/h1n1_fhi_na.json $OUT_DIR/flu_a_h1n1_na_latest.json
-
-cp $OUT_DIR/h1n1_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h1n1_na_${DATE}_tip-frequencies.json
-mv $OUT_DIR/h1n1_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h1n1_na_latest_tip-frequencies.json
-
-# H3N2
-cp $OUT_DIR/h3n2_fhi_ha.json $OUT_DIR/flu_a_h3n2_ha_${DATE}.json
-mv $OUT_DIR/h3n2_fhi_ha.json $OUT_DIR/flu_a_h3n2_ha_latest.json
-
-cp $OUT_DIR/h3n2_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h3n2_ha_${DATE}_tip-frequencies.json
-mv $OUT_DIR/h3n2_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h3n2_ha_latest_tip-frequencies.json
-
-cp $OUT_DIR/h3n2_fhi_na.json $OUT_DIR/flu_a_h3n2_na_${DATE}.json
-mv $OUT_DIR/h3n2_fhi_na.json $OUT_DIR/flu_a_h3n2_na_latest.json
-
-cp $OUT_DIR/h3n2_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h3n2_na_${DATE}_tip-frequencies.json
-mv $OUT_DIR/h3n2_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h3n2_na_latest_tip-frequencies.json
-
-# VIC
-cp $OUT_DIR/vic_fhi_ha.json $OUT_DIR/flu_b_vic_ha_${DATE}.json
-mv $OUT_DIR/vic_fhi_ha.json $OUT_DIR/flu_b_vic_ha_latest.json
-
-cp $OUT_DIR/vic_fhi_ha_tip-frequencies.json $OUT_DIR/flu_b_vic_ha_${DATE}_tip-frequencies.json
-mv $OUT_DIR/vic_fhi_ha_tip-frequencies.json $OUT_DIR/flu_b_vic_ha_latest_tip-frequencies.json
-
-cp $OUT_DIR/vic_fhi_na.json $OUT_DIR/flu_b_vic_na_${DATE}.json
-mv $OUT_DIR/vic_fhi_na.json $OUT_DIR/flu_b_vic_na_latest.json
-
-cp $OUT_DIR/vic_fhi_na_tip-frequencies.json $OUT_DIR/flu_b_vic_na_${DATE}_tip-frequencies.json
-mv $OUT_DIR/vic_fhi_na_tip-frequencies.json $OUT_DIR/flu_b_vic_na_latest_tip-frequencies.json
+cp $OUT_DIR/rsv_b_genome_all-time.json $OUT_DIR/rsv_b_${DATE}.json
+mv $OUT_DIR/rsv_b_genome_all-time.json $OUT_DIR/rsv_b_latest.json
 
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_ANALYSIS <<EOF
 prompt OFF
@@ -139,7 +105,7 @@ EOF
 
 # Clean up
 rm -rf $TMP_DIR
-rm -rf $BASE_DIR/seasonal-flu
+rm -rf $BASE_DIR/rsv
 
 
 
