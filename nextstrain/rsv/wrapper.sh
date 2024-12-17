@@ -63,15 +63,65 @@ EOF
 # Copy nextstrain build files into the ncov directory
 cp $HOME/ngs_scripts/nextstrain/rsv/config.yaml $BASE_DIR/rsv/config
 
+# Organize and quality checks RSV A data
 cp $BASE_DIR/rsv_nextstrain/virus_RSV_A/metadata.tsv $BASE_DIR/rsv/data/a
 cp $BASE_DIR/rsv_nextstrain/virus_RSV_A/sequences.fasta $BASE_DIR/rsv/data/a
 cp $BASE_DIR/rsv_nextstrain/Nextstrain_Ref_database/RSVA/metadata_world.tsv.gz $BASE_DIR/rsv/data/a
 cp $BASE_DIR/rsv_nextstrain/Nextstrain_Ref_database/RSVA/sequences_world.fasta.xz   $BASE_DIR/rsv/data/a
+DATA_DIR="$BASE_DIR/rsv/data/a"
 
+python merge_and_clean.py a
+
+# Decompress sequences_world.fasta.xz
+unxz -f ${DATA_DIR}/sequences_world.fasta.xz
+
+# Merge local and world sequences
+cat ${DATA_DIR}/sequences.fasta ${DATA_DIR}/sequences_world.fasta > ${DATA_DIR}/combined_sequences.fasta
+
+seqkit rmdup -n ${DATA_DIR}/combined_sequences.fasta -o ${DATA_DIR}/sequences.fasta
+rm ${DATA_DIR}/combined_sequences.fasta
+xz -f ${DATA_DIR}/sequences.fasta
+
+# Remove intermediate files, keep only metadata.tsv.gz and sequences.fasta
+rm ${DATA_DIR}/metadata.tsv
+rm ${DATA_DIR}/metadata_world.tsv.gz
+rm ${DATA_DIR}/sequences.fasta
+rm ${DATA_DIR}/sequences_world.fasta
+rm ${DATA_DIR}/metadata_cleaned.tsv
+
+# Zip files
+gzip ${DATA_DIR}/metadata_cleaned.tsv
+mv ${DATA_DIR}/metadata_cleaned.tsv.gz ${DATA_DIR}/metadata.tsv.gz
+
+# Organize and quality checks RSV B data
 cp $BASE_DIR/rsv_nextstrain/virus_RSV_B/metadata.tsv $BASE_DIR/rsv/data/b
 cp $BASE_DIR/rsv_nextstrain/virus_RSV_B/sequences.fasta $BASE_DIR/rsv/data/b
 cp $BASE_DIR/rsv_nextstrain/Nextstrain_Ref_database/RSVB/metadata_world.tsv.gz $BASE_DIR/rsv/data/b
 cp $BASE_DIR/rsv_nextstrain/Nextstrain_Ref_database/RSVB/sequences_world.fasta.xz   $BASE_DIR/rsv/data/b
+DATA_DIR="$BASE_DIR/rsv/data/b"
+
+python merge_and_clean.py b
+
+# Decompress sequences_world.fasta.xz
+unxz -f ${DATA_DIR}/sequences_world.fasta.xz
+
+# Merge local and world sequences
+cat ${DATA_DIR}/sequences.fasta ${DATA_DIR}/sequences_world.fasta > ${DATA_DIR}/combined_sequences.fasta
+
+seqkit rmdup -n ${DATA_DIR}/combined_sequences.fasta -o ${DATA_DIR}/sequences.fasta
+rm ${DATA_DIR}/combined_sequences.fasta
+xz -f ${DATA_DIR}/sequences.fasta
+
+# Remove intermediate files, keep only metadata.tsv.gz and sequences.fasta
+rm ${DATA_DIR}/metadata.tsv
+rm ${DATA_DIR}/metadata_world.tsv.gz
+rm ${DATA_DIR}/sequences.fasta
+rm ${DATA_DIR}/sequences_world.fasta
+rm ${DATA_DIR}/metadata_cleaned.tsv
+
+# Zip files
+gzip ${DATA_DIR}/metadata_cleaned.tsv
+mv ${DATA_DIR}/metadata_cleaned.tsv.gz ${DATA_DIR}/metadata.tsv.gz
 
 
 conda activate nextstrain
