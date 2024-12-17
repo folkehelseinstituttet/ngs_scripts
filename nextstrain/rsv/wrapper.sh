@@ -27,27 +27,24 @@ fi
 
 # Check if the seasonal_flu repo exists, if not clone it from GitHub
 cd $BASE_DIR
-if [ -d "seasonal-flu" ]; then
-  cd seasonal-flu
+if [ -d "rsv" ]; then
+  cd rsv
   # Make sure to pull the latest version
   git pull origin master
   git stash
   git pull origin master
   git stash pop
 else
-  git clone https://github.com/nextstrain/seasonal-flu.git
+  git clone https://github.com/nextstrain/rsv.git
 fi
 
 ## Make output dir
 mkdir $OUT_DIR
 
 ## Make NIPH-profile
-cd seasonal-flu
+cd rsv
 mkdir profiles/niph
 mkdir data
-mkdir data/h1n1pdm
-mkdir data/h3n2
-mkdir data/vic
 cd $BASE_DIR
 
 ## Move input files from N
