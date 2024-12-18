@@ -2,7 +2,8 @@
 
 # Table of Contents
 1. [Influenza](#influenza)
-2. [SARS-CoV-2](#sars-cov-2)
+2. [RSV](#rsv)
+3. [SARS-CoV-2](#sars-cov-2)
 
 # Influenza
 
@@ -44,6 +45,48 @@ Start Nextstrain-script with:
 bash ngs_scripts/nextstrain/influenza/wrapper.sh
 ```
 This will save the Nextstrain-tree files at N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\11-Nextstrain\{DATE}_Nextstrain_Build
+
+All *json files can uploaded to https://auspice.us/ for analysis. 
+
+# RSV
+
+### Prepare input files (PowerShell)
+Prerequisite: PowerShell, R and git.
+
+Using PowerShell, naviagte to N:\Virologi\NGS\tmp 
+```
+cd N:\Virologi\NGS\tmp
+```
+Using PowerShell on a FHI laptop, clone the repo:
+```
+git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
+```
+Using PowerShell, naviagte into nextstrain-repo:
+```
+cd .\ngs_scripts\nextstrain\rsv
+```
+Using PowerShell on a FHI laptop, run the script `RSV.R` by typing in:
+```
+& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" "RSV.R"
+```
+This should create a directory with today's date here: `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\RSV\11-Nextstrain`.  
+
+### Build Nextstrain-tree (VM)
+
+Using PowerShell, log on the server following the description in 702-VIN-AR-032-document. 
+After a sucessful log-in write the command under in the terminal window.
+```
+cd $HOME
+```
+If ngs_script-directory dosent exist:
+```
+git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
+```
+Start Nextstrain-script with:
+```
+bash ngs_scripts/nextstrain/rsv/wrapper.sh
+```
+This will save the Nextstrain-tree files at N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\RSV\11-Nextstrain\{DATE}_Nextstrain_Build
 
 All *json files can uploaded to https://auspice.us/ for analysis. 
 
