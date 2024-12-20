@@ -61,7 +61,7 @@ clientid=your_clientid
 ```
 Run submission-script:
 ```
-.\GISAID_SC2_submission.ps1 -m "metadata.csv" -f "sequences.fasta" -c "credentials.txt" -u "username"
+sars-cov-2\GISAID_SC2_submission.ps1 -m "metadata.csv" -f "sequences.fasta" -c "credentials.txt" -u "username"
 ```
 Remember to give the command your metadata-,sequences- and credentials-file, and also your GISAID-username.
 If .\GISAID_SC2_submission.ps1 is not executable try `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process`
