@@ -28,7 +28,7 @@ cd .\ngs_scripts\gisaid\
 ```
 Using PowerShell on a FHI laptop, run the script `sc2_gisaid.R` by typing in:
 ```
-& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" ".sars-cov-2\sc2_gisaid.R" "DATE" "USER"
+& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" "sars-cov-2\sc2_gisaid.R" "DATE" "USER"
 ```
 Remeber to replace DATE with date (YYYY-MM-DD) for oldest sample to include in submission and USER wither your GISAID username. 
 
