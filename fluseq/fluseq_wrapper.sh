@@ -139,6 +139,7 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   --sequence_references "$SEQUENCE_REFERENCES" \
   --nextclade_dataset  "$NEXTCLADE_DATASET" \
   --runid "$RUN" \
+  --release_version "v1.0.2" \  
   -with-tower
 
 ## Then move the results to the N: drive
