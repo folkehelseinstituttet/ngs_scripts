@@ -153,12 +153,13 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   --release_version "v1.0.2" \  
   -with-tower
 
-if [ "$SKIP_RESULTS_MOVE" = false ]; then
-    echo "Moving results to the N: drive"
-    mkdir $HOME/out_fluseq
-    mv $RUN/ out_fluseq/
 
-    smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+echo "Moving results to the N: drive"
+mkdir $HOME/out_fluseq
+mv $RUN/ out_fluseq/
+
+if [ "$SKIP_RESULTS_MOVE" = false ]; then
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
 recurse ON
 lcd $HOME/out_fluseq/
