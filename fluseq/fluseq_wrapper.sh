@@ -18,8 +18,9 @@ usage() {
     echo "  -h, --help        Display this help message"
     echo "  -r, --run         Specify the run name (e.g., INF077)"
     echo "  -a, --agens       Specify agens (e.g., influensa and avian)"
-    echo "  -s, --season      Specify the season directory of the fastq files on the N-drive (e.g. Ses2425)"
+    echo "  -s, --season      Specify the season directory of the fastq files on the N-drive (e.g., Ses2425)"
     echo "  -y, --year        Specify the year directory of the fastq files on the N-drive"
+    echo "  -v, --validation  Specify validation flag (e.g., VER)"
     exit 1
 }
 
@@ -28,14 +29,16 @@ RUN=""
 AGENS=""
 SEASON=""
 YEAR=""
+VALIDATION_FLAG=""
 
-while getopts "hr:a:s:y:" opt; do
+while getopts "hr:a:s:y:v:" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
         s) SEASON="$OPTARG" ;;
         y) YEAR="$OPTARG" ;;
+        v) VALIDATION_FLAG="$OPTARG" ;;
         ?) usage ;;
     esac
 done
@@ -74,6 +77,14 @@ SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/results
 SMB_DIR_ANALYSIS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/powerBI
+
+# If validation flag is set, update SMB_DIR_ANALYSIS and skip the results move step
+if [ -n "$VALIDATION_FLAG" ]; then
+    SMB_DIR_ANALYSIS="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/4-Validering/1-fluseq-validering/Run"
+    SKIP_RESULTS_MOVE=true
+else
+    SKIP_RESULTS_MOVE=false
+fi
 
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
@@ -142,20 +153,19 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   --release_version "v1.0.2" \  
   -with-tower
 
-## Then move the results to the N: drive
-echo "Moving results to the N: drive"
-mkdir $HOME/out_fluseq
-mv $RUN/ out_fluseq/
+if [ "$SKIP_RESULTS_MOVE" = false ]; then
+    echo "Moving results to the N: drive"
+    mkdir $HOME/out_fluseq
+    mv $RUN/ out_fluseq/
 
-## Move all result files to storeage
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+    smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
 recurse ON
 lcd $HOME/out_fluseq/
 mput *
 EOF
+fi
 
-## Move result report to analysis folder
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_ANALYSIS <<EOF
 prompt OFF
 lcd $HOME/out_fluseq/${RUN}/reporthuman/
