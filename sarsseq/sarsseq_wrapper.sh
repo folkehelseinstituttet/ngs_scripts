@@ -156,14 +156,14 @@ if [ "$SKIP_RESULTS_MOVE" = false ]; then
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
 recurse ON
-lcd $HOME/out_fluseq/
+lcd $HOME/out_sarsseq/
 mput *
 EOF
 fi
 
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_ANALYSIS <<EOF
 prompt OFF
-lcd $HOME/out_fluseq/${RUN}/reporthuman/
+lcd $HOME/out_sarsseq/${RUN}/reporthuman/
 cd ${SMB_DIR_ANALYSIS}
 mput *.csv
 EOF
