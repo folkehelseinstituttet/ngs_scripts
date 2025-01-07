@@ -119,6 +119,12 @@ EOF
 ## Set up 
 SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
 SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
+SARS_DATABASE=/mnt/tempdata/sars_db/assets
+NA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_NA.fasta
+MAMMALIAN_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Mammalian_Mutations_of_Intrest_2324.xlsx
+INHIBTION_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Inhibtion_Mutations_of_Intrest_2324.xlsx
+SEQUENCE_REFERENCES=/mnt/tempdata/influensa_db/flu_seq_db/sequence_references
+NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
 
 # Create a samplesheet by running the supplied Rscript in a docker container.
 #ADD CODE FOR HANDLING OF SAMPLESHEET
@@ -140,8 +146,11 @@ nextflow run RasmusKoRiis/nf-core-sars/main.nf \
   --input "$SAMPLESHEET" \
   --samplesDir "$SAMPLEDIR" \
   --outdir "$HOME/$RUN" \
-  --primerdir $PRIMER \
+  --primerdir $SARS_DATABASE/$PRIMER \
   --runid "$RUN" \
+  --spike "$SARS_DATABASE/Spike_mAbs_inhibitors.csv" \
+  --rdrp "$SARS_DATABASE/RdRP_inhibitors.csv" \
+  --clpro "$SARS_DATABASE/3CLpro_inhibitors.csv" \
   --release_version "v1.0.0" 
 
 echo "Moving results to the N: drive"
