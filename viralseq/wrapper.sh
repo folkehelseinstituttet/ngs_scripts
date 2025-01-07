@@ -118,7 +118,7 @@ nextflow pull folkehelseinstituttet/viralseq -r v1.0.3
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run folkehelseinstituttet/viralseq/ -r v1.0.3 -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcv_glue false
+nextflow run folkehelseinstituttet/viralseq/ -r v1.0.3 -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false
 
 ## Then run HCV GLUE on the bam files
 # First make a directory for the GLUE files
