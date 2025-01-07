@@ -114,11 +114,11 @@ docker run --rm \
 conda activate NEXTFLOW
 
 # Make sure the latest pipeline is available
-nextflow pull folkehelseinstituttet/viralseq -r master
+nextflow pull folkehelseinstituttet/viralseq -r v1.0.4
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run folkehelseinstituttet/viralseq/ -r master -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue true
+nextflow run folkehelseinstituttet/viralseq/ -r v1.0.4 -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue true
 
 ## Then run HCV GLUE on the bam files
 # First make a directory for the GLUE files
