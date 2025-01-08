@@ -17,7 +17,7 @@ usage() {
     echo "Options:"
     echo "  -h, --help        Display this help message"
     echo "  -r, --run         Specify the run name (e.g., INF077)"
-    echo "  -p, --primer      Specify the primer version (e.g., assets/V5.4.2/)"
+    echo "  -p, --primer      Specify the primer version (e.g., V5.4.2)"
     echo "  -a, --agens       Specify agens (e.g., sars)"
     echo "  -s, --season      Specify the season directory of the fastq files on the N-drive (e.g., Ses2425)"
     echo "  -y, --year        Specify the year directory of the fastq files on the N-drive"
