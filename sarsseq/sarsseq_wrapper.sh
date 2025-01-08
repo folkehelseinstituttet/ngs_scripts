@@ -47,6 +47,14 @@ while getopts "hr:p:a:s:y:v:" opt; do
     esac
 done
 
+# Print parsed arguments (for debugging)
+echo "Run: $RUN"
+echo "Primer: $PRIMER"
+echo "Agens: $AGENS"
+echo "Season: $SEASON"
+echo "Year: $YEAR"
+echo "Validation Flag: $VALIDATION_FLAG"
+
 # Make sure the latest version of the ngs_scripts repo is present locally
 
 # Define the directory and the GitHub repository URL
