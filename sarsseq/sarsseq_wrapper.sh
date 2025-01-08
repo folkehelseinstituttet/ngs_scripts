@@ -13,15 +13,15 @@ source ~/miniconda3/etc/profile.d/conda.sh
 SCRIPT_NAME=$(basename "$0")
 
 usage() {
-    echo "Usage: $SCRIPT_NAME [OPTIONS]"
+    echo "Usage: $0 [OPTIONS]"
     echo "Options:"
-    echo "  -h, --help        Display this help message"
-    echo "  -r, --run         Specify the run name (e.g., INF077)"
-    echo "  -p, --primer      Specify the primer version (e.g., V5.4.2)"
-    echo "  -a, --agens       Specify agens (e.g., sars)"
-    echo "  -s, --season      Specify the season directory of the fastq files on the N-drive (e.g., Ses2425)"
-    echo "  -y, --year        Specify the year directory of the fastq files on the N-drive"
-    echo "  -v, --validation  Specify validation flag (e.g., VER)"
+    echo "  -h                 Display this help message"
+    echo "  -r <run>           Specify the run name (e.g., INF077) (required)"
+    echo "  -p <primer>        Specify the primer version (e.g., V5.4.2)"
+    echo "  -a <agens>         Specify agens (e.g., sars) (required)"
+    echo "  -s <season>        Specify the season directory of the fastq files on the N-drive (e.g., Ses2425)"
+    echo "  -y <year>          Specify the year directory of the fastq files on the N-drive"
+    echo "  -v <validation>    Specify validation flag (e.g., VER)"
     exit 1
 }
 
@@ -33,6 +33,7 @@ YEAR=""
 PRIMER=""
 VALIDATION_FLAG=""
 
+# Parse options
 while getopts "hr:p:a:s:y:v:" opt; do
     case "$opt" in
         h) usage ;;
