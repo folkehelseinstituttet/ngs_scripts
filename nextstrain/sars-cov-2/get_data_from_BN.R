@@ -8,9 +8,20 @@ library(phylotools)
 pango <- read_delim(file = "https://raw.githubusercontent.com/cov-lineages/pango-designation/master/lineage_notes.txt")
 
 # 2023.11.08: Include BA.2.86 abbreviations
-pango_str <- pango %>% 
+#pango_str <- pango %>% 
   # Get the BA.2.86's
-  filter(str_detect(Description, "B.1.1.529.2.86") | str_detect(Lineage, "^BA.2.86")) %>% 
+  #filter(str_detect(Description, "B.1.1.529.2.86") | str_detect(Lineage, "^BA.2.86")) %>% 
+  # Remove any withdrawn lineages
+  #filter(str_detect(Lineage, "\\*", negate = TRUE)) %>% 
+  # Pull all the aliases into a character vector
+  #pull(Lineage)
+
+# Include BA.2.86 and XEC lineages
+pango_str <- pango %>% 
+  # Get the BA.2.86's and XEC lineages
+  filter(str_detect(Description, "B.1.1.529.2.86") | 
+         str_detect(Lineage, "^BA.2.86") | 
+         str_detect(Lineage, "^XEC")) %>% 
   # Remove any withdrawn lineages
   filter(str_detect(Lineage, "\\*", negate = TRUE)) %>% 
   # Pull all the aliases into a character vector
@@ -73,8 +84,9 @@ BN <- BN %>% #mutate_all(list(~na_if(.,""))) %>%
 # Først lage en mapping mellom KEY og virus name
 SEQUENCEID_virus_mapping_FHI <- BN %>%
   filter(PROVE_TATT >= "2022-01-01") %>% 
-  # Keep BA.2.86 only
-  filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>% 
+  # Keep BA.2.86 and XEC only
+  #filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>%
+  filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86") | str_detect(PANGOLIN_NOM, "^XEC")) %>%
   # Keep only samples NOT submitted to Gisaid
   filter(is.na(GISAID_EPI_ISL)) %>% 
   filter(str_detect(SEKV_OPPSETT_SWIFT7, "FHI")) %>% 
@@ -100,7 +112,8 @@ SEQUENCEID_virus_mapping_FHI <- BN %>%
 SEQUENCEID_virus_mapping_MIK <- BN %>%
   filter(PROVE_TATT >= "2022-01-01") %>% 
   # Keep BA.2.86 only
-  filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>% 
+  #filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>%
+  filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86") | str_detect(PANGOLIN_NOM, "^XEC")) %>%
   # Keep only samples NOT submitted to Gisaid
   filter(is.na(GISAID_EPI_ISL)) %>% 
   filter(str_detect(SEKV_OPPSETT_SWIFT7, "MIK")) %>% 
@@ -120,8 +133,9 @@ SEQUENCEID_virus_mapping_MIK <- BN %>%
 
 SEQUENCEID_virus_mapping_Artic <- BN %>%
   filter(PROVE_TATT >= "2022-01-01") %>% 
-  # Keep BA.2.86 only
-  filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>% 
+  # Keep BA.2.86 and XEC only
+ # filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>%
+  filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86") | str_detect(PANGOLIN_NOM, "^XEC")) %>%
   # Keep only samples NOT submitted to Gisaid
   filter(is.na(GISAID_EPI_ISL)) %>% 
   filter(str_detect(RES_CDC_INFB_CT, "Artic")) %>%
@@ -144,7 +158,8 @@ SEQUENCEID_virus_mapping_Artic <- BN %>%
 SEQUENCEID_virus_mapping_Nano <- BN %>%
   filter(PROVE_TATT >= "2022-01-01") %>% 
   # Keep BA.2.86 only
-  filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>% 
+  filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>%
+  filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86") | str_detect(PANGOLIN_NOM, "^XEC")) %>%
   # Keep only samples NOT submitted to Gisaid
   filter(is.na(GISAID_EPI_ISL)) %>% 
   filter(str_detect(SEKV_OPPSETT_NANOPORE, "Nano") | str_detect(SEKV_OPPSETT_NANOPORE, "^NGS") | str_detect(SEKV_OPPSETT_NANOPORE, "^SEQ") | str_detect(SEKV_OPPSETT_NANOPORE, "2023011301A")) %>%
@@ -436,7 +451,10 @@ SEQUENCEID_virus_mapping <- bind_rows(
 eksterne_meta <- BN %>%
   filter(PROVE_TATT >= "2022-01-01") %>% 
   # Keep BA.2.86 only
-  filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>% 
+  #filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>% 
+  # Keep BA.2.86 and XEC lineages
+  metadata_BN <- left_join(SEQUENCEID_virus_mapping, BN, by = "KEY") %>% 
+  filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86") | str_detect(PANGOLIN_NOM, "^XEC")) %>% 
   # Keep only samples NOT submitted to Gisaid
   filter(is.na(GISAID_EPI_ISL)) %>% 
   filter(str_detect(KEY, "SUS") | str_detect(KEY, "STO") | str_detect(KEY, "UNN") | str_detect(KEY, "HUS")) %>% 
