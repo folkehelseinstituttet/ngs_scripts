@@ -21,6 +21,7 @@ tmp <- str_flatten(pango_str, collapse = "', '")
 tmp <- str_c('[\'', tmp)
 # Insert ']" at the end
 tmp <- str_c(tmp, '\']')
+print("BA.2.86")
 print(tmp)
 
 
@@ -28,7 +29,7 @@ print(tmp)
 # Create list of XBB lineages for the Nextstrain build file. This is copied and manually hardcoded into the build file.
 pango_str <- pango %>%
   # Get the XBB's
-  filter(str_detect(Description, "XBB") | str_detect(Lineage, "^XBB")) %>%
+  filter(str_detect(Description, "XEC") | str_detect(Lineage, "^XEC")) %>%
   # Remove some withdrawn lineages
   filter(str_detect(Lineage, "\\*", negate = TRUE)) %>%
   # Pull all the aliases into a character vector
@@ -43,7 +44,8 @@ tmp <- str_flatten(pango_str, collapse = "', '")
 tmp <- str_c('[\'', tmp)
 # Insert ']" at the end
 tmp <- str_c(tmp, '\']')
-#print(tmp)
+print("XEC")
+print(tmp)
 
 # Create list of BA.5 lineages for the Nextstrain build file
 pango_str <- pango %>% 
