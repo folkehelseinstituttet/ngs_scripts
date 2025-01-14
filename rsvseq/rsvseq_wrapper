@@ -123,18 +123,12 @@ EOF
 ## Set up 
 SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
 SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
-SARS_DATABASE=/mnt/tempdata/sars_db/assets
-
-# Create a samplesheet by running the supplied Rscript in a docker container.
-#ADD CODE FOR HANDLING OF SAMPLESHEET
 
 ### Run the main pipeline ###
 
 # Activate the conda environment that holds Nextflow
 conda activate NEXTFLOW
 
-# Make sure the latest pipeline is available
-#nextflow pull folkehelseinstituttet/viralseq
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
