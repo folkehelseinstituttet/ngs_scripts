@@ -51,8 +51,7 @@ builds:
     country: Norway
     subsampling_scheme: recombinant-xec-scheme
     # Lineage list updated from https://github.com/cov-lineages/pango-designation/blob/master/lineage_notes.txt. Extracted all B.1.1.529.5
-    pango_lineage: "['XEC', 'XEC.1', 'XEC.2', 'XEC.2.1', 'XEC.2.2', 'XEC.2.3', 'XEC.2.3.1', 'XEC.3', 'XEC.4', 'XEC.5', 'XEC.6', 'XEC.7', 'XEC.8', 'XEC.9', 'XEC.10', 'XEC.11', 'XEC.12', 'XEC.13', 'XEC.14', 'XEC.15', 'XEC.16', 'XEK', 'XEU']"
-    
+    pango_lineage: "['XEC', 'XEC.1', 'XEC.2', 'XEC.2.1', 'XEC.2.2', 'XEC.2.3', 'XEC.2.3.1', 'XEC.3', 'XEC.4', 'XEC.5', 'XEC.6', 'XEC.7', 'XEC.8', 'XEC.9', 'XEC.10', 'XEC.11', 'XEC.12', 'XEC.13', 'XEC.14', 'XEC.15', 'XEC.16', 'XEK', 'XEU']"   
 #  omicron_ba_four:
 #    region: global
 #    country: Norway
