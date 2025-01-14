@@ -123,6 +123,7 @@ EOF
 ## Set up 
 SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
 SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
+RSV_DATABASE=/mnt/tempdata/sars_db/assets
 
 ### Run the main pipeline ###
 
@@ -138,6 +139,7 @@ nextflow run RasmusKoRiis/nf-core-rsvseq/main.nf \
   -profile docker,server \
   --input "$SAMPLESHEET" \
   --samplesDir "$SAMPLEDIR" \
+  --primerdir "$RSV_DATABASE/primer"
   --outdir "$HOME/$RUN" \
   --runid "$RUN" \
   --release_version "v1.0.0" 
