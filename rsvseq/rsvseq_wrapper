@@ -139,7 +139,7 @@ nextflow run RasmusKoRiis/nf-core-rsvseq/main.nf \
   -profile docker,server \
   --input "$SAMPLESHEET" \
   --samplesDir "$SAMPLEDIR" \
-  --primerdir "$RSV_DATABASE/primer"
+  --primerdir "$RSV_DATABASE/primer" \
   --outdir "$HOME/$RUN" \
   --runid "$RUN" \
   --release_version "v1.0.0" 
