@@ -29,7 +29,6 @@ RUN=""
 AGENS=""
 SEASON=""
 YEAR=""
-PRIMER=""
 VALIDATION_FLAG=""
 
 # Parse options
