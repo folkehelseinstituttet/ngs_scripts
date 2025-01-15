@@ -609,7 +609,7 @@ metadata_BN <- metadata_BN %>%
 # Write files
 # Create directory
 # dir.create(file.path(mainDir, subDir), showWarnings = FALSE)
-  outfile_fasta <- paste0("BN.fasta")
+  outfile_fasta <- paste0("BN2.fasta")
   outfile_metadata <- paste0("BN.metadata.tsv")
   
   dat2fasta(Total_fastas, outfile = outfile_fasta)
