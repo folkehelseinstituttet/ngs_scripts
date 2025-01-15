@@ -131,7 +131,7 @@ docker stop gluetools-mysql
 docker rm gluetools-mysql
 
 # Start the gluetools-mysql container in the background
-docker start gluetools-mysql
+#docker start gluetools-mysql
 docker run --detach --name gluetools-mysql cvrbioinformatics/gluetools-mysql:latest
 
 # Install the pre-built GLUE HCV project
