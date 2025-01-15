@@ -145,14 +145,14 @@ nextflow run RasmusKoRiis/nf-core-rsvseq/main.nf \
   --release_version "v1.0.0" 
 
 echo "Moving results to the N: drive"
-mkdir $HOME/out_sarsseq
-mv $RUN/ out_sarsseq/
+mkdir $HOME/out_rsvseq
+mv $RUN/ out_rsvseq/
 
 if [ "$SKIP_RESULTS_MOVE" = false ]; then
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
 recurse ON
-lcd $HOME/out_sarsseq/
+lcd $HOME/out_rsvseq/
 mput *
 EOF
 fi
@@ -160,7 +160,7 @@ fi
 if [ "$SKIP_RESULTS_MOVE" = true ]; then
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_ANALYSIS <<EOF
 prompt OFF
-lcd $HOME/out_sarsseq/$RUN/report/
+lcd $HOME/out_rsvseq/$RUN/report/
 cd ${SMB_DIR_ANALYSIS}
 mput *.csv
 EOF
