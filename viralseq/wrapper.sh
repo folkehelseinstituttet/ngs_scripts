@@ -127,11 +127,22 @@ echo "Run HCV-GLUE for genotyping and resistance analysis"
 mkdir $HOME/$RUN/hcvglue
 
 # Remove the container in case it is already running
-docker stop gluetools-mysql
-docker rm gluetools-mysql
+if docker ps -a --filter "name=gluetools-mysql" --format '{{.Names}}' | grep -q "^gluetools-mysql\$"; then
+    echo "Container 'gluetools-mysql' is running or exists."
+    # Stop the container
+    docker stop gluetools-mysql
+    # Remove the container
+    docker rm gluetools-mysql
+    echo "Container 'gluetools-mysql' has been stopped and removed."
+else
+    echo "Container 'gluetools-mysql' is not running or does not exist."
+fi
 
-# Start the gluetools-mysql container in the background
-#docker start gluetools-mysql
+# Pull the latest images
+docker pull cvrbioinformatics/gluetools-mysql:latest
+docker pull cvrbioinformatics/gluetools:latest
+
+# Start the gluetools-mysql containter
 docker run --detach --name gluetools-mysql cvrbioinformatics/gluetools-mysql:latest
 
 # Install the pre-built GLUE HCV project
