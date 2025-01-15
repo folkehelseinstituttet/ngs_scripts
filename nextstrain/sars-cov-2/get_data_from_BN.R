@@ -383,6 +383,7 @@ for (i in seq_along(Artic_plater)) {
 for (i in seq_along(Nano_plater)) {
   # Pick our the relevant oppsett
   dir <- dirs_nano[grep(Nano_plater[i], dirs_nano)]
+  prin(dir)
   
   # List the files
   filepaths <- list.files(path = dir,
