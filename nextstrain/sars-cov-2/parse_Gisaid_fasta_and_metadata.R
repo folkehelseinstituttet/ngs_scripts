@@ -18,10 +18,12 @@ metadata_Gisaid <- read_tsv("/mnt/tempdata/nextstrain/metadata.tsv")
 # Read lineage descriptions from GitHub
 pango <- read_delim(file = "https://raw.githubusercontent.com/cov-lineages/pango-designation/master/lineage_notes.txt")
 
-# 2023.11.08: Include BA.2.86 abbreviations
+# Include BA.2.86 and XEC lineages
 pango_str <- pango %>% 
-  # Get the BA.2.86's
-  filter(str_detect(Description, "B.1.1.529.2.86") | str_detect(Lineage, "^BA.2.86")) %>% 
+  # Get the BA.2.86's and XEC lineages
+  filter(str_detect(Description, "B.1.1.529.2.86") | 
+         str_detect(Lineage, "^BA.2.86") | 
+         str_detect(Lineage, "^XEC")) %>% 
   # Remove any withdrawn lineages
   filter(str_detect(Lineage, "\\*", negate = TRUE)) %>% 
   # Pull all the aliases into a character vector
@@ -38,7 +40,12 @@ pango_str <- pango %>%
 
 # Filter the metadata for BA.2.86 and abbrevations
 metadata_filtered <- metadata_Gisaid %>% 
-  filter(`Pango lineage` %in% pango_str | str_detect(`Pango lineage`, "^BA.2.86"))
+  filter(
+    `Pango lineage` %in% pango_str | 
+    str_detect(`Pango lineage`, "^BA.2.86") | 
+    str_detect(`Pango lineage`, "^XEC")
+  )
+
 
 # 2023.05.02: Dropping BA.5 and BA.2.75 builds
 # Create list of BA.5 and BA.2.75 lineages for the Nextstrain build file
