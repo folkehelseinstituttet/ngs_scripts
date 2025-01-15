@@ -450,10 +450,8 @@ SEQUENCEID_virus_mapping <- bind_rows(
 # First get the Eksterne metadata
 eksterne_meta <- BN %>%
   filter(PROVE_TATT >= "2022-01-01") %>% 
-  # Keep BA.2.86 only
-  #filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>% 
   # Keep BA.2.86 and XEC lineages
-  metadata_BN <- left_join(SEQUENCEID_virus_mapping, BN, by = "KEY") %>% 
+  left_join(SEQUENCEID_virus_mapping, by = "KEY") %>% 
   filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86") | str_detect(PANGOLIN_NOM, "^XEC")) %>% 
   # Keep only samples NOT submitted to Gisaid
   filter(is.na(GISAID_EPI_ISL)) %>% 
