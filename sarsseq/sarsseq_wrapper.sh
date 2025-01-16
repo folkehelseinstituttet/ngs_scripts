@@ -159,7 +159,7 @@ nextflow run RasmusKoRiis/nf-core-sars/main.nf \
 
 echo "Moving results to the N: drive"
 mkdir $HOME/out_sarsseq
-mv -rf $RUN/ out_sarsseq/
+mv $RUN/ out_sarsseq/
 
 if [ "$SKIP_RESULTS_MOVE" = false ]; then
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
