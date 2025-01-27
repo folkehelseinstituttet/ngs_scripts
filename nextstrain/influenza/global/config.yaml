@@ -1,1 +1,4 @@
-
+cores: all
+use-conda: true
+conda-frontend: mamba
+configfile: profiles/global/builds.yaml
