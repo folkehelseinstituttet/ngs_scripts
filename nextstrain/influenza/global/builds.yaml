@@ -1,1 +1,74 @@
+builds:
+  "h1n1_fhi":
+    lineage: h1n1pdm
+    reference: "config/h1n1pdm/{segment}/reference.fasta"
+    annotation: "config/h1n1pdm/{segment}/genemap.gff"
+    tree_exclude_sites: "config/h1n1pdm/{segment}/exclude-sites.txt"
+    clades: "config/h1n1pdm/ha/clades.tsv"
+    subclades: "config/h1n1pdm/{segment}/subclades.tsv"
+    auspice_config: "config/h1n1pdm/auspice_config.json"
+    enable_lbi: true
+    enable_glycosylation: true
 
+    subsamples:
+      global:
+        # Group by region, year, and month (this is optional, 
+        # but often used to ensure a balanced temporal/spatial sample)
+        group_by: [region, year, month]
+
+        # Multiple rules that will be combined
+        subsample:
+          - name: "norway"
+            query: "country == 'Norway'"
+            max_sequences: 999999   # or any large number to ensure all Norwegian
+
+          - name: "non_norway"
+            query: "country != 'Norway'"
+            max_sequences: 3000
+builds:
+  "h3n2_fhi":
+    lineage: h3n2
+    reference: "config/h3n2/{segment}/reference.fasta"
+    annotation: "config/h3n2/{segment}/genemap.gff"
+    tree_exclude_sites: "config/h3n2/{segment}/exclude-sites.txt"
+    clades: "config/h3n2/ha/clades.tsv"
+    subclades: "config/h3n2/{segment}/subclades.tsv"
+    auspice_config: "config/h3n2/auspice_config.json"
+    enable_lbi: true
+    enable_glycosylation: true
+
+    subsamples:
+      global:
+        group_by: [region, year, month]
+        subsample:
+          - name: "norway"
+            query: "country == 'Norway'"
+            max_sequences: 999999
+
+          - name: "non_norway"
+            query: "country != 'Norway'"
+            max_sequences: 3000
+
+
+  "vic_fhi":
+    lineage: vic
+    reference: "config/vic/{segment}/reference.fasta"
+    annotation: "config/vic/{segment}/genemap.gff"
+    tree_exclude_sites: "config/vic/{segment}/exclude-sites.txt"
+    clades: "config/vic/ha/clades.tsv"
+    subclades: "config/vic/{segment}/subclades.tsv"
+    auspice_config: "config/vic/auspice_config.json"
+    enable_lbi: true
+    enable_glycosylation: true
+
+    subsamples:
+      global:
+        group_by: [region, year, month]
+        subsample:
+          - name: "norway"
+            query: "country == 'Norway'"
+            max_sequences: 999999
+
+          - name: "non_norway"
+            query: "country != 'Norway'"
+            max_sequences: 3000
