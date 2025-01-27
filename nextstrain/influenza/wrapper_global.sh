@@ -64,6 +64,24 @@ lcd $TMP_DIR
 mget *
 EOF
 
+cd $TMP_DIR/H1
+cat *HA*.fasta > raw_sequences_ha_org.fasta
+cat *NA*.fasta > raw_sequences_na_org.fasta
+sed 's/|.*//' raw_sequences_ha_org.fasta > raw_sequences_ha.fasta
+sed 's/|.*//' raw_sequences_na_org.fasta > raw_sequences_na.fasta
+
+cd $TMP_DIR/H3
+cat *HA*.fasta > raw_sequences_ha_org.fasta
+cat *NA*.fasta > raw_sequences_na_org.fasta
+sed 's/|.*//' raw_sequences_ha_org.fasta > raw_sequences_ha.fasta
+sed 's/|.*//' raw_sequences_na_org.fasta > raw_sequences_na.fasta
+
+cd $TMP_DIR/VIC
+cat *HA*.fasta > raw_sequences_ha_org.fasta
+cat *NA*.fasta > raw_sequences_na_org.fasta
+sed 's/|.*//' raw_sequences_ha_org.fasta > raw_sequences_ha.fasta
+sed 's/|.*//' raw_sequences_na_org.fasta > raw_sequences_na.fasta
+
 # Copy nextstrain build files into the ncov directory
 cp $HOME/ngs_scripts/nextstrain/influenza/global/builds.yaml $BASE_DIR/seasonal-flu/profiles/niph
 cp $HOME/ngs_scripts/nextstrain/influenza/global/config.yaml $BASE_DIR/seasonal-flu/profiles/niph
@@ -79,23 +97,7 @@ cp $BASE_DIR/flu_nextstrain/VIC/metadata.xls $BASE_DIR/seasonal-flu/data/vic
 cp $BASE_DIR/flu_nextstrain/VIC/raw_sequences_ha.fasta $BASE_DIR/seasonal-flu/data/vic
 cp $BASE_DIR/flu_nextstrain/VIC/raw_sequences_na.fasta $BASE_DIR/seasonal-flu/data/vic
 
-cd $BASE_DIR/seasonal-flu/data/h1n1pdm
-cat *ha*.fasta > raw_sequences_ha_org.fasta
-cat *na*.fasta > raw_sequences_na_org.fastaa
-sed 's/|.*//' raw_sequences_ha_org.fasta > raw_sequences_ha.fasta
-sed 's/|.*//' raw_sequences_na_org.fasta > raw_sequences_na.fasta
 
-cd $BASE_DIR/seasonal-flu/data/h3n2
-cat *ha*.fasta > raw_sequences_ha_org.fasta
-cat *na*.fasta > raw_sequences_na_org.fastaa
-sed 's/|.*//' raw_sequences_ha_org.fasta > raw_sequences_ha.fasta
-sed 's/|.*//' raw_sequences_na_org.fasta > raw_sequences_na.fasta 
-
-cd $BASE_DIR/seasonal-flu/data/vic
-cat *ha*.fasta > raw_sequences_ha_org.fasta
-cat *na*.fasta > raw_sequences_na_org.fastaa
-sed 's/|.*//' raw_sequences_ha_org.fasta > raw_sequences_ha.fasta
-sed 's/|.*//' raw_sequences_na_org.fasta > raw_sequences_na.fasta 
 
 
 conda activate nextstrain
