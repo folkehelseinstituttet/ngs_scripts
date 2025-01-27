@@ -45,7 +45,7 @@ builds:
     auspice_config: "config/h1n1pdm/auspice_config.json"
     enable_lbi: true
     enable_glycosylation: true
-
+    subsamples:
       global:
           filters: "--group-by region year month --subsample-max-sequences 3000  'country!=Norway'"
       norway:
@@ -61,7 +61,6 @@ builds:
     auspice_config: "config/h3n2/auspice_config.json"
     enable_lbi: true
     enable_glycosylation: true
-
     subsamples:
       global:
           filters: "--group-by region year month --subsample-max-sequences 3000  'country!=Norway'"
@@ -79,7 +78,6 @@ builds:
     auspice_config: "config/vic/auspice_config.json"
     enable_lbi: true
     enable_glycosylation: true
-
     subsamples:
       global:
           filters: "--group-by region year month --subsample-max-sequences 3000  'country!=Norway'"
