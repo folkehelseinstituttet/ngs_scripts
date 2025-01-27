@@ -48,19 +48,9 @@ builds:
 
     subsamples:
       global:
-        # Group by region, year, and month (this is optional, 
-        # but often used to ensure a balanced temporal/spatial sample)
-        group_by: [region, year, month]
-
-        # Multiple rules that will be combined
-        subsample:
-          - name: "norway"
-            query: "country == 'Norway'"
-            max_sequences: 999999   # or any large number to ensure all Norwegian
-
-          - name: "non_norway"
-            query: "country != 'Norway'"
-            max_sequences: 3000
+          filters: "--group-by region year month --subsample-max-sequences 3000  --country != 'Norway'"
+      norway:
+          filters: "--group-by region year month --subsample-max-sequences 99999  --country = 'Norway'"
 
   "h3n2_fhi":
     lineage: h3n2
@@ -75,15 +65,9 @@ builds:
 
     subsamples:
       global:
-        group_by: [region, year, month]
-        subsample:
-          - name: "norway"
-            query: "country == 'Norway'"
-            max_sequences: 999999
-
-          - name: "non_norway"
-            query: "country != 'Norway'"
-            max_sequences: 3000
+          filters: "--group-by region year month --subsample-max-sequences 3000  --country != 'Norway'"
+      norway:
+          filters: "--group-by region year month --subsample-max-sequences 99999  --country = 'Norway'"
 
 
   "vic_fhi":
@@ -99,12 +83,6 @@ builds:
 
     subsamples:
       global:
-        group_by: [region, year, month]
-        subsample:
-          - name: "norway"
-            query: "country == 'Norway'"
-            max_sequences: 999999
-
-          - name: "non_norway"
-            query: "country != 'Norway'"
-            max_sequences: 3000
+          filters: "--group-by region year month --subsample-max-sequences 3000  --country != 'Norway'"
+      norway:
+          filters: "--group-by region year month --subsample-max-sequences 99999  --country = 'Norway'"
