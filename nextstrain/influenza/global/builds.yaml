@@ -47,9 +47,9 @@ builds:
     enable_glycosylation: true
     subsamples:
       global:
-          filters: "--group-by region year month --subsample-max-sequences 3000  –query country != 'Norway'"
+          filters: "--group-by region year month --subsample-max-sequences 3000  –-query country != 'Norway'"
       norway:
-          filters: "--group-by region year month --subsample-max-sequences 99999  –query country == 'Norway'"
+          filters: "--group-by region year month --subsample-max-sequences 99999  –-query country == 'Norway'"
 
   "h3n2_fhi":
     lineage: h3n2
@@ -63,9 +63,9 @@ builds:
     enable_glycosylation: true
     subsamples:
       global:
-          filters: "--group-by region year month --subsample-max-sequences 3000  –query country != 'Norway'"
+          filters: "--group-by region year month --subsample-max-sequences 3000  –-query country != 'Norway'"
       norway:
-          filters: "--group-by region year month --subsample-max-sequences 99999  –query country == 'Norway'"
+          filters: "--group-by region year month --subsample-max-sequences 99999  –-query country == 'Norway'"
 
 
   "vic_fhi":
@@ -80,6 +80,6 @@ builds:
     enable_glycosylation: true
     subsamples:
       global:
-          filters: "--group-by region year month --subsample-max-sequences 3000  –query country != 'Norway'"
+          filters: "--group-by region year month --subsample-max-sequences 3000  –-query country != 'Norway'"
       norway:
-          filters: "--group-by region year month --subsample-max-sequences 99999  –query country == 'Norway'"
+          filters: "--group-by region year month --subsample-max-sequences 99999  –-query country == 'Norway'"
