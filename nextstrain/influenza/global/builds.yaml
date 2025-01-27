@@ -1,3 +1,39 @@
+custom_rules:
+  - profiles/gisaid/prepare_data.smk
+
+metadata_fields:
+  - Isolate_Name
+  - Isolate_Id
+  - Passage_History
+  - Location
+  - Authors
+  - Originating_Lab
+  - Collection_Date
+  - Submission_Date
+
+renamed_metadata_fields:
+  - strain
+  - accession
+  - passage
+  - location
+  - authors
+  - originating_lab
+  - date
+  - date_submitted
+
+lat-longs: "config/lat_longs.tsv"
+
+segments:
+  - ha
+  - na
+
+submission_date_field: date_submitted
+
+recency:
+  date_bins: [7, 30, 90]
+  date_bin_labels: ["last week", "last month", "last quarter"]
+  upper_bin_label: older
+
 builds:
   "h1n1_fhi":
     lineage: h1n1pdm
@@ -25,7 +61,7 @@ builds:
           - name: "non_norway"
             query: "country != 'Norway'"
             max_sequences: 3000
-builds:
+
   "h3n2_fhi":
     lineage: h3n2
     reference: "config/h3n2/{segment}/reference.fasta"
