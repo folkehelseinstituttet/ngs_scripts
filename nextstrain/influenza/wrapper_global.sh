@@ -149,7 +149,7 @@ cp $OUT_DIR/vic_fhi_ha_tip-frequencies.json $OUT_DIR/flu_b_vic_ha_global_tip-fre
 
 
 cp $OUT_DIR/vic_fhi_na.json $OUT_DIR/flu_b_vic_na_global.json
-n
+
 
 cp $OUT_DIR/vic_fhi_na_tip-frequencies.json $OUT_DIR/flu_b_vic_na_global_tip-frequencies.json
 
