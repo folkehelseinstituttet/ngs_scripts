@@ -1,2 +1,4 @@
-Run the wrapper with: `screen -S viralseq -d -m bash /home/ngs/ngs_scripts/viralseq/wrapper.sh -r TEST -a HCV -y 2025`  
-Replace `TEST` with a run name (e.g. `NGS_SEQ-20241009-01`)  
+Run the wrapper with: `screen -S viralseq -d -m bash /home/ngs/ngs_scripts/viralseq/wrapper.sh -r RUN_NAME -a HCV -y 2025`.    
+Replace `RUN_NAME` with a run name (e.g. `NGS_SEQ-20241009-01`). 
+
+To run a small test of the pipeline replace `RUN_NAME` with `TEST`. For a full test use `FULL_TEST` instead.
