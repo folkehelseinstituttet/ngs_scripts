@@ -120,123 +120,124 @@ docker run --rm \
 conda activate NEXTFLOW
 
 # Make sure the latest pipeline is available
-nextflow pull folkehelseinstituttet/viralseq -r v1.0.5
+nextflow pull folkehelseinstituttet/viralseq -r dev
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run folkehelseinstituttet/viralseq/ -r v1.0.5 -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue true
+nextflow run folkehelseinstituttet/viralseq/ -r dev -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false
 
 ## Then run HCV GLUE on the bam files
 # First make a directory for the GLUE files
 
 echo "Run HCV-GLUE for genotyping and resistance analysis"
-mkdir $HOME/$RUN/hcvglue
+#mkdir $HOME/$RUN/hcvglue
 
 # Remove the container in case it is already running
-if docker ps -a --filter "name=gluetools-mysql" --format '{{.Names}}' | grep -q "^gluetools-mysql\$"; then
-    echo "Container 'gluetools-mysql' is running or exists."
-    # Stop the container
-    docker stop gluetools-mysql
-    # Remove the container
-    docker rm gluetools-mysql
-    echo "Container 'gluetools-mysql' has been stopped and removed."
-else
-    echo "Container 'gluetools-mysql' is not running or does not exist."
-fi
+#if docker ps -a --filter "name=gluetools-mysql" --format '{{.Names}}' | grep -q "^gluetools-mysql\$"; then
+#    echo "Container 'gluetools-mysql' is running or exists."
+#    # Stop the container
+#    docker stop gluetools-mysql
+#    # Remove the container
+#    docker rm gluetools-mysql
+#    echo "Container 'gluetools-mysql' has been stopped and removed."
+#else
+#    echo "Container 'gluetools-mysql' is not running or does not exist."
+#fi
 
-# Pull the latest images
-docker pull cvrbioinformatics/gluetools-mysql:latest
-docker pull cvrbioinformatics/gluetools:latest
+## Pull the latest images
+#docker pull cvrbioinformatics/gluetools-mysql:latest
+#docker pull cvrbioinformatics/gluetools:latest
 
-# Start the gluetools-mysql containter
-docker run --detach --name gluetools-mysql cvrbioinformatics/gluetools-mysql:latest
+## Start the gluetools-mysql containter
+#docker run --detach --name gluetools-mysql cvrbioinformatics/gluetools-mysql:latest
 
-# Install the pre-built GLUE HCV project
-# Sometimes the docker execution fails. Retry up to 5 times
+## Install the pre-built GLUE HCV project
+## Sometimes the docker execution fails. Retry up to 5 times
 
-# Set the timeout duration (in seconds)
-TIMEOUT=300
-START_TIME=$(date +%s)
+## Set the timeout duration (in seconds)
+#TIMEOUT=300
+#START_TIME=$(date +%s)
+#
+#until docker exec gluetools-mysql mysql --user=root --password=root123 -e "status" &> /dev/null
+#do
+#  echo "Waiting for database connection..."
+#  # Wait for two seconds before checking again
+#  sleep 2
+#
+## Check if the timeout has been reached
+#  CURRENT_TIME=$(date +%s)
+#  ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
+#  if [ $ELAPSED_TIME -ge $TIMEOUT ]; then
+#    echo "Timeout reached. Exiting script."
+#    exit 1
+#  fi
+#done
 
-until docker exec gluetools-mysql mysql --user=root --password=root123 -e "status" &> /dev/null
-do
-  echo "Waiting for database connection..."
-  # Wait for two seconds before checking again
-  sleep 2
+#echo "MySQL is up!"
 
-# Check if the timeout has been reached
-  CURRENT_TIME=$(date +%s)
-  ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
-  if [ $ELAPSED_TIME -ge $TIMEOUT ]; then
-    echo "Timeout reached. Exiting script."
-    exit 1
-  fi
-done
+## When the MySQL database is ready, Install a pre-built HCV GLUE dataset in the gluetools-mysql container
+#docker exec gluetools-mysql installGlueProject.sh ncbi_hcv_glue
+#
+#
+## Make a for loop over all bam files and run HCV-GLUE
+## Adding || true to the end of the command to prevent the pipeline from failing if the bam file is not valid
+#
+## Don't loop over bam files from first mapping against all references
+## First create json files
+#for bam in $(ls $HOME/$RUN/samtools/*or.nodup.bam)
+#do
+#input=$(basename $bam)
+#docker run --rm \
+#    --name gluetools \
+#    -v $HOME/$RUN/samtools:/opt/bams \
+#    -w /opt/bams \
+#    --link gluetools-mysql \
+#    cvrbioinformatics/gluetools:latest gluetools.sh \
+#        -p cmd-result-format:json \
+#        -EC \
+#        -i project hcv module phdrReportingController invoke-function reportBam ${input} 15.0 > $HOME/$RUN/hcvglue/${input%".bam"}.json || true
+#done
 
-echo "MySQL is up!"
+## Then create html files
+#for bam in $(ls $HOME/$RUN/samtools/*or.nodup.bam)
+#do
+#input=$(basename $bam)
+#docker run --rm \
+#    --name gluetools \
+#    -v $HOME/$RUN/samtools:/opt/bams \
+#    -v $HOME/$RUN/hcvglue:/hcvglue \
+#    -w /opt/bams \
+#    --link gluetools-mysql \
+#    cvrbioinformatics/gluetools:latest gluetools.sh \
+#    	--console-option log-level:FINEST \
+#        --inline-cmd project hcv module phdrReportingController invoke-function reportBamAsHtml ${input} 15.0 /hcvglue/${input%".bam"}.html || true
+#done
 
-# When the MySQL database is ready, Install a pre-built HCV GLUE dataset in the gluetools-mysql container
-docker exec gluetools-mysql installGlueProject.sh ncbi_hcv_glue
-
-# Make a for loop over all bam files and run HCV-GLUE
-# Adding || true to the end of the command to prevent the pipeline from failing if the bam file is not valid
-
-# Don't loop over bam files from first mapping against all references
-# First create json files
-for bam in $(ls $HOME/$RUN/samtools/*or.nodup.bam)
-do
-input=$(basename $bam)
-docker run --rm \
-    --name gluetools \
-    -v $HOME/$RUN/samtools:/opt/bams \
-    -w /opt/bams \
-    --link gluetools-mysql \
-    cvrbioinformatics/gluetools:latest gluetools.sh \
-        -p cmd-result-format:json \
-        -EC \
-        -i project hcv module phdrReportingController invoke-function reportBam ${input} 15.0 > $HOME/$RUN/hcvglue/${input%".bam"}.json || true
-done
-
-# Then create html files
-for bam in $(ls $HOME/$RUN/samtools/*or.nodup.bam)
-do
-input=$(basename $bam)
-docker run --rm \
-    --name gluetools \
-    -v $HOME/$RUN/samtools:/opt/bams \
-    -v $HOME/$RUN/hcvglue:/hcvglue \
-    -w /opt/bams \
-    --link gluetools-mysql \
-    cvrbioinformatics/gluetools:latest gluetools.sh \
-    	--console-option log-level:FINEST \
-        --inline-cmd project hcv module phdrReportingController invoke-function reportBamAsHtml ${input} 15.0 /hcvglue/${input%".bam"}.html || true
-done
-
-docker stop gluetools-mysql 
-# Remove the image
-docker rm gluetools-mysql
+#docker stop gluetools-mysql 
+## Remove the image
+#docker rm gluetools-mysql
 
 ## Run the Glue json parser to merge all the json results into one file
-echo "Parsing the GLUE results"
-docker run --rm \
-    -v $HOME/$RUN/hcvglue:/hcvglue \
-    -v $HOME/.nextflow/assets/folkehelseinstituttet/viralseq/bin/:/scripts \
-    -w /hcvglue \
-    docker.io/jonbra/tidyverse_seqinr:2.0 \
-    Rscript /scripts/GLUE_json_parser.R major
-
-## Join the Glue results with the mapping summaries
-echo "Merge GLUE and mapping results"
-docker run --rm \
-    -v $HOME/$RUN/hcvglue:/hcvglue \
-    -v $HOME/$RUN/summarize:/summarize \
-    -v $HOME/.nextflow/assets/folkehelseinstituttet/viralseq/bin/:/scripts \
-    -w /summarize \
-    docker.io/jonbra/tidyverse_seqinr:2.0 \
-    Rscript /scripts/join_glue_report_with_summary.R
-
+#echo "Parsing the GLUE results"
+#docker run --rm \
+#    -v $HOME/$RUN/hcvglue:/hcvglue \
+#    -v $HOME/.nextflow/assets/folkehelseinstituttet/viralseq/bin/:/scripts \
+#    -w /hcvglue \
+#    docker.io/jonbra/tidyverse_seqinr:2.0 \
+#    Rscript /scripts/GLUE_json_parser.R major
+#
+### Join the Glue results with the mapping summaries
+#echo "Merge GLUE and mapping results"
+#docker run --rm \
+#    -v $HOME/$RUN/hcvglue:/hcvglue \
+#    -v $HOME/$RUN/summarize:/summarize \
+#    -v $HOME/.nextflow/assets/folkehelseinstituttet/viralseq/bin/:/scripts \
+#    -w /summarize \
+#    docker.io/jonbra/tidyverse_seqinr:2.0 \
+#    Rscript /scripts/join_glue_report_with_summary.R
+#
 ## Rename LW import file 
-mv $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import_with_glue.tsv $HOME/$RUN/summarize/${RUN}_HCV_genotype_and_GLUE_summary.tsv
+#mv $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import.tsv $HOME/$RUN/summarize/${RUN}_HCV_genotype_and_GLUE_summary.tsv
 
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
