@@ -79,15 +79,17 @@ current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
     SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run/$RUN"
 elif [ "$YEAR" -lt "$current_year" ]; then 
-	SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/Arkiv/${YEAR}/Illumina_Run/$RUN"
+    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/Arkiv/${YEAR}/Illumina_Run/$RUN"
 else 
-	echo "Error: Year cannot be larger than $current_year"
-	exit 1
+    echo "Error: Year cannot be larger than $current_year"
+    exit 1
 fi
 
-# If we run on the TEST data
+# If we run on the TEST or FULL_TEST data
 if [ "$RUN" = "TEST" ]; then
-    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/$RUN"
+    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/TEST/$RUN"
+elif [ "$RUN" = "FULL_TEST" ]; then 
+    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/TEST/$RUN"
 fi
 
 # Create directory to hold the output of the analysis
