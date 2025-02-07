@@ -237,7 +237,7 @@ echo "Run HCV-GLUE for genotyping and resistance analysis"
 #    Rscript /scripts/join_glue_report_with_summary.R
 #
 ## Rename LW import file 
-#mv $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import.tsv $HOME/$RUN/summarize/${RUN}_HCV_genotype_and_GLUE_summary.tsv
+mv $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import.tsv $HOME/$RUN/summarize/${RUN}_HCV_genotype_and_GLUE_summary.tsv
 
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
