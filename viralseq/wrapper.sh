@@ -87,9 +87,9 @@ fi
 
 # If we run on the TEST or FULL_TEST data
 if [ "$RUN" = "TEST" ]; then
-    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/TEST/$RUN"
+    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/TEST/HCV/$RUN"
 elif [ "$RUN" = "FULL_TEST" ]; then 
-    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/TEST/$RUN"
+    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/TEST/HCV/$RUN"
 fi
 
 # Create directory to hold the output of the analysis
