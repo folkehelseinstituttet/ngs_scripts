@@ -40,8 +40,8 @@ tmp <- BN %>%
   # Fjerne evt positiv controll
   filter(str_detect(KEY, "pos", negate = TRUE)) %>% 
   # Fjerne hvis manglende INNSENDER
-  mutate_at("INNSENDER", ~na_if(., '')) %>% # first convert empty strings to NA
-  filter(!is.na(INNSENDER)) %>%
+  mutate_at("STED", ~na_if(., '')) %>% # first convert empty strings to NA
+  filter(!is.na(STED)) %>%
   # Endre Trøndelag til Trondelag
   mutate("FYLKENAVN" = str_replace(FYLKENAVN, "Tr\xf8ndelag", "Trondelag")) %>%
   # Endre Møre og Romsdal
@@ -91,7 +91,7 @@ tmp <- BN %>%
          COVARAGE_DEPTH_NANO,
          PROVE_TATT,
          FYLKENAVN,
-         INNSENDER,
+         STED,
          MELDT_SMITTESPORING,
          P,
          ST)
@@ -235,7 +235,7 @@ df_4 <- df_3 %>%
 # Add sequencing technology, addresses and authors
 
 # Set originating labs and addresses --------------------------------------
-lab_lookup_table <- tribble(
+lab_lookup_table2 <- tribble(
   ~`Lab code`, ~`Lab`, ~`Lab address`,
   0,	"Norwegian Institute of Public Health, Department of Virology",	"P.O.Box 222 Skoyen, 0213 Oslo, Norway",
   1,	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
@@ -268,10 +268,70 @@ lab_lookup_table <- tribble(
 ) %>%
   mutate(`Lab code` = as.character(`Lab code`))
 
+# Set originating labs and addresses --------------------------------------
+lab_lookup_table <- tribble(
+  ~`Lab code`, ~`Lab`, ~`Lab address`,
+  "FHI-SMLV",	"Norwegian Institute of Public Health, Department of Virology",	"P.O.Box 222 Skoyen, 0213 Oslo, Norway",
+  "Sykehuset Østfold HF Kalnes",	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
+  "KALNES-MEDMIKR",	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
+  "MOLLEBYEN-LS",	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
+  "KALNES-MIKR",	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
+  "KALNES-MIKRGENINF",	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
+  "Sykehuset Østfold HF",	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
+  "AHUS-MIKR",	"Akershus University Hospital, Department for Microbiology and Infectious Disease Control",	"P.O.Box 1000, N-1478 Loerenskog, Norway",
+  "ULLEV-MIKRVIR",	"Oslo University Hospital, Department of Microbiology",	"P.O.Box 4956 Nydalen, N-0424 Oslo, Norway",
+  "BANKGÅRDEN LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "BJØLSEN LEGESENTER AS",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "FAGERNES LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "FORSAND LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "FURST-MIKRSER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "GILDESKÅL LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "GJERDRUM LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "GRATANGEN LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "GRINI MØLLE LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "HELSETORGET LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "HØVDINGGÅRDEN LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "ILADALEN LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "LEGENE I GRØNLANDSLEIRET",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "LEGENE PÅ BRYGGEN",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "LILLESAND LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "OVERHALLA LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "PRESTFOSS LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "RØSTAD LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "SIO HELSE BLINDERN",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "SJØGATA MEDICAL",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "SOLVANG LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "STABEKK LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "STANGE LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "STAVERN LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
+  "LILLEH-MIKR",	"Innlandet Hospital Trust, Division Lillehammer, Department for Medical Microbiology", "P.O.Box 990, N-2629 Lillehammer, Norway",
+  "DRAM-MIKR",	"Medical Microbiology Unit, Department for Laboratory Medicine, Drammen Hospital, Vestre Viken Health Trust", "P.O.Box 800, N-3004 Drammen, Norway",
+  "TONSBERG-MIKR",	"Vestfold Hospital, Toensberg, Department of Microbiology",	"P.O.Box 2168, N-3103 Toensberg, Norway",
+  "SKIEN-MIKR",	"Unilabs Laboratory Medicine", "Leirvollen 19, N-3736 Skien, Norway",
+  "KRSAND-MIKR",	"Hospital of Southern Norway - Kristiansand, Department of Medical Microbiology",	"P.O.Box 416 Lundsiden, N-4604 Kristiansand, Norway",
+  "STAVANG-MIKR",	"Dept. of Medical Microbiology, Stavanger University Hospital, Helse Stavanger HF", "P.O.Box 8100, N-4068 Stavanger, Norway",
+  "HAUKE-MIKR",	"Haukeland University Hospital, Dept. of Microbiology",	"P.O.Box 1400, N-5021 Bergen, Norway",
+  "HAUKE-MIKRVIR",	"Haukeland University Hospital, Dept. of Microbiology",	"P.O.Box 1400, N-5021 Bergen, Norway",
+  "HAUGESU-MIKR",	"Haugesund Hospital, laboratory for Medical Microbiology", "P.O.Box 2170, N-5504 Haugesund, Norway",
+  "FORDE-MIKR",	"Foerde Hospital, Department of Microbiology", "P.O.Box 1000, N-6807 Foerde, Norway",
+  "MOLDE-MIKR",	"Department of Medical Microbiology - section Molde, Molde Hospital",	"Parkveien 84, N-6407 Molde, Norway",
+  "STOLAV-MIKR",	"Department of Medical Microbiology, St. Olavs hospital",	"P.O.box 3250 Torgarden, N-7006 Trondheim, Norway",
+  "LEVANG-MIKR",	"Levanger Hospital, laboratory for Medical Microbiology", "P.O.box 333, N-7601 Levanger, Norway",
+  "BODO-MIKR",	"Nordland Hospital - Bodo, Laboratory Department, Molecular Biology Unit", "P.O.Box 1480, N-8092 Bodo, Norway",
+  "TROMSO-MIKR",	"University Hospital of Northern Norway, Department for Microbiology and Infectious Disease Control",	"P.O.Box 56, N-9038 Tromsoe, Norway",
+  "BODO-MIKR",	NA, NA,
+  "AALESUND-MIKR",	"Department of medical microbiology, section Aalesund, Aalesund Hospital", "N-6026 Aalesund, Norway",
+  "BYGDELEGENE-RAKKESTAD",	NA, NA,
+  "ETNE LEGEKONTOR",	NA, NA,
+  "BAERUM-MIKR", "Department of Medical Microbiology, Baerum Hospital, Vestre Viken Health Trust", "P.O.Box 800, N-3004 Drammen, Norway",
+  "UNILABS-MIKR-SKIEN",	"Telemark Hospital Trust – Skien, Dept. of Medical Microbiology",	"P.O.Box 2900 Kjørbekk, N-3710 Skien"
+  ) %>%
+  mutate(`Lab code` = as.character(`Lab code`))
+
 # Use join to add the labs and addresses
 df_4 <- df_4 %>% 
   left_join(lab_lookup_table,
-            by = c("INNSENDER" = "Lab code")) 
+            by = c("STED" = "Lab code")) 
 
 
 # Add author information and sequencing technology
@@ -430,5 +490,4 @@ output_path_fasta <- file.path(output_path, output_dir, output_filename_fasta)
 
 # Write fasta file
 write.fasta(fasta_list, names =names(fasta_list), file.out = output_path_fasta)
-
 
