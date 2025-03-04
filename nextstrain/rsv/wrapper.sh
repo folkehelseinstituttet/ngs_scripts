@@ -90,8 +90,10 @@ rm ${DATA_DIR}/combined_sequences.fasta
 xz -f ${DATA_DIR}/sequences.fasta
 
 # Zip metadata_cleaned.tsv before removing it
-gzip ${DATA_DIR}/metadata_cleaned.tsv
-mv ${DATA_DIR}/metadata_cleaned.tsv.gz ${DATA_DIR}/metadata.tsv.gz
+awk -F'\t' 'NR==1 || !seen[$1]++' ${DATA_DIR}/metadata_cleaned.tsv > ${DATA_DIR}/metadata_unique.tsv
+
+gzip ${DATA_DIR}/metadata_unique.tsv
+mv ${DATA_DIR}/metadata_unique.tsv.gz ${DATA_DIR}/metadata.tsv.gz
 
 # Remove intermediate files, keep only metadata.tsv.gz and sequences.fasta.xz
 rm ${DATA_DIR}/metadata.tsv
