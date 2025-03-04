@@ -138,7 +138,7 @@ rm ${DATA_DIR}/sequences_world.fasta
 cd $BASE_DIR/rsv
 
 echo "Making the Nextstrain build."
-snakemake -j4 -p --configfile config/configfile.yaml
+snakemake -j4 -p --configfile config/config.yaml
 
 echo "Build finished. Copying auspice files to N for inspection."
 
