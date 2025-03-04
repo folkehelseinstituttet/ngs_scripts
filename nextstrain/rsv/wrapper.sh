@@ -62,6 +62,7 @@ EOF
 
 # Copy nextstrain build files into the ncov directory
 cp $HOME/ngs_scripts/nextstrain/rsv/config.yaml $BASE_DIR/rsv/config
+cp $HOME/ngs_scripts/nextstrain/rsv/merge_and_clean.py $BASE_DIR/rsv/
 
 # Organize and quality checks RSV A data
 cp $BASE_DIR/rsv_nextstrain/virus_RSV_A/metadata.tsv $BASE_DIR/rsv/data/a
