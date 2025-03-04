@@ -1,7 +1,7 @@
 conda_environment: "workflow/envs/nextstrain.yaml"
 
 genesforglycosylation: ["G", "F"]
-builds_to_run: ["genome", "G", "F"]
+builds_to_run: ["genome"]
 resolutions_to_run: ["all-time"]
 
 # Always include all strains from Norway
