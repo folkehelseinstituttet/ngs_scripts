@@ -24,6 +24,7 @@ library(purrr)
 
 # Define metadata
 passage <- "Clinical Specimen"
+submitter <- "RasmusKRiis"
 host <- "Human"
 Location <- "Norway"
 sub_lab <- "Norwegian Institute of Public Health, Department of Virology"
@@ -88,7 +89,8 @@ tmp_rsva <- merged_df_rsva %>%
     alignmentEnd = nc_alignment_end,
     genome_coverage = ngs_coverage,
     G_coverage = "0.4",
-    F_coverage = "0.4"
+    F_coverage = "0.4",
+    submitter = "RasmusKRiis"
   )
 tmp_rsvb <- merged_df_rsvb %>%
   transmute(
@@ -115,12 +117,14 @@ tmp_rsvb <- merged_df_rsvb %>%
     alignmentEnd = nc_alignment_end,
     genome_coverage = ngs_coverage,
     G_coverage = "0.4",
-    F_coverage = "0.4"
+    F_coverage = "0.4",
+    submitter = "RasmusKRiis"
   )
 
 
 # Define the desired column order
 desired_order <- c(
+  "submitter",
   "accession",
   "genbank_accession_rev",
   "strain",
