@@ -56,8 +56,8 @@ cd $HOME
 
 
 # Sometimes the pipeline has been cloned locally. Remove it to avoid version conflicts
-if [ -d "$HOME/viralseq" ]; then 
-    rm -rf $HOME/viralseq
+if [ -d "$HOME/hcv_illumina" ]; then 
+    rm -rf $HOME/hcv_illumina
 fi
 
 # Export the access token for web monitoring with tower
@@ -120,11 +120,11 @@ docker run --rm \
 conda activate NEXTFLOW
 
 # Make sure the latest pipeline is available
-nextflow pull folkehelseinstituttet/viralseq -r v1.0.6
+nextflow pull folkehelseinstituttet/hcv_illumina -r v1.0.6
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run folkehelseinstituttet/viralseq/ -r v1.0.6 -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false
+nextflow run folkehelseinstituttet/hcv_illumina/ -r v1.0.6 -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false
 
 ## Then run HCV GLUE on the bam files
 # First make a directory for the GLUE files
@@ -221,7 +221,7 @@ echo "Run HCV-GLUE for genotyping and resistance analysis"
 #echo "Parsing the GLUE results"
 #docker run --rm \
 #    -v $HOME/$RUN/hcvglue:/hcvglue \
-#    -v $HOME/.nextflow/assets/folkehelseinstituttet/viralseq/bin/:/scripts \
+#    -v $HOME/.nextflow/assets/folkehelseinstituttet/hcv_illumina/bin/:/scripts \
 #    -w /hcvglue \
 #    docker.io/jonbra/tidyverse_seqinr:2.0 \
 #    Rscript /scripts/GLUE_json_parser.R major
@@ -231,7 +231,7 @@ echo "Run HCV-GLUE for genotyping and resistance analysis"
 #docker run --rm \
 #    -v $HOME/$RUN/hcvglue:/hcvglue \
 #    -v $HOME/$RUN/summarize:/summarize \
-#    -v $HOME/.nextflow/assets/folkehelseinstituttet/viralseq/bin/:/scripts \
+#    -v $HOME/.nextflow/assets/folkehelseinstituttet/hcv_illumina/bin/:/scripts \
 #    -w /summarize \
 #    docker.io/jonbra/tidyverse_seqinr:2.0 \
 #    Rscript /scripts/join_glue_report_with_summary.R
