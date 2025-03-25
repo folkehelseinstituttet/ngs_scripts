@@ -39,7 +39,7 @@ done
 
 # The script requires BaseSpace CLI installed (https://developer.basespace.illumina.com/docs/content/documentation/cli/cli-overview)
 # Check if the bs command is available
-if ! command -v /home/ngs/bin/bs &> /dev/null
+if ! command -v bs &> /dev/null
 then
     echo "BaseSpace CLI could not be found"
     exit 1
@@ -66,7 +66,7 @@ SMB_DIR=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run
 
 echo "Getting the Run ID on the BaseSpace server"
 # List Runs on BaseSpace and get the Run id (third column separated by | and whitespaces)
-id=$(/home/ngs/bin/bs list projects | grep "${RUN}" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
+id=$(bs list projects | grep "${RUN}" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
 
 echo "Downloading fastq files"
 # First clean up the tempdrive
@@ -82,7 +82,7 @@ fi
 mkdir -p $BASE_DIR/fastq
 
 # Then download the fastq files
-/home/ngs/bin/bs download project -i ${id} --extension=fastq.gz -o $BASE_DIR/fastq/$RUN
+bs download project -i ${id} --extension=fastq.gz -o $BASE_DIR/fastq/$RUN
 
 # Execute commands based on the platform specified
 if [[ $PLATFORM == "miseq" ]]; then
