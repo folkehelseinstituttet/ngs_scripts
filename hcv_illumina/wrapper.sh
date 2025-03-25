@@ -18,6 +18,7 @@ usage() {
     echo "  -r, --run         Specify the run name (e.g., NGS_SEQ-20240214-03)"
     echo "  -a, --agens       Specify agens (e.g., HCV and ROV)"
     echo "  -y, --year        Specify the year directory of the fastq files on the N-drive"
+    echo "  -v, --version     Optional: Specify which version of the hcv_illumina pipeline to run"
     exit 1
 }
 
@@ -25,6 +26,7 @@ usage() {
 RUN=""
 AGENS=""
 YEAR=""
+VERSION="v1.0.6"  # Default version
 
 while getopts "hr:a:y:" opt; do
     case "$opt" in
@@ -32,6 +34,7 @@ while getopts "hr:a:y:" opt; do
         r) RUN="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
         y) YEAR="$OPTARG" ;;
+        v) VERSION="$OPTARG";;
         ?) usage ;;
     esac
 done
@@ -120,11 +123,11 @@ docker run --rm \
 conda activate NEXTFLOW
 
 # Make sure the latest pipeline is available
-nextflow pull folkehelseinstituttet/hcv_illumina -r v1.0.6
+nextflow pull folkehelseinstituttet/hcv_illumina -r $VERSION
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run folkehelseinstituttet/hcv_illumina/ -r v1.0.6 -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false
+nextflow run folkehelseinstituttet/hcv_illumina/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false
 
 ## Then run HCV GLUE on the bam files
 # First make a directory for the GLUE files
