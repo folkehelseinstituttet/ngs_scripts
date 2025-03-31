@@ -94,7 +94,7 @@ cp $HOME/ngs_scripts/nextstrain/sars-cov-2/my_description.md $BASE_DIR/ncov/my_p
 cp $HOME/ngs_scripts/nextstrain/sars-cov-2/my_auspice_config.json $BASE_DIR/ncov/my_profiles
 cp $HOME/ngs_scripts/nextstrain/sars-cov-2/sites_ignored_for_tree_topology.txt $BASE_DIR/ncov/my_profiles 
 
-conda activate nextstrain
+conda activate NEXTSTRAIN
 
 cd $BASE_DIR/ncov 
 
