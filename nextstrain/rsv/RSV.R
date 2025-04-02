@@ -88,8 +88,10 @@ tmp_rsva <- merged_df_rsva %>%
     alignmentEnd = nc_alignment_end,
     genome_coverage = ngs_coverage,
     G_coverage = "0.4",
-    F_coverage = "0.4"
+    F_coverage = "0.4",  
+    missing_data = "unknown"
   )
+
 tmp_rsvb <- merged_df_rsvb %>%
   transmute(
     accession = gsub("\\.", "_", nc_id),
@@ -115,13 +117,13 @@ tmp_rsvb <- merged_df_rsvb %>%
     alignmentEnd = nc_alignment_end,
     genome_coverage = ngs_coverage,
     G_coverage = "0.4",
-    F_coverage = "0.4"
+    F_coverage = "0.4",
+    missing_data = "unknown"
   )
 
 
 # Define the desired column order
 desired_order <- c(
-  "submitter",
   "accession",
   "genbank_accession_rev",
   "strain",
@@ -146,7 +148,8 @@ desired_order <- c(
   "alignmentEnd",
   "genome_coverage",
   "G_coverage",
-  "F_coverage"
+  "F_coverage",
+  "missing_data"
 )
 
 
