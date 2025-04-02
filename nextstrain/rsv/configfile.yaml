@@ -60,6 +60,11 @@ refine:
   date_inference: "marginal"
   clock_filter_iqd: 4
 
+cds:
+  F: "F"
+  G: "G"
+  genome: "F"
+
 ancestral:
   inference: "joint"
 
