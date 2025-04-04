@@ -1,3 +1,4 @@
+hei
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/${AGENS}/ 
 ###dropper år for å kunne fungere for alle agens som ligger under 2-Resultater/
 ###UV = UkjentVirus (UV i sekvensnavn, UkjentVirus som resultatmappe)
