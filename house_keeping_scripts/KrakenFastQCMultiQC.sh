@@ -1,3 +1,26 @@
+## Set up environment
+BASE_DIR=/mnt/tempdata/
+TMP_DIR=/mnt/tempdata/fastq
+SMB_AUTH=/home/ngs/.smbcreds
+SMB_HOST=//Pos1-fhi-svm01/styrt
+SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/HCV/
+SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/TEST/HCV/TEST
+
+# Create directory to hold the output of the analysis
+mkdir -p $HOME/$RUN
+mkdir $TMP_DIR
+
+### Prepare the run ###
+
+echo "Copying fastq files from the N drive"
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_INPUT <<EOF
+prompt OFF
+recurse ON
+lcd $TMP_DIR
+mget *
+EOF
+    
+
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/${AGENS}/ 
 ###dropper år for å kunne fungere for alle agens som ligger under 2-Resultater/
 ###UV = UkjentVirus (UV i sekvensnavn, UkjentVirus som resultatmappe)
