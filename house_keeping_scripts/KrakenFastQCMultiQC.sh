@@ -6,6 +6,10 @@ SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/HCV/
 SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/TEST/HCV/TEST
 
+# $HOME/.smbcreds
+USERNAME=
+PASSWORD=
+
 # Create directory to hold the output of the analysis
 mkdir -p $HOME/$RUN
 mkdir $TMP_DIR
