@@ -9,19 +9,19 @@ pango <- read_delim(file = "https://raw.githubusercontent.com/cov-lineages/pango
 
 # 2023.11.08: Include BA.2.86 abbreviations
 #pango_str <- pango %>% 
-  # Get the BA.2.86's
-  #filter(str_detect(Description, "B.1.1.529.2.86") | str_detect(Lineage, "^BA.2.86")) %>% 
-  # Remove any withdrawn lineages
-  #filter(str_detect(Lineage, "\\*", negate = TRUE)) %>% 
-  # Pull all the aliases into a character vector
-  #pull(Lineage)
+# Get the BA.2.86's
+#filter(str_detect(Description, "B.1.1.529.2.86") | str_detect(Lineage, "^BA.2.86")) %>% 
+# Remove any withdrawn lineages
+#filter(str_detect(Lineage, "\\*", negate = TRUE)) %>% 
+# Pull all the aliases into a character vector
+#pull(Lineage)
 
 # Include BA.2.86 and XEC lineages
 pango_str <- pango %>% 
   # Get the BA.2.86's and XEC lineages
   filter(str_detect(Description, "B.1.1.529.2.86") | 
-         str_detect(Lineage, "^BA.2.86") | 
-         str_detect(Lineage, "^XEC")) %>% 
+           str_detect(Lineage, "^BA.2.86") | 
+           str_detect(Lineage, "^XEC")) %>% 
   # Remove any withdrawn lineages
   filter(str_detect(Lineage, "\\*", negate = TRUE)) %>% 
   # Pull all the aliases into a character vector
@@ -64,7 +64,8 @@ Artic_fastas <- tibble(
 )
 
 # Load BN (remember to refresh first)
-load("/mnt/tempdata/nextstrain/BN.RData")
+load("N:/Virologi/NGS/tmp/BN.RData")
+
 
 # Convert empty strings to NA and clean up
 BN <- BN %>% #mutate_all(list(~na_if(.,""))) %>% 
@@ -79,6 +80,11 @@ BN <- BN %>% #mutate_all(list(~na_if(.,""))) %>%
   mutate("PROVE_TATT" = lubridate::ymd(PROVE_TATT)) %>%
   # Drop samples witout collection date
   filter(!is.na(PROVE_TATT))
+
+
+min_date <- "2025-01-03"
+# Keep samples taken after min_date
+tmp <- BN %>% filter(PROVE_TATT >= min_date)
 
 # Sett Virus name som fasta header
 # Først lage en mapping mellom KEY og virus name
@@ -109,6 +115,8 @@ SEQUENCEID_virus_mapping_FHI <- BN %>%
   mutate(SEKV_OPPSETT_SWIFT7 = str_replace(SEKV_OPPSETT_SWIFT7, "FHI429n", "FHI429-N")) %>% 
   select(KEY, SEQUENCEID_SWIFT, covv_virus_name, SEKV_OPPSETT_SWIFT7)
 
+
+
 SEQUENCEID_virus_mapping_MIK <- BN %>%
   filter(PROVE_TATT >= "2022-01-01") %>% 
   # Keep BA.2.86 only
@@ -134,7 +142,7 @@ SEQUENCEID_virus_mapping_MIK <- BN %>%
 SEQUENCEID_virus_mapping_Artic <- BN %>%
   filter(PROVE_TATT >= "2022-01-01") %>% 
   # Keep BA.2.86 and XEC only
- # filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>%
+  # filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86")) %>%
   filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86") | str_detect(PANGOLIN_NOM, "^XEC")) %>%
   # Keep only samples NOT submitted to Gisaid
   filter(is.na(GISAID_EPI_ISL)) %>% 
@@ -162,7 +170,7 @@ SEQUENCEID_virus_mapping_Nano <- BN %>%
   filter(PANGOLIN_NOM %in% pango_str | str_detect(PANGOLIN_NOM, "^BA.2.86") | str_detect(PANGOLIN_NOM, "^XEC")) %>%
   # Keep only samples NOT submitted to Gisaid
   filter(is.na(GISAID_EPI_ISL)) %>% 
-  filter(str_detect(SEKV_OPPSETT_NANOPORE, "Nano") | str_detect(SEKV_OPPSETT_NANOPORE, "^NGS") | str_detect(SEKV_OPPSETT_NANOPORE, "^SEQ") | str_detect(SEKV_OPPSETT_NANOPORE, "2023011301A")) %>%
+  filter(str_detect(SEKV_OPPSETT_NANOPORE, "Nano") | str_detect(SEKV_OPPSETT_NANOPORE, "^NGS") | str_detect(SEKV_OPPSETT_NANOPORE, "^SEQ") | str_detect(SEKV_OPPSETT_NANOPORE, "2023011301A") | str_detect(SEKV_OPPSETT_NANOPORE, "SAR")) %>%
   # Trenger også å lage Virus name
   # Lage kolonne for "year"
   separate(PROVE_TATT, into = c("Year", NA, NA), sep = "-", remove = FALSE) %>%
@@ -239,7 +247,7 @@ dirs_nano <- c(list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultat
                list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2023", recursive = FALSE), 
                list.dirs("/mnt/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2024", recursive = FALSE),
                list.dirs("/mnt/N/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/2025", recursive = FALSE))
-              
+
 
 # Get the sequences
 # SWIFT FHI
@@ -531,7 +539,7 @@ Total_fastas <- bind_rows(Total_fastas,
 metadata_BN <- left_join(SEQUENCEID_virus_mapping, BN, by = "KEY") %>% 
   # Select final columns
   select("strain" = covv_virus_name,
-          "date" = PROVE_TATT,
+         "date" = PROVE_TATT,
          "division" = FYLKENAVN,
          PANGOLIN_NOM) %>% 
   add_column("region" = "Europe",
@@ -610,8 +618,8 @@ metadata_BN <- metadata_BN %>%
 # Write files
 # Create directory
 # dir.create(file.path(mainDir, subDir), showWarnings = FALSE)
-  outfile_fasta <- paste0("BN.fasta")
-  outfile_metadata <- paste0("BN.metadata.tsv")
-  
-  dat2fasta(Total_fastas, outfile = outfile_fasta)
-  write_tsv(metadata_BN, file = outfile_metadata)
+outfile_fasta <- paste0("BN.fasta")
+outfile_metadata <- paste0("BN.metadata.tsv")
+
+dat2fasta(Total_fastas, outfile = outfile_fasta)
+write_tsv(metadata_BN, file = outfile_metadata)
