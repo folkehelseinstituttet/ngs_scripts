@@ -64,7 +64,7 @@ Artic_fastas <- tibble(
 )
 
 # Load BN (remember to refresh first)
-load("N:/Virologi/NGS/tmp/BN.RData")
+load("/mnt/tempdata/nextstrain/BN.RData")
 
 
 # Convert empty strings to NA and clean up
