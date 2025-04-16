@@ -1,0 +1,5 @@
+# Always include human case
+A/Texas/37/2024
+
+# Always include outgroup
+A/skunk/NewMexico/24-006483-001/2024
