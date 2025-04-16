@@ -68,3 +68,13 @@ Once the repository has been updated with the custom files and you have installe
 snakemake --cores 1 -pf --snakefile genome-focused/Snakefile
 ```
 
+### Local Data Folder
+
+The pipeline expects a `data/` directory at the project root to store local input files required for the build. This folder should contain any pre-downloaded or curated sequence data and metadata that you want to include in your analysis. Typical contents include:
+
+- `sequences.fasta` – the full set of H5N1 sequences for analysis  
+- `metadata.tsv` – metadata file with required columns (e.g., `strain`, `virus_subtype`, `date`, `region`, etc.)  
+- Segment-specific reference files, if not placed under `config/` (optional)
+
+Ensure that all file paths referenced in `config.yaml` or the custom rule files correctly point to the files inside the `data/` directory. This setup allows for reproducible local runs without relying on remote data fetching.
+
