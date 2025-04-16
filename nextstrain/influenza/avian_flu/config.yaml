@@ -1,0 +1,120 @@
+#### Which builds to produce via this config? ###
+builds:
+  - subtype:
+      - h5n1
+    segment:
+      - genome
+      - pb2
+      - pb1
+      - pa
+      - ha
+      - np
+      - na
+      - mp
+      - ns
+
+target_patterns:
+  - "auspice/{subtype}_{segment}.json"
+
+  
+
+
+# Input source(s)
+inputs:
+  - name: local
+    metadata: local_data/metadata.tsv
+    sequences: local_data/sequences_{segment}.fasta
+
+#### Config files ####
+reference: 
+  "*/genome/*": config/h5n1/h5n1_genome_root.gb   # Use a generic H5N1 reference (update file as needed)
+  "*/*/*": config/h5n1/reference_h5n1_{segment}.gb  # Generic H5N1 references
+auspice_config: config/{subtype}/auspice_config_{subtype}.json
+lat_longs: config/h5n1/lat_longs_h5n1.tsv
+include_strains: config/{subtype}/include_strains_{subtype}.txt
+# For a full analysis we do not drop any strains, so this entry is commented out:
+# dropped_strains: config/{subtype}/dropped_strains_{subtype}.txt
+clades_file: clade-labeling/h5n1-clades.tsv
+dropped_strains: config/empty.txt
+description: config/{subtype}/description.md
+
+## Subtype query - use a generic query that selects all H5N1 sequences
+subtype_query:
+    "h5n1/*/*": "virus_subtype == 'H5N1'"
+
+
+#### Rule-specific parameters ####
+filter:
+  target_sequences_per_tree:
+    "*/*/*": 10000 
+  min_length:
+    "*/pb2/*": 2100
+    "*/pb1/*": 2100
+    "*/pa/*": 2000
+    "*/ha/*": 1600
+    "*/np/*": 1400
+    "*/na/*": 1270
+    "*/mp/*": 900
+    "*/ns/*": 800
+  min_date: 2024
+  group_by: false
+  exclude_where: host=laboratoryderived host=ferret host=unknown host=other host=host gisaid_clade=3C.2
+
+mask:
+  min_support: 
+    "h5n1/*/*": 50
+
+refine:
+  coalescent: const
+  date_inference: marginal
+  clock_filter_iqd:
+    "*/genome/*": 6
+    "*/*/*": false
+  root:
+    "h5n1/genome/*": best
+    "*/*/*": false
+  segment_lengths:
+    "*/pb2/*": 2341
+    "*/pb1/*": 2341
+    "*/pa/*": 2233
+    "*/ha/*": 1565
+    "*/np/*": 1400
+    "*/na/*": 1458
+    "*/mp/*": 1027
+    "*/ns/*": 865
+  clock_rates:
+    "*/pb2/*": [0.00287, &clock_std_dev 0.00211]
+    "*/pb1/*": [0.00264, *clock_std_dev]
+    "*/pa/*": [0.00248, *clock_std_dev]
+    "*/ha/*": [0.00455, *clock_std_dev]
+    "*/np/*": [0.00252, *clock_std_dev]
+    "*/na/*": [0.00349, *clock_std_dev]
+    "*/mp/*": [0.00191, *clock_std_dev]
+    "*/ns/*": [0.00249, *clock_std_dev]
+
+ancestral:
+  inference: joint
+  root_seq: 
+    "*/genome/*": config/h5n1/h5n1_genome_root.gb
+    "*/*/*": false
+
+traits:
+  columns:
+    "*/genome/*": division
+    "*/*/*": region country
+  sampling_bias_correction:
+    "*/genome/*": 5
+    "*/*/*": false
+  confidence: true
+
+colors:
+  hardcoded: config/h5n1/colors_h5n1.tsv
+  ordering: "config/h5n1/color_ordering.tsv"
+  schemes: "config/shared/color_schemes.tsv"
+  duplications:
+    "*/*/*": [["division", "division_metadata"]]
+
+export:
+  title:
+    "h5n1/genome/*": Comprehensive whole-genome phylogenetic analysis of influenza A/H5N1
+    "*/*/*": Comprehensive whole-genome analysis of influenza A/H5N1 ({segment} segment)
