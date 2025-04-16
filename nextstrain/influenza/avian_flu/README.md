@@ -30,13 +30,13 @@ cd avian-flu
 ```
 ### 2. Replace Original Files with Custom Files
 
-####Configuration:
+#### Configuration:
 Replace the default config.yaml with the custom version provided in this setup.
 
-####Rules:
+#### Rules:
 Overwrite the contents of the rules/ directory (such as config.smk, main.smk, and genome.smk) with the custom versions from this setup.
 
-####Empty File:
+#### Empty File:
 Create an empty file for dropped_strains:
 
 ```bash
