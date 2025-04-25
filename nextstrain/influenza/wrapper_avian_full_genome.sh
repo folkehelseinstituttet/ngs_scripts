@@ -93,7 +93,8 @@ fi
 
 # ──────────────────── Copy FHI build overlay ──────────────
 echo "⚙️  Preparing customised Nextstrain build files …"
-cp -R "${FHI_OVERLAY}/." "$AVIAN_REPO/"
+cp -Rf "${FHI_OVERLAY}/." "${AVIAN_REPO}/"
+
 
 # ──────────────────── Prepare local data ──────────────────
 OUTDATA_DIR="${AVIAN_REPO}/local_data"
