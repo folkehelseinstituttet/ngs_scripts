@@ -85,7 +85,7 @@ echo "⚙️  Preparing customised Nextstrain build files …"
 cp -R "${NGS_SCRIPTS}/nextstrain/influenza/avian_flu/." "$AVIAN_REPO/"
 
 # ──────────────────── Prepare local data ──────────────────
-SCRIPT_DIR="${NGS_SCRIPTS}/nextstrain/avian_flu"
+SCRIPT_DIR="${NGS_SCRIPTS}/nextstrain/influenza/avian_flu"
 OUTDATA_DIR="${AVIAN_REPO}/local_data"
 mkdir -p "$OUTDATA_DIR"
 
