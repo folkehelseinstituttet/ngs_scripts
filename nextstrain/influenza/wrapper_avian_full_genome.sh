@@ -102,7 +102,7 @@ mkdir -p "$OUTDATA_DIR"
 bash "$SCRIPT_DIR/convert_xls_to_tsv.sh" "$META_XLS"
 tsvfile="${META_XLS%.*}.tsv"
 python3 "$SCRIPT_DIR/process_metadata.py" "$tsvfile" "$OUTDATA_DIR/metadata.tsv"
-python3 "$SCRIPT_DIR/split_fasta_by_segment.py" "$SEQ_FASTA" --output-dir "$OUTDATA_DIR"
+python3 "$SCRIPT_DIR/split_fasta_by_segment.py" "$SEQ_FASTA" "$OUTDATA_DIR"
 
 # ──────────────────── Run Snakemake build ─────────────────
 pushd "$AVIAN_REPO" >/dev/null
