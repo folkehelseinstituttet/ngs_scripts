@@ -3,7 +3,7 @@
 #  Nextstrain H5N1 whole‑genome wrapper – FHI custom version
 # -----------------------------------------------------------------------------
 #  • Downloads metadata & FASTA from the N‑drive
-#  • Converts/cleans metadata + splits FASTA by segment
+#  • Converts / cleans metadata + splits FASTA by segment
 #  • Runs the customised Nextstrain avian‑flu build
 #  • Uploads the resulting Auspice JSONs back to the N‑drive
 # -----------------------------------------------------------------------------
@@ -16,7 +16,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 # ──────────────────── General settings ────────────────────
-DATE=$(date +%F)                            # 2025‑04‑25 → 2025‑04‑25
+DATE=$(date +%F)                            # e.g. 2025‑04‑25
 BASE_DIR="/mnt/tempdata"                  # Base scratch area
 WORK_DIR="${BASE_DIR}/avianflu_nextstrain" # Holds raw input data
 OUT_DIR="${BASE_DIR}/avianflu_nextstrain_out/${DATE}" # Holds final Auspice JSONs
@@ -31,9 +31,8 @@ SMB_TARGET="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/11-Nexts
 NGS_SCRIPTS="$HOME/ngs_scripts"           # FHI helper scripts
 AVIAN_REPO="${BASE_DIR}/avian-flu"        # Nextstrain avian influenza repo
 
-# Conda env & binaries that must exist in PATH
+# Conda env
 CONDA_ENV="NEXTSTRAIN"                     # Name of the conda env with Snakemake
-REQUIRED_CMDS=(git smbclient snakemake conda python)
 
 # ──────────────────── Helper functions ────────────────────
 require()     { command -v "$1" &>/dev/null || { echo "❌ '$1' not found" >&2; exit 1; }; }
@@ -47,13 +46,15 @@ clone_update() {
     fi
 }
 
-# ──────────────────── Pre‑flight checks ────────────────────
+# ──────────────────── Pre‑flight checks ───────────────────
+REQUIRED_CMDS=(git smbclient conda python)
 for c in "${REQUIRED_CMDS[@]}"; do require "$c"; done
 mkdir -p "$WORK_DIR" "$OUT_DIR"
 
 # ──────────────────── Activate conda ──────────────────────
 source "$HOME/miniconda3/etc/profile.d/conda.sh"
 conda activate "$CONDA_ENV"
+require snakemake            # Now snakemake must be available via the env
 
 # ──────────────────── Get code ────────────────────────────
 clone_update "https://github.com/folkehelseinstituttet/ngs_scripts.git" "$NGS_SCRIPTS" "main"
