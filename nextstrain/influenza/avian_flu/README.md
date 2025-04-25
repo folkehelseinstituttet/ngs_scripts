@@ -1,80 +1,128 @@
-# H5N1 Full Genome Analysis Pipeline
+# Nextstrain H5N1 Whole-Genome Wrapper
 
-This pipeline provides a full H5N1 whole-genome analysis by including all available H5N1 sequences, rather than filtering on specific clades. It uses custom configuration and rule files tailored for genome tree construction and requires an empty file (`empty.txt`) for handling dropped strains.
+This README explains how to set up and run the **Nextstrain H5N1 whole-genome wrapper** (`wrapper_avian_full_genome.sh`) to perform a full avian-flu build, including:
 
-## Features
+- Downloading metadata and FASTA from an SMB share  
+- Converting and cleaning metadata  
+- Splitting FASTA by segment  
+- Running the customized Nextstrain avian-flu Snakemake pipeline  
+- Uploading results back to the SMB share  
 
-- **All-inclusive H5N1 Analysis:**  
-  Processes every H5N1 sequence (using subtype `h5n1`) for both whole-genome and individual segment analyses. The segments analyzed include:
-  - genome
-  - pb2, pb1, pa, ha, np, na, mp, ns
+---
 
-- **Custom Configuration & Rules:**  
-  - Uses a custom `config.yaml` that defines builds specifically for `h5n1`.
-  - Custom Snakemake rules are provided in the `rules` directory (e.g., `config.smk`, `main.smk`, `genome.smk`) to control filtering, alignment, tree building, and export.
+## Table of Contents
 
-- **Empty File for Dropped Strains:**  
-  The pipeline expects an entry for `dropped_strains` in the configuration. Instead of filtering out any strains, an empty file (`config/empty.txt`) is used to bypass this step.
+1. [Prerequisites](#prerequisites)  
+2. [Directory Layout](#directory-layout)  
+3. [Configuration](#configuration)  
+4. [Setup](#setup)  
+5. [Running the Wrapper](#running-the-wrapper)  
+6. [Output](#output)  
+7. [Troubleshooting](#troubleshooting)  
 
-## Installation & Setup
+---
 
-To set up and run this pipeline, follow these steps:
+## Prerequisites
 
-### 1. Download the Avian Nextstrain Repository
+- **Linux** system with network access to the SMB share  
+- **Miniconda/Anaconda** installed under `$HOME/miniconda3`  
+- **Permissions** to read/write on the SMB share and `/mnt/tempdata`  
 
-Clone the original repository:
+### Required Commands
 
+| Command     | Purpose                                            |
+|-------------|----------------------------------------------------|
+| `git`       | Clone & update repos                               |
+| `smbclient` | Download/upload files via SMB                      |
+| `conda`     | Activate the Snakemake environment                 |
+| `python3`   | Run metadata conversion & FASTA-splitting scripts  |
+| `snakemake` | Execute the Nextstrain build pipeline              |
+
+---
+
+## Directory Layout
+
+By default, the wrapper uses:
+
+- **Base scratch area:** `/mnt/tempdata`  
+- **Raw input dir:** `/mnt/tempdata/avianflu_nextstrain`  
+- **Output JSON dir:** `/mnt/tempdata/avianflu_nextstrain_out/YYYY-MM-DD`  
+- **Local Nextstrain repo:** `/mnt/tempdata/avian-flu`  
+- **Helper scripts repo:** `~/ngs_scripts/nextstrain/influenza/avian_flu`
+
+Feel free to adjust these paths by editing the variables at the top of the wrapper script.
+
+---
+
+## Configuration
+
+Customize the following before running:
+
+1. **SMB settings** (in wrapper):
+   ```bash
+   SMB_HOST="//Pos1-fhi-svm01/styrt"
+   SMB_AUTH="$HOME/.smbcreds"
+   SMB_SOURCE="Virologi/NGS/tmp/avianflu_nextstrain"
+   SMB_TARGET="Virologi/NGS/.../Nextstrain_Build"
+   ```
+
+2. Conda env name:
+  
+  ```bash
+  CONDA_ENV="SNAKEMAKE"
+   ```
+
+3. Overlay directory (your custom scripts & configs):
+  ```bash
+  FHI_OVERLAY="$HOME/ngs_scripts/nextstrain/influenza/avian_flu"
+   ```
+Ensure your overlay folder mirrors the target structure in the cloned avian-flu repo:
+
+  ```bash
+ avian_flu/
+├── h5n1/                          # Custom h5n1 configs & queries
+├── genome-focused/
+│   ├── config.yaml                # Overrides genome-focused/config.yaml
+│   └── Snakefile                  # Overrides genome-focused/Snakefile
+└── rules/
+    ├── genome.smk                 # Overrides rules/genome.smk
+    └── main.smk                   # Overrides rules/main.smk
+
+   ```
+
+
+## Setup
+1. Activate your conda base & install Snakemake (if not already done):
+   
+  ```bash
+  conda activate base
+  conda install -c conda-forge snakemake
+   ```
+2. Clone helper scripts (if missing):
+   
+ ```bash
+git clone https://github.com/folkehelseinstituttet/ngs_scripts.git ~/ngs_scripts
+ ```
+
+3. Make wrapper executable:
+   
+ ```bash
+chmod +x ~/ngs_scripts/nextstrain/influenza/wrapper_avian_full_genome.sh
+ ```
+
+## Running the Wrapper
+From anywhere (no need for sudo):
+   
 ```bash
-git clone https://github.com/nextstrain/avian-flu.git
-cd avian-flu
-```
-### 2. Replace Original Files with Custom Files
+bash ~/ngs_scripts/nextstrain/influenza/wrapper_avian_full_genome.sh [metadata.xls sequences.fasta]
+ ```
+- During execution, you’ll see logs for:
+- Updating repos
+- Fetching from SMB
+- Converting metadata & splitting FASTA
+- Launching Snakemake
+- Uploading results
 
-#### Configuration:
-Replace the default config.yaml with the custom version provided in this setup.
 
-#### Rules:
-Overwrite the contents of the rules/ directory (such as config.smk, main.smk, and genome.smk) with the custom versions from this setup.
 
-#### Empty File:
-Create an empty file for dropped_strains:
-
-```bash
-mkdir -p config
-touch config/empty.txt
-```
-
-#### Additional Files:
-Ensure that any custom reference files (e.g., config/h5n1/h5n1_genome_root.gb) and descriptive files (e.g., config/h5n1/description.md) are available in the proper directories.
-
-### 3. Install Dependencies
-Make sure you have the following installed:
-
-  - Snakemake
-  - Augur and its dependencies (Python, Pandas, etc.)
-  - AWS CLI (if you're interacting with S3)
-  - csvtk (for metadata processing)
-
-You can install most Python packages via pip:
-
-```bash
-pip install snakemake augur
-```
-
-## Running the Pipeline
-Once the repository has been updated with the custom files and you have installed the necessary software, run the workflow with:
-
-```bash
-snakemake --cores 1 -pf --snakefile genome-focused/Snakefile
-```
-
-### Local Data Folder
-
-The pipeline expects a `data/` directory at the project root to store local input files required for the build. This folder should contain any pre-downloaded or curated sequence data and metadata that you want to include in your analysis. Typical contents include:
-
-- `sequences.fasta` – the full set of H5N1 sequences for analysis  
-- `metadata.tsv` – metadata file with required columns (e.g., `strain`, `virus_subtype`, `date`, `region`, etc.)  
-- Segment-specific reference files, if not placed under `config/` (optional)
-
-Ensure that all file paths referenced in `config.yaml` or the custom rule files correctly point to the files inside the `data/` directory. This setup allows for reproducible local runs without relying on remote data fetching.
 
