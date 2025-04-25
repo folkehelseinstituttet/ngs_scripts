@@ -123,12 +123,32 @@ done
 
 # ──────────────────── Upload back to SMB ──────────────────
 echo "📤 Uploading results to SMB share …"
-smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_TARGET" <<EOF
+
+# Split the target into parent + leaf
+SMB_PARENT=$(dirname "$SMB_TARGET")
+SMB_LEAF=$(basename "$SMB_TARGET")
+
+smbclient "$SMB_HOST" -A "$SMB_AUTH" <<EOF
+# First, move into the parent folder (must exist)
+cd "$SMB_PARENT"
+
+# Create the date-stamped build dir if needed (ignore errors if it already exists)
+mkdir "$SMB_LEAF"
+
+# Now enter it
+cd "$SMB_LEAF"
+
 prompt OFF
 recurse ON
-lcd $OUT_DIR
+
+# Switch to our local output directory
+lcd "$OUT_DIR"
+
+# Upload everything there
 mput *
+
 EOF
+
 
 echo "🧹 Cleaning up …"
 rm -rf "$WORK_DIR"
