@@ -32,7 +32,7 @@ NGS_SCRIPTS="$HOME/ngs_scripts"           # FHI helper scripts
 AVIAN_REPO="${BASE_DIR}/avian-flu"        # Nextstrain avian influenza repo
 
 # Conda env & binaries that must exist in PATH
-CONDA_ENV="SNAKEMAKE"                     # Name of the conda env with Snakemake
+CONDA_ENV="NEXTSTRAIN"                     # Name of the conda env with Snakemake
 REQUIRED_CMDS=(git smbclient snakemake conda python)
 
 # ──────────────────── Helper functions ────────────────────
