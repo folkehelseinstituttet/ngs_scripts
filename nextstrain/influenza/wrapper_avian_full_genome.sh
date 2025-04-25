@@ -32,7 +32,7 @@ NGS_SCRIPTS="$HOME/ngs_scripts"             # FHI helper scripts (read‑only)
 AVIAN_REPO="${BASE_DIR}/avian-flu"          # Nextstrain avian influenza repo
 
 # Locations inside ngs_scripts
-FHI_OVERLAY="${NGS_SCRIPTS}/nextstrain/influenza/fhi/avian_flu" # config overlay
+FHI_OVERLAY="${NGS_SCRIPTS}/nextstrain/influenza/avian_flu" # config overlay
 SCRIPT_DIR="${NGS_SCRIPTS}/nextstrain/influenza/avian_flu"      # helper scripts
 
 # Conda env
