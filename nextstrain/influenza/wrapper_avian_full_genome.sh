@@ -47,7 +47,7 @@ clone_update() {
 }
 
 # ──────────────────── Pre‑flight checks ───────────────────
-REQUIRED_CMDS=(git smbclient conda python)
+REQUIRED_CMDS=(git smbclient conda python3)
 for c in "${REQUIRED_CMDS[@]}"; do require "$c"; done
 mkdir -p "$WORK_DIR" "$OUT_DIR"
 
@@ -90,8 +90,8 @@ OUTDATA_DIR="${AVIAN_REPO}/local_data"
 mkdir -p "$OUTDATA_DIR"
 
 "$SCRIPT_DIR/convert_xls_to_tsv.sh" "$META_XLS"
-python "$SCRIPT_DIR/process_metadata.py" output.tsv "$OUTDATA_DIR/metadata.tsv"
-python "$SCRIPT_DIR/split_fasta_by_segment.py" "$SEQ_FASTA" --output-dir "$OUTDATA_DIR"
+python3 "$SCRIPT_DIR/process_metadata.py" output.tsv "$OUTDATA_DIR/metadata.tsv"
+python3 "$SCRIPT_DIR/split_fasta_by_segment.py" "$SEQ_FASTA" --output-dir "$OUTDATA_DIR"
 
 # ──────────────────── Run Snakemake build ─────────────────
 pushd "$AVIAN_REPO" >/dev/null
