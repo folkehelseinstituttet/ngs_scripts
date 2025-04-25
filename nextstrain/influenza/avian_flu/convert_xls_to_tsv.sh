@@ -1,21 +1,26 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
+IFS=$'\n\t'
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 input.xls"
   exit 1
 fi
-in="$1"
+infile="$1"
+
+# Derive base name (foo.xls → foo)
+base="${infile%.*}"
 
 # Read Excel → fill blanks → write CSV & TSV in one go
-python3 - <<'PYCODE'
+python3 - "$infile" <<'PYCODE'
 import sys, pandas as pd
 
-# Read as strings so blank cells become NaN
-df = pd.read_excel(sys.argv[1], dtype=str)
+infile = sys.argv[1]
+df = pd.read_excel(infile, dtype=str)
 df.fillna("NA", inplace=True)
 
-df.to_csv("output.csv", index=False)
-df.to_csv("output.tsv", sep="\t", index=False)
-print("Done → output.csv, output.tsv")
+base = infile.rsplit('.', 1)[0]
+df.to_csv(f"{base}.csv", index=False)
+df.to_csv(f"{base}.tsv", sep="\t", index=False)
+print(f"Done → {base}.csv, {base}.tsv")
 PYCODE
