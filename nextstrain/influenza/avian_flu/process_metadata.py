@@ -18,12 +18,12 @@ df.columns = [c.lower() for c in df.columns]
 # 3) rename
 df = df.rename(columns={
     "isolate_name": "strain",
-    "subtype":      "subvirus_type",
+    "subtype":      "virus_subtype",
     "collection_date": "date"
 })
 
 # 4) clean up virus_type (collapse A / H5N1 → H5N1)
-df["subvirus_type"] = df["subvirus_type"].str.replace(r"A\s*/\s*H5N1", "H5N1", regex=True)
+df["virus_subtype"] = df["virus_subtype"].str.replace(r"A\s*/\s*H5N1", "H5N1", regex=True)
 
 # 5) split location → region / country / division
 #    strip whitespace, then split on " / ", max 2 splits
