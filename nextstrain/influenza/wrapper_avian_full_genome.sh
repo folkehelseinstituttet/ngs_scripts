@@ -1,115 +1,123 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# -----------------------------------------------------------------------------
+#  Nextstrain H5N1 whole‑genome wrapper – FHI custom version
+# -----------------------------------------------------------------------------
+#  • Downloads metadata & FASTA from the N‑drive
+#  • Converts/cleans metadata + splits FASTA by segment
+#  • Runs the customised Nextstrain avian‑flu build
+#  • Uploads the resulting Auspice JSONs back to the N‑drive
+# -----------------------------------------------------------------------------
+#  Usage (manual metadata / FASTA):
+#     ./nextstrain_avian_whole_genome_wrapper.sh metadata.xls sequences.fasta
+#  If the two arguments are omitted, the script will try to autodetect the files
+#  in the SMB download directory.
+# -----------------------------------------------------------------------------
+set -Eeuo pipefail
+IFS=$'\n\t'
 
-# Activate conda
-source ~/miniconda3/etc/profile.d/conda.sh
+# ──────────────────── General settings ────────────────────
+DATE=$(date +%F)                            # 2025‑04‑25 → 2025‑04‑25
+BASE_DIR="/mnt/tempdata"                  # Base scratch area
+WORK_DIR="${BASE_DIR}/avianflu_nextstrain" # Holds raw input data
+OUT_DIR="${BASE_DIR}/avianflu_nextstrain_out/${DATE}" # Holds final Auspice JSONs
 
-# Get the date
-DATE=$(date +%Y-%m-%d)
+# SMB share (adjust if moved)
+SMB_HOST="//Pos1-fhi-svm01/styrt"
+SMB_AUTH="$HOME/.smbcreds"                # username/password file
+SMB_SOURCE="Virologi/NGS/tmp/avianflu_nextstrain"
+SMB_TARGET="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/11-Nextstrain/${DATE}_Nextstrain_Build"
 
-## Set up environment
-BASE_DIR=/mnt/tempdata
-TMP_DIR=/mnt/tempdata/avianflu_nextstrain
-OUT_DIR=/mnt/tempdata/avianflu_nextstrain_out
-SMB_AUTH=/home/ngs/.smbcreds
-SMB_HOST=//Pos1-fhi-svm01/styrt
-SMB_DIR=Virologi/NGS/tmp/avianflu_nextstrain
-SMB_DIR_ANALYSIS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/11-Nextstrain/${DATE}_Nextstrain_Build 
-SMB_DIR_UPLOAD=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/11-Nextstrain/${DATE}_Nextstrain_Build 
+# Git repos
+NGS_SCRIPTS="$HOME/ngs_scripts"           # FHI helper scripts
+AVIAN_REPO="${BASE_DIR}/avian-flu"        # Nextstrain avian influenza repo
 
-# Check if the ngs_scripts directory exists, if not clone it from GitHub
-cd $HOME
-if [ -d "ngs_scripts" ]; then
-  # Make sure to pull the latest version
-  git -C ngs_scripts/ pull origin main
-else
-  git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
-fi
+# Conda env & binaries that must exist in PATH
+CONDA_ENV="SNAKEMAKE"                     # Name of the conda env with Snakemake
+REQUIRED_CMDS=(git smbclient snakemake conda python)
 
-# Check if the seasonal_flu repo exists, if not clone it from GitHub
-cd $BASE_DIR
-if [ -d "seasonal-flu" ]; then
-  cd avian-flu
-  # Make sure to pull the latest version
-  git pull origin master
-  git stash
-  git pull origin master
-  git stash pop
-else
-  git clone https://github.com/nextstrain/avian-flu.git
-fi
+# ──────────────────── Helper functions ────────────────────
+require()     { command -v "$1" &>/dev/null || { echo "❌ '$1' not found" >&2; exit 1; }; }
+clone_update() {
+    local repo="$1" dest="$2" branch="${3:-main}"
+    if [[ -d "$dest/.git" ]]; then
+        git -C "$dest" fetch origin "$branch"
+        git -C "$dest" pull --ff-only origin "$branch"
+    else
+        git clone --branch "$branch" --depth 1 "$repo" "$dest"
+    fi
+}
 
-## Make output dir
-mkdir $OUT_DIR
+# ──────────────────── Pre‑flight checks ────────────────────
+for c in "${REQUIRED_CMDS[@]}"; do require "$c"; done
+mkdir -p "$WORK_DIR" "$OUT_DIR"
 
-# Create directory to hold the output of the analysis
-mkdir $TMP_DIR
+# ──────────────────── Activate conda ──────────────────────
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+conda activate "$CONDA_ENV"
 
-# Get files from N . metadata.xls and sequences.fasta
-echo "Getting files from the N drive"
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+# ──────────────────── Get code ────────────────────────────
+clone_update "https://github.com/folkehelseinstituttet/ngs_scripts.git" "$NGS_SCRIPTS" "main"
+clone_update "https://github.com/nextstrain/avian-flu.git" "$AVIAN_REPO" "master"
+
+# ──────────────────── Download data ───────────────────────
+echo "🗄️  Fetching metadata & FASTA from SMB share …"
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_SOURCE" <<EOF
 prompt OFF
 recurse ON
-lcd $TMP_DIR
+lcd $WORK_DIR
 mget *
 EOF
 
-# Copy nextstrain build files into the avian-flu directory
-cp $HOME/ngs_scripts/nextstrain/influenza/fhi/avian_flu/h5n1 $BASE_DIR/avian-flu/config
-cp $HOME/ngs_scripts/nextstrain/influenza/fhi/avian_flu/empty.txt $BASE_DIR/avian-flu
-cp $HOME/ngs_scripts/nextstrain/influenza/fhi/avian_flu/config.yaml $BASE_DIR/avian-flu/genome-focused
-cp $HOME/ngs_scripts/nextstrain/influenza/fhi/avian_flu/Snakefile $BASE_DIR/avian-flu/genome-focused
-cp $HOME/ngs_scripts/nextstrain/influenza/fhi/avian_flu/genome.smk $BASE_DIR/avian-flu/rules
-cp $HOME/ngs_scripts/nextstrain/influenza/fhi/avian_flu/main.smk $BASE_DIR/avian-flu/rules
-
-# -------------------------------------------------------------------
-# usage: ./nextstrain_avian_whole_genome_wrapper.sh <metadata.xls> <sequences.fasta>
-# -------------------------------------------------------------------
-
-if [ $# -ne 2 ]; then
-  echo "Usage: $0 <metadata.xls> <sequences.fasta>"
-  exit 1
+# ──────────────────── Resolve input paths ─────────────────
+if [[ $# -eq 2 ]]; then
+    META_XLS="$1"
+    SEQ_FASTA="$2"
+else
+    META_XLS="$(find "$WORK_DIR" -maxdepth 1 -iname '*.xls'   | head -n1)"
+    SEQ_FASTA="$(find "$WORK_DIR" -maxdepth 1 -iname '*.fasta' | head -n1)"
 fi
 
-META_XLS="$1"
-SEQ_FASTA="$2"
-OUTDIR="local_data"
+[[ -f "$META_XLS" && -f "$SEQ_FASTA" ]] || { echo "❌ Could not locate metadata/Fasta files" >&2; exit 1; }
 
-# Figure out where this script lives so we can call the others
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# ──────────────────── Copy FHI build overlay ──────────────
+echo "⚙️  Preparing customised Nextstrain build files …"
+cp -R "${NGS_SCRIPTS}/nextstrain/influenza/fhi/avian_flu/." "$AVIAN_REPO/"
 
-# 1) convert XLS → TSV
-#    produces output.csv, output.tsv in cwd
+# ──────────────────── Prepare local data ──────────────────
+SCRIPT_DIR="${NGS_SCRIPTS}/nextstrain/avian_flu"
+OUTDATA_DIR="${AVIAN_REPO}/local_data"
+mkdir -p "$OUTDATA_DIR"
+
 "$SCRIPT_DIR/convert_xls_to_tsv.sh" "$META_XLS"
+python "$SCRIPT_DIR/process_metadata.py" output.tsv "$OUTDATA_DIR/metadata.tsv"
+python "$SCRIPT_DIR/split_fasta_by_segment.py" "$SEQ_FASTA" --output-dir "$OUTDATA_DIR"
 
-# 2) process metadata.tsv → cleaned TSV
-#    inject pandas option at top of the script to suppress that warning
-#    writes local_data/cleaned_metadata.tsv
-mkdir -p "$OUTDIR"
-# (we'll prepend the pandas option automatically)
-awk '
-  NR==1 && /^#!/ { print; print "import pandas as pd; pd.set_option(\"future.no_silent_downcasting\", True)"; next }
-  { print }
-' "$SCRIPT_DIR/process_metadata.py" > /tmp/.proc_meta_fixed.py
-
-python3 /tmp/.proc_meta_fixed.py output.tsv "$OUTDIR/metadata.tsv"
-rm /tmp/.proc_meta_fixed.py
-
-# 3) split your FASTA by segment
-#
-#    If the user passed an absolute path, we keep it.
-#    If they passed a relative path, we leave it alone too.
-pushd "$OUTDIR" >/dev/null
-python3 "$SCRIPT_DIR/split_fasta_by_segment.py" "$SEQ_FASTA"
+# ──────────────────── Run Snakemake build ─────────────────
+pushd "$AVIAN_REPO" >/dev/null
+CORES="$(nproc --ignore 1 || echo 1)"
+echo "🚀 Launching Snakemake with $CORES CPU(s) …"
+snakemake --cores "$CORES" -s genome-focused/Snakefile --printshellcmds --rerun-incomplete
 popd >/dev/null
 
-echo "✅ All done!"
-echo "   • Metadata → $OUTDIR/metadata.tsv"
-echo "   • Split FASTAs → $OUTDIR/sequences_<segment>.fasta"
+# ──────────────────── Collect & version outputs ───────────
+echo "📦 Collecting Auspice JSON files …"
+AUSPICE_DIR="$AVIAN_REPO/auspice"
+for f in "$AUSPICE_DIR"/*.json; do
+    base="$(basename "$f" .json)"
+    cp "$f" "${OUT_DIR}/${base}_${DATE}.json"
+    ln -sf "${OUT_DIR}/${base}_${DATE}.json" "${OUT_DIR}/${base}_latest.json"
+done
 
-# 3) run nextstrain build
-#    clone avian nextstrain repo
-#    copy config files into nextstrain repo
-#    run nextstrain build
+# ──────────────────── Upload back to SMB ──────────────────
+echo "📤 Uploading results to SMB share …"
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_TARGET" <<EOF
+prompt OFF
+recurse ON
+lcd $OUT_DIR
+mput *
+EOF
 
-conda activate SNAKEMAKE
+echo "🧹 Cleaning up …"
+rm -rf "$WORK_DIR"
+
+echo "✅ Pipeline finished – results in $OUT_DIR"
