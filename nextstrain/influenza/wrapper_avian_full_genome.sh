@@ -82,7 +82,7 @@ fi
 
 # ──────────────────── Copy FHI build overlay ──────────────
 echo "⚙️  Preparing customised Nextstrain build files …"
-cp -R "${NGS_SCRIPTS}/nextstrain/influenza/fhi/avian_flu/." "$AVIAN_REPO/"
+cp -R "${NGS_SCRIPTS}/nextstrain/influenza/avian_flu/." "$AVIAN_REPO/"
 
 # ──────────────────── Prepare local data ──────────────────
 SCRIPT_DIR="${NGS_SCRIPTS}/nextstrain/avian_flu"
