@@ -89,7 +89,7 @@ tmp_rsva <- merged_df_rsva %>%
     genome_coverage = ngs_coverage,
     G_coverage = "0.4",
     F_coverage = "0.4",  
-    missing_data = "unknown"
+    missing_data = 0
   )
 
 tmp_rsvb <- merged_df_rsvb %>%
@@ -118,7 +118,7 @@ tmp_rsvb <- merged_df_rsvb %>%
     genome_coverage = ngs_coverage,
     G_coverage = "0.4",
     F_coverage = "0.4",
-    missing_data = "unknown"
+    missing_data = 0
   )
 
 
@@ -241,4 +241,3 @@ output_fasta_B <- file.path(output_dir_B, "sequences.fasta")
 
 write_fasta(output_fasta_A, filtered_seq)
 write_fasta(output_fasta_B, filtered_seq)
-
