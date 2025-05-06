@@ -137,7 +137,7 @@ submission <- merged_df %>%
     "seq_technology" = Sequencing_Technology,
     "assembly_method" = Assembly_Method,
     "coverage" = "",
-    "rsv_publications" = "NA",
+    "rsv_publications" = "unknown",
     "orig_lab" = merged_df$prove_innsender_navn,
     "orig_lab_addr" =merged_df$prove_innsender_adresse,
     "provider_sample_id" = "",
