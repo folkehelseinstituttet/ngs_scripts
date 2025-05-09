@@ -69,7 +69,7 @@ ancestral:
   inference: "joint"
 
 traits:
-  columns: ["country", "division"]
+  columns: ["country", "division", "location"]
 
 nextclade_attributes:
   a:

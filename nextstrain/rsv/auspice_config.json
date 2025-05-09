@@ -39,6 +39,11 @@
       "type": "categorical"
     },
     {
+      "key": "location",
+      "title": "Location",
+      "type": "categorical"
+    },
+    {
       "key": "glyc",
       "title": "Glycosylation",
       "type": "ordinal"
@@ -47,7 +52,8 @@
   "geo_resolutions": [
     "country",
     "region",
-    "division"
+    "division",
+    "location"
   ],
   "panels": [
      "tree",
@@ -64,6 +70,7 @@
     "country",
     "region",
     "division",
+    "location",
     "clade_membership"
   ]
 }
