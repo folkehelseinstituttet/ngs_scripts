@@ -101,7 +101,7 @@ tmp_rsvb <- merged_df_rsvb %>%
     region = prove_region,
     country = prove_country,
     division = pasient_fylke_name,
-    location = "",
+    location = pasient_landsdel,
     host = "Human",
     date_submitted = "",
     sra_accession = "",
