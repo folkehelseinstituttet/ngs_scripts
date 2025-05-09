@@ -50,7 +50,7 @@ rsvdb <- rsvdb %>%
 # Now select the required columns
 #fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "tessy_variable", "pasient_kjonn", "prove_innsender_id", "pasient_fylke_name", "prove_kategori")
 merged_df <- rsvdb %>% select("nc_id", "pasient_fylke_name", "ngs_clade", "prove_tatt", "ngs_coverage", "prove_innsender_navn", "prove_region", "prove_country", "ngs_clade", "ngs_coverage", "nc_qc_overall_score", "nc_qc_overall_status",
-                              "nc_alignment_start", "nc_alignment_end","ngs_sekvens_resultat")
+                              "nc_alignment_start", "nc_alignment_end","ngs_sekvens_resultat", "pasient_landsdel")
 
 merged_df <- merged_df %>% filter(ngs_coverage > 0.6)
 
@@ -72,7 +72,7 @@ tmp_rsva <- merged_df_rsva %>%
     region = prove_region,
     country = prove_country,
     division = pasient_fylke_name,
-    location = "",
+    location = pasient_landsdel,
     host = "Human",
     date_submitted = "",
     sra_accession = "",
@@ -241,3 +241,4 @@ output_fasta_B <- file.path(output_dir_B, "sequences.fasta")
 
 write_fasta(output_fasta_A, filtered_seq)
 write_fasta(output_fasta_B, filtered_seq)
+
