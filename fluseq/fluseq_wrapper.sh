@@ -121,7 +121,7 @@ HA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_HA.fasta
 NA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_NA.fasta
 MAMMALIAN_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Mammalian_Mutations_of_Intrest_2324.xlsx
 INHIBTION_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Inhibtion_Mutations_of_Intrest_2324.xlsx
-REASSORTMENT_DATABSE=/mnt/tempdata/influensa_db/flu_seq_db/reassortment_database.fasta
+REASSORTMENT_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/reassortment_database.fasta
 SEQUENCE_REFERENCES=/mnt/tempdata/influensa_db/flu_seq_db/sequence_references
 NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
 MUTATION_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/Mutation_lists
@@ -161,6 +161,7 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   --inhibtion_mutation_db "$INHIBTION_MUTATION_DATABASE" \
   --sequence_references "$SEQUENCE_REFERENCES" \
   --nextclade_dataset  "$NEXTCLADE_DATASET" \
+  --reassortment_dataset  "$REASSORTMENT_DATABASE" \
   --runid "$RUN" \
   --release_version "v1.0.2" 
 
