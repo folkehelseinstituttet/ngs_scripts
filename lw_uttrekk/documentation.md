@@ -1,3 +1,5 @@
+Dokumentasjon SharePoint: https://folkehelse.sharepoint.com/sites/1439/LabWare%20dokumentasjon/Datauttrekk.aspx
+
 For å hente ut informasjon om **prøvene** (metadata), se i `SAMPLE_VIEW`. 
 
 `tbl(con, "SAMPLE_VIEW")`.  
