@@ -68,6 +68,12 @@ echo "Getting the Run ID on the BaseSpace server"
 # List Runs on BaseSpace and get the Run id (third column separated by | and whitespaces)
 id=$(bs list projects | grep "${RUN}" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
 
+# If no matching run was found on Basespace, exit the script
+if [[ -z "$id" ]]; then
+    echo "Could not find the Run id on Basespace. Please check the spelling"
+    exit 1
+fi
+
 echo "Downloading fastq files"
 # First clean up the tempdrive
 DIRECTORY="$BASE_DIR/fastq"
@@ -76,7 +82,7 @@ if [ -d "$DIRECTORY" ]; then
     rm -rf "$DIRECTORY"
     echo "Directory $DIRECTORY has been deleted."
 else
-    echo "Directory $DIRECTORY does not exist."
+    echo "Directory $DIRECTORY does not exist. Creating it."
 fi
 # Download to a sub-directory for easier copying to N: later
 mkdir -p $BASE_DIR/fastq
