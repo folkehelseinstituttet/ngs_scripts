@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 # Activate conda
 source ~/miniconda3/etc/profile.d/conda.sh
 
@@ -121,6 +123,11 @@ docker run --rm \
 
 # Activate the conda environment that holds Nextflow
 conda activate NEXTFLOW
+
+# Clean up Nextflow cache to remove unused files
+nextflow clean -f -before "$( nextflow log -q | tail -n 1 )"
+# Clean up empty work directories
+find /mnt/tempdata/work -type d -empty -delete
 
 # Make sure the latest pipeline is available
 nextflow pull folkehelseinstituttet/hcv_illumina -r $VERSION
@@ -255,6 +262,6 @@ mput *
 EOF
 
 ## Clean up
-#nextflow clean -f
-#rm -rf $HOME/out_hcv
-#rm -rf $TMP_DIR
+nextflow clean -f
+rm -rf $HOME/out_hcv
+rm -rf $TMP_DIR
