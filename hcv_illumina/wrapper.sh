@@ -102,8 +102,17 @@ elif [ "$RUN" = "FULL_TEST" ]; then
 fi
 
 # Create directory to hold the output of the analysis
-mkdir -p $HOME/$RUN
-mkdir $TMP_DIR
+# Ensure $HOME/$RUN exists and is clean
+if [ -d "$HOME/$RUN" ]; then
+    rm -rf "$HOME/$RUN"
+fi
+mkdir -p "$HOME/$RUN"
+
+# Ensure $TMP_DIR exists and is clean
+if [ -d "$TMP_DIR" ]; then
+    rm -rf "$TMP_DIR"
+fi
+mkdir -p "$TMP_DIR"
 
 ### Prepare the run ###
 
