@@ -27,16 +27,16 @@ inputs:
 
 #### Config files ####
 reference: 
-  "*/genome/*": config/h5n1/h5n1_genome_root.gb   # Use a generic H5N1 reference (update file as needed)
-  "*/*/*": config/h5n1/reference_h5n1_{segment}.gb  # Generic H5N1 references
-auspice_config: config/{subtype}/auspice_config_{subtype}.json
-lat_longs: config/h5n1/lat_longs_h5n1.tsv
-include_strains: config/{subtype}/include_strains_{subtype}.txt
+  "*/genome/*": ../config/h5n1/h5n1_genome_root.gb   # Use a generic H5N1 reference (update file as needed)
+  "*/*/*": ../config/h5n1/reference_h5n1_{segment}.gb  # Generic H5N1 references
+auspice_config: ../config/{subtype}/auspice_config_{subtype}.json
+lat_longs: ../config/h5n1/lat_longs_h5n1.tsv
+include_strains: ../config/{subtype}/include_strains_{subtype}.txt
 # For a full analysis we do not drop any strains, so this entry is commented out:
 # dropped_strains: config/{subtype}/dropped_strains_{subtype}.txt
-clades_file: clade-labeling/h5n1-clades.tsv
-dropped_strains: config/empty.txt
-description: config/{subtype}/description.md
+clades_file: ../clade-labeling/h5n1-clades.tsv
+dropped_strains: ../config/empty.txt
+description: ../config/{subtype}/description.md
 
 ## Subtype query - use a generic query that selects all H5N1 sequences
 subtype_query:
