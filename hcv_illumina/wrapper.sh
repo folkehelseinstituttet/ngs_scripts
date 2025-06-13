@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+#set -euo pipefail
 
-LOGFILE="/home/ngs/hcv_illumina_wrapper_error.log"
+#LOGFILE="/home/ngs/hcv_illumina_wrapper_error.log"
 # Trap errors and log them
-trap 'echo "[$(date)] ERROR: Script failed at line $LINENO. Exit code: $?" >> "$LOGFILE"' ERR
+#trap 'echo "[$(date)] ERROR: Script failed at line $LINENO. Exit code: $?" >> "$LOGFILE"' ERR
 
 # Activate conda
 source ~/miniconda3/etc/profile.d/conda.sh
