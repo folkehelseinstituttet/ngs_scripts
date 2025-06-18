@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
 
-#set -euo pipefail
+set -euo pipefail
 
-#LOGFILE="/home/ngs/hcv_illumina_wrapper_error.log"
+exec > >(tee -a /home/ngs/hcv_illumina_wrapper.log) 2>&1
+
 # Trap errors and log them
-#trap 'echo "[$(date)] ERROR: Script failed at line $LINENO. Exit code: $?" >> "$LOGFILE"' ERR
+LOGFILE="/home/ngs/hcv_illumina_wrapper_error.log"
+
+trap 'ec=$?;
+  if [ $ec -ne 0 ]; then
+    echo "[$(date)] ERROR at line $LINENO: command \"$BASH_COMMAND\" failed with exit code $ec" >> "$LOGFILE"
+  fi' ERR
+
+trap 'echo "[$(date)] Script exited with code $?" >> "$LOGFILE"' EXIT
 
 # Activate conda
 source ~/miniconda3/etc/profile.d/conda.sh
-
-# TODO
 
 # Maintained by: Jon Bråte (jon.brate@fhi.no)
 # Version: 1.0
@@ -135,12 +141,16 @@ docker run --rm \
 ### Run the main pipeline ###
 
 # Activate the conda environment that holds Nextflow
+# Temporarily disable set -u because the JAVA_HOME variable is unset
+set +u
 conda activate NEXTFLOW
+set -u
 
 # Clean up Nextflow cache to remove unused files
 nextflow clean -f -before "$( nextflow log -q | tail -n 1 )"
 # Clean up empty work directories
-find /mnt/tempdata/work -type d -empty -delete
+# || true allows the script to continue if it can't delete everything
+find /mnt/tempdata/work -type d -empty -delete || true
 
 # Make sure the latest pipeline is available
 nextflow pull folkehelseinstituttet/hcv_illumina -r $VERSION
