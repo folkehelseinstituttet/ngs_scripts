@@ -9,7 +9,9 @@ LOGFILE="/home/ngs/hcv_illumina_wrapper_error.log"
 
 trap 'ec=$?;
   if [ $ec -ne 0 ]; then
-    echo "[$(date)] ERROR at line $LINENO: command \"$BASH_COMMAND\" failed with exit code $ec" >> "$LOGFILE"
+    msg="[$(date)] ERROR at line $LINENO: command \"$BASH_COMMAND\" failed with exit code $ec"
+    echo "$msg" >> "$LOGFILE"
+    echo "$msg" >&2     # Print to screen (stderr)
   fi' ERR
 
 trap 'echo "[$(date)] Script exited with code $?" >> "$LOGFILE"' EXIT
