@@ -1,4 +1,4 @@
-First log on to `up-ngs-3`.  
+First log on to `up-ngs-4`.  
 
 Then switch to the ngs-user: `sudo -u ngs /bin/bash`  
 
