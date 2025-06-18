@@ -12,6 +12,7 @@ trap 'ec=$?;
     msg="[$(date)] Script exited with error code $ec"
     echo "$msg" >> "$LOGFILE"
     echo "$msg" >&2
+    echo "Did you remember to change \"RUN_NAME\"?" >&2
   else
     msg="[$(date)] Script completed successfully."
     echo "$msg" >> "$LOGFILE"
