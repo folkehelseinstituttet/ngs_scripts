@@ -9,11 +9,14 @@ LOGFILE="/home/ngs/hcv_illumina_wrapper_error.log"
 
 trap 'ec=$?;
   if [ $ec -ne 0 ]; then
-    msg="[$(date)] ERROR at line $LINENO: command \"$BASH_COMMAND\" failed with exit code $ec"
+    msg="[$(date)] Script exited with error code $ec"
     echo "$msg" >> "$LOGFILE"
-    echo "$msg" >&2     # Print to screen (stderr)
-  fi' ERR
-
+    echo "$msg" >&2
+  else
+    msg="[$(date)] Script completed successfully."
+    echo "$msg" >> "$LOGFILE"
+    echo "$msg"
+  fi' EXIT
 trap 'echo "[$(date)] Script exited with code $?" >> "$LOGFILE"' EXIT
 
 # Activate conda
