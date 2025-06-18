@@ -18,7 +18,6 @@ trap 'ec=$?;
     echo "$msg" >> "$LOGFILE"
     echo "$msg"
   fi' EXIT
-trap 'echo "[$(date)] Script exited with code $?" >> "$LOGFILE"' EXIT
 
 # Activate conda
 source ~/miniconda3/etc/profile.d/conda.sh
