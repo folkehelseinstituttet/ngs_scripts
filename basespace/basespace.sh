@@ -11,7 +11,7 @@ usage() {
     echo "Usage: $SCRIPT_NAME [OPTIONS]"
     echo "Options:"
     echo "  -h, --help        Display this help message"
-    echo "  -p, --platform    Can be either nextseq or miseq"
+    echo "  -p, --platform    Can be either nextseq, miseq, or nextseq_virus"
     echo "  -r, --run         Specify the run name (e.g. NGS_SEQ-20240606-01)"
     echo "  -a, --agens       Specify agens (only required for HCV and ROV)"
     echo "  -y, --year        Specify the year the sequencing was performed (e.g. 2024)"
@@ -180,6 +180,39 @@ EOF
     ## Clean up
     rm -rf $BASE_DIR/fastq
     rm -rf $BASE_DIR/final
+
+    echo "All done!"
+elif [[ $PLATFORM == "nextseq_virus" ]]; then
+    echo "Running commands for NextSeq virus platform (directory renaming)..."
+    RUN_DIR="$BASE_DIR/fastq/${RUN}"
+    # Safety check
+    if [ ! -d "$RUN_DIR" ]; then
+        echo "Run directory $RUN_DIR does not exist."
+        exit 1
+    fi
+    # Loop and rename directories
+    find "$RUN_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | while IFS= read -r -d '' folder; do
+        dir_name=$(basename "$folder")
+        # Remove '_ds' and everything after
+        new_name="${dir_name%%_ds*}"
+        # Only rename if name changes
+        if [[ "$dir_name" != "$new_name" ]]; then
+            mv "$folder" "$RUN_DIR/$new_name"
+            echo "Renamed $dir_name → $new_name"
+        fi
+    done
+    echo "Directory renaming done."
+    
+    echo "Moving files to the N drive"
+    smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+    prompt OFF
+    recurse ON
+    lcd $BASE_DIR/fastq/
+    mput *
+EOF
+
+    ## Clean up
+    rm -rf $BASE_DIR/fastq
 
     echo "All done!"
 else
