@@ -100,7 +100,7 @@ cp $BASE_DIR/flu_nextstrain/VIC/raw_sequences_na.fasta $BASE_DIR/seasonal-flu/da
 
 
 
-conda activate nextstrain
+conda activate NEXTSTRAIN
 
 cd $BASE_DIR/seasonal-flu 
 
