@@ -1,5 +1,3 @@
-# Assign the arguments to variables
-
 library(writexl)
 source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
 source("N:/Virologi/Influensa/RARI/BN FLU 24-25 Nextstrain.R")
@@ -40,7 +38,7 @@ source("N:/Virologi/Influensa/RARI/BN FLU 24-25 Nextstrain.R")
 # Proceed with data filtering and selection
 fludb <- fludb %>%
   filter(ngs_sekvens_resultat != "") %>%             # Remove empty results
-  filter(ngs_report == "" | is.na(ngs_report)) %>%             # Remove empty results
+  #filter(ngs_report == "" | is.na(ngs_report)) %>%             # Remove empty results
   filter(!(ngs_sekvens_resultat %in% c("NA", "N2", "N1")))  # Keep rows that are NOT NA, N2, or N1
 
 
@@ -79,6 +77,26 @@ merged_df$GISAID_Nr <- ifelse(is.na(merged_df$GISAID_Nr) | is.na(merged_df$GISAI
 
 #rm(fludb)
 
+merged_df <- merged_df %>%
+  mutate(
+    prove_tatt_chr  = as.character(prove_tatt),
+    prove_tatt_dt   = parse_date_time(
+      prove_tatt_chr,
+      orders = c("Ymd", "Y-m-d",
+                 "dmy", "d.m.Y", "d/m/Y",
+                 "Ymd HMS", "Y-m-d H:M:S",
+                 "dmy HMS", "d.m.Y H:M:S", "d/m/Y H:M:S"),
+      exact = FALSE
+    ) %>% as_date()
+  )
+
+# Optional: see any rows that didn’t parse
+bad_dates <- merged_df %>% filter(is.na(prove_tatt_dt)) %>% distinct(prove_tatt_chr)
+if (nrow(bad_dates)) print(bad_dates)
+
+merged_df_ok <- merged_df %>% 
+  filter(!is.na(prove_tatt_dt))
+
 
 
 ################### FASTA FILE :
@@ -115,9 +133,9 @@ tmp <- merged_df %>%
     "Submitting_Sample_Id" = merged_df$key,
     "Originating_Lab" = merged_df$GISAID_Nr,
     "Originating_Sample_Id" = "",
-    "Collection_Month" = month(merged_df$prove_tatt),
-    "Collection_Year" = year(merged_df$prove_tatt),
-    "Collection_Date" = format(as.Date(merged_df$prove_tatt), "%Y-%m-%d"),
+    "Collection_Month" = month(merged_df$prove_tatt_dt),
+    "Collection_Year" = year(merged_df$prove_tatt_dt),
+    "Collection_Date" = format(as.Date(merged_df$prove_tatt_dt), "%Y-%m-%d"),
     "Antigen_Character" = "",
     "Adamantanes_Resistance_geno" = "",
     "Oseltamivir_Resistance_geno" = "",
@@ -334,5 +352,3 @@ copy_folder(output_dir_h3, file.path(flu_nextstrain_dir, "H3"))
 copy_folder(output_dir_vic, file.path(flu_nextstrain_dir, "VIC"))
 
 cat("All folders and their contents have been successfully copied to", flu_nextstrain_dir, "\n")
-
-
