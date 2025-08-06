@@ -170,7 +170,7 @@ echo "Map to references and create consensus sequences"
 nextflow run folkehelseinstituttet/hcv_illumina/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false --labware true $RESUME
 
 ## Rename LW import file 
-mv $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import.tsv $HOME/$RUN/summarize/${RUN}_HCV_genotype_and_GLUE_summary.tsv
+mv $HOME/$RUN/labware_import/Genotype_mapping_summary_long_LW_import.tsv $HOME/$RUN/labware_import/${RUN}_HCV_genotype_and_GLUE_summary.tsv
 
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
