@@ -127,7 +127,14 @@ EOF
 
 ## Set up 
 SARS_DATABASE=/mnt/tempdata/sars_db/assets
-FASTA="$TMP_DIR/$RUN/$RUN.fasta"
+# after the smbclient download
+FASTA=$(find "$TMP_DIR" -maxdepth 2 -type f -name '*.fasta' | head -n 1)
+
+if [[ -z "$FASTA" ]]; then
+    echo "❌  No FASTA file found under $TMP_DIR"; exit 1
+fi
+
+echo "Using FASTA: $FASTA"
 
 
 # Create a samplesheet by running the supplied Rscript in a docker container.
