@@ -44,14 +44,16 @@ RUN=""
 AGENS=""
 YEAR=""
 VERSION="v1.0.6"  # Default version
+RESUME=""
 
-while getopts "hr:a:y:v:" opt; do
+while getopts "hr:a:y:v:z" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
         y) YEAR="$OPTARG" ;;
         v) VERSION="$OPTARG";;
+        z) RESUME="-resume";;
         ?) usage ;;
     esac
 done
@@ -151,18 +153,21 @@ set +u
 conda activate NEXTFLOW
 set -u
 
-# Clean up Nextflow cache to remove unused files
-nextflow clean -f -before "$( nextflow log -q | tail -n 1 )"
-# Clean up empty work directories
-# || true allows the script to continue if it can't delete everything
-find /mnt/tempdata/work -type d -empty -delete || true
+# If not resuming a nextflow run, then clean-up the nextflow work and cache
+if [ -z "$RESUME" ]; then # -z tests if the variable is empty
+  # Clean up Nextflow cache to remove unused files
+  nextflow clean -f -before "$( nextflow log -q | tail -n 1 )"
+  # Clean up empty work directories
+  # || true allows the script to continue if it can't delete everything
+  find /mnt/tempdata/work -type d -empty -delete || true
+fi
 
 # Make sure the latest pipeline is available
 nextflow pull folkehelseinstituttet/hcv_illumina -r $VERSION
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run folkehelseinstituttet/hcv_illumina/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false
+nextflow run folkehelseinstituttet/hcv_illumina/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false $RESUME
 
 ## Rename LW import file 
 mv $HOME/$RUN/summarize/Genotype_mapping_summary_long_LW_import.tsv $HOME/$RUN/summarize/${RUN}_HCV_genotype_and_GLUE_summary.tsv
