@@ -3,4 +3,6 @@ Replace `RUN_NAME` with a run name (e.g. `NGS_SEQ-20241009-01`).
 
 To run a small test of the pipeline replace `RUN_NAME` with `TEST`. For a full test use `FULL_TEST` instead.  
 
-To run the development version, add `-v dev` to the command as well.
+To run the development version, add `-v dev` to the command as well.  
+
+If the previous script stopped in the middle of a nextflow-run and you want to resume it. Add the `-z` argument.
