@@ -149,6 +149,7 @@ nextflow run RasmusKoRiis/nf-core-sars/main.nf \
   -profile docker,server \
   --fasta "$FASTA" \
   --outdir "$HOME/$RUN" \
+  --file --file fasta-workflow \
   --runid "$RUN" \
   --spike "$SARS_DATABASE/Spike_mAbs_inhibitors.csv" \
   --rdrp "$SARS_DATABASE/RdRP_inhibitors.csv" \
