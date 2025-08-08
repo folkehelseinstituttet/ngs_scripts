@@ -46,7 +46,8 @@ source("N:/Virologi/Influensa/ARoh/Influenza/Analysis Script/BN FLU 24-25.R")
 fludb <- fludb %>%
   filter(ngs_run_id == SID) %>%                      # Ensure SID is defined and matches the column
   filter(ngs_sekvens_resultat != "") %>%             # Remove empty results
-  filter(!(ngs_sekvens_resultat %in% c("NA", "N2", "N1")))  # Keep rows that are NOT NA, N2, or N1
+  filter(!(ngs_sekvens_resultat %in% c("NA", "N2", "N1"))) %>%   # Keep rows that are NOT NA, N2, or N1
+  filter(is.na(gisaid_comment) | gisaid_comment == "")
 
 
 
