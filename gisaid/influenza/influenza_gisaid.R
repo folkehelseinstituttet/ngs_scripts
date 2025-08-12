@@ -5,7 +5,7 @@ args <- commandArgs(trailingOnly = TRUE)
 SID <- args[1] #RunID from argument
 
 source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
-source("N:/Virologi/Influensa/ARoh/Influenza/Analysis Script/BN FLU 24-25.R")
+source("N:/Virologi/Influensa/RARI/BN FLU 24-25.R")
 
 library(lubridate)
 library(tidyverse)
@@ -39,7 +39,7 @@ Sequencing_Strategy <- "Targeted-amplification "
 # Read Lab_ID data
 Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Laboratory.xlsx")
 
-source("N:/Virologi/Influensa/ARoh/Influenza/Analysis Script/BN FLU 24-25.R")
+source("N:/Virologi/Influensa/RARI/BN FLU 24-25.R")
 
 
 # Proceed with data filtering and selection
@@ -47,7 +47,7 @@ fludb <- fludb %>%
   filter(ngs_run_id == SID) %>%                      # Ensure SID is defined and matches the column
   filter(ngs_sekvens_resultat != "") %>%             # Remove empty results
   filter(!(ngs_sekvens_resultat %in% c("NA", "N2", "N1"))) %>%   # Keep rows that are NOT NA, N2, or N1
-  filter(is.na(gisaid_comment) | gisaid_comment == "")
+  filter(is.na(gisaid_kommentar) | gisaid_kommentar == "")
 
 
 
