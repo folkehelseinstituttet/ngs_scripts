@@ -63,7 +63,7 @@ mget *
 EOF
 
 # Start the pipeline
-echo "Map to references and create consensus sequences"
+echo "Check "
 nextflow pull RasmusKoRiis/nf-core-fluseq
 nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   -r master \
