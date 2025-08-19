@@ -26,7 +26,8 @@ else
 fi
 
 # Sometimes the pipeline has been cloned locally. Remove it to avoid version conflicts
-rm -rf $HOME/fluseq
+rm -rf $HOME/primer-checker
+
 
 ## Make output dir
 mkdir $OUT_DIR
