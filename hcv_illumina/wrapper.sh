@@ -7,6 +7,10 @@ exec > >(tee -a /home/ngs/hcv_illumina_wrapper.log) 2>&1
 # Trap errors and log them
 LOGFILE="/home/ngs/hcv_illumina_wrapper_error.log"
 
+# Trap for detailed error info: line number and command
+trap 'echo "[$(date)] Error at line $LINENO: \"$BASH_COMMAND\" exited with status $?" >> "$LOGFILE"' ERR
+
+# Trap for any script exits
 trap 'ec=$?;
   if [ $ec -ne 0 ]; then
     msg="[$(date)] Script exited with error code $ec"
