@@ -160,7 +160,7 @@ set -u
 # If not resuming a nextflow run, then clean-up the nextflow work and cache
 if [ -z "$RESUME" ]; then # -z tests if the variable is empty
   # Clean up Nextflow cache to remove unused files
-  nextflow clean -f -before "$( nextflow log -q | tail -n 1 )"
+  nextflow clean -f
   # Clean up empty work directories
   # || true allows the script to continue if it can't delete everything
   find /mnt/tempdata/work -type d -empty -delete || true
