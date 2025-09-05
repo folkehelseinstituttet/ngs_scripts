@@ -101,6 +101,26 @@ detect_rsv_subtype() {
   echo "${guess}"
 }
 
+# --- minimal repo sync: no branch handling, nounset-safe ---
+sync_repo_simple() {
+  local dir="$1" url="$2"
+
+  if [ -d "$dir/.git" ]; then
+    # If there's a valid upstream, pull; otherwise reclone cleanly.
+    if git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+      git -C "$dir" remote set-url origin "$url" || true
+      git -C "$dir" pull --ff-only --quiet
+    else
+      rm -rf "$dir"
+      git clone --depth 1 "$url" "$dir"
+    fi
+  else
+    git clone --depth 1 "$url" "$dir"
+  fi
+
+  git -C "$dir" rev-parse --short HEAD 2>/dev/null || echo unknown
+}
+
 upload_reports() {
   log "Uploading reports to SMB: ${SMB_DIR_UPLOAD}/${REPORT_SUBDIR}"
 
@@ -134,25 +154,14 @@ conda activate PRIMER_CHECK
 # update negs_script repo
 ############################################
 # Ensure ngs_scripts is present and updated
-mkdir -p "$(dirname "${NGS_REPO_DIR}")"
-
-if [ -d "${NGS_REPO_DIR}/.git" ]; then
-  git -C "${NGS_REPO_DIR}" fetch --prune --quiet
-  # pick branch: explicit > origin/HEAD > main
-  BRANCH="${NGS_REPO_BRANCH:-$(git -C "${NGS_REPO_DIR}" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || echo main)}"
-  git -C "${NGS_REPO_DIR}" checkout -q "${BRANCH}" || true
-  git -C "${NGS_REPO_DIR}" reset --hard "origin/${BRANCH}"
-else
-  if [ -n "${NGS_REPO_BRANCH}" ]; then
-    git clone --depth 1 --branch "${NGS_REPO_BRANCH}" "${NGS_REPO_URL}" "${NGS_REPO_DIR}"
-  else
-    git clone --depth 1 "${NGS_REPO_URL}" "${NGS_REPO_DIR}"
-  fi
-fi
-
-NGS_SHA="$(git -C "${NGS_REPO_DIR}" rev-parse --short HEAD || echo unknown)"
+NGS_SHA="$(sync_repo_simple "${NGS_REPO_DIR}" "${NGS_REPO_URL}")"
 log "ngs_scripts @ ${NGS_SHA}"
 echo "ngs_scripts commit: ${NGS_SHA}" >> "${OUT_DIR}/RUN_LOG_${STAMP}.txt"
+
+# Ensure primer-checker is present and updated
+PC_SHA="$(sync_repo_simple "${REPO_DIR}" "${REPO_URL}")"
+log "primer-checker @ ${PC_SHA}"
+echo "primer-checker commit: ${PC_SHA}" >> "${OUT_DIR}/RUN_LOG_${STAMP}.txt"
 
  
 ############################################
