@@ -54,17 +54,34 @@ update_repo() {
   git -C "${dir}" rev-parse --short HEAD
 }
 
-detect_flu_subtype() {
-  local subtype="A"
-  if grep -Ih -m 1 -E "^>" "$@" | grep -qiE "influenza[ _-]*b|(^|[^a-z])ibv([^a-z]|$)|\btype[ _-]*b\b"; then
-    subtype="B"
-  elif grep -Ih -m 1 -E "^>" "$@" | grep -qiE "\bH3\b|H3N|H3-"; then
-    subtype="H3"
-  elif grep -Ih -m 1 -E "^>" "$@" | grep -qiE "\bH1\b|H1N|H1-"; then
-    subtype="H1"
+detect_flu_subtype_file() {
+  # Detects subtype for a single FASTA: B > H3 > H1 > default A
+  local f="$1"
+  # filename clues
+  local base lc
+  base="$(basename "$f")"; lc="$(echo "$base" | tr '[:upper:]' '[:lower:]')"
+  if echo "$lc" | grep -qE "influenza[ _-]*b|(^|[^a-z])ibv([^a-z]|$)|\btype[ _-]*b\b|\bibv\b"; then
+    echo "B"; return
   fi
-  echo "${subtype}"
+  if echo "$lc" | grep -qE "\bh3\b|h3n|h3-"; then
+    echo "H3"; return
+  fi
+  if echo "$lc" | grep -qE "\bh1\b|h1n|h1-"; then
+    echo "H1"; return
+  fi
+  # header clues
+  if grep -Ih -m 1 -E "^>" "$f" | grep -qiE "influenza[ _-]*b|(^|[^a-z])ibv([^a-z]|$)|\btype[ _-]*b\b|\bibv\b"; then
+    echo "B"; return
+  fi
+  if grep -Ih -m 1 -E "^>" "$f" | grep -qiE "\bH3\b|H3N|H3-"; then
+    echo "H3"; return
+  fi
+  if grep -Ih -m 1 -E "^>" "$f" | grep -qiE "\bH1\b|H1N|H1-"; then
+    echo "H1"; return
+  fi
+  echo "A"  # default panel if unknown
 }
+
 
 detect_rsv_subtype() {
   local guess="Unknown"
@@ -81,18 +98,33 @@ detect_rsv_subtype() {
 
 upload_reports() {
   log "Uploading reports to SMB: ${SMB_DIR_UPLOAD}/${REPORT_SUBDIR}"
-  smbclient "${SMB_HOST}" -A "${SMB_AUTH}" <<EOF
+
+  # sanity: bail if no CSVs
+  if ! ls -1 ${OUT_DIR}/*.csv >/dev/null 2>&1; then
+    log "No CSVs in ${OUT_DIR} — nothing to upload."
+    return 0
+  fi
+
+  # do the upload with explicit local/remote dirs
+  smbclient "${SMB_HOST}" -A "${SMB_AUTH}" -D "${SMB_DIR_UPLOAD}" <<EOF
 prompt OFF
 recurse ON
-cd "${SMB_DIR_UPLOAD}"
 mkdir "${REPORT_SUBDIR}"
 cd "${REPORT_SUBDIR}"
-mput ${OUT_DIR}/*.csv
-mput ${OUT_DIR}/RUN_LOG_${STAMP}.txt
+lcd ${OUT_DIR}
+mput *.csv
+mput RUN_LOG_${STAMP}.txt
 EOF
-  log "Upload complete."
+
+  log "Upload complete to ${SMB_DIR_UPLOAD}/${REPORT_SUBDIR}"
 }
 
+
+############################################
+# conda activate
+############################################
+conda activate PRIMER_CHECK
+ 
 ############################################
 # Pre-flight
 ############################################
@@ -101,12 +133,6 @@ require git
 require python3
 require blastn
 
-# Conda
-if [ -f "${HOME}/miniconda3/etc/profile.d/conda.sh" ]; then
-  # shellcheck disable=SC1091
-  source "${HOME}/miniconda3/etc/profile.d/conda.sh"
-fi
-conda activate "${CONDA_ENV}" || { echo "Failed to conda activate ${CONDA_ENV}" >&2; exit 1; }
 
 # Get/refresh primer-checker from GitHub (for the Python script)
 mkdir -p "${REPO_DIR%/*}"
@@ -137,10 +163,6 @@ if [ ! -f "${PRIMER_JSON}" ]; then
   exit 1
 fi
 
-# Optional: capture checksum for provenance (if md5sum exists)
-if command -v md5sum >/dev/null 2>&1; then
-  md5sum "${PRIMER_JSON}" >> "${OUT_DIR}/RUN_LOG_${STAMP}.txt" || true
-fi
 
 ############################################
 # Fetch FASTAs from SMB
@@ -192,22 +214,76 @@ done
 # Run order: Influenza → SARS-CoV-2 → RSV
 ############################################
 
-# 1) Influenza
+# 1) Influenza — split per subtype so files aren’t cross-tested
 if [ "${#INFLUENZA_FASTAS[@]}" -gt 0 ]; then
-  FLU_SUBTYPE="$(detect_flu_subtype "${INFLUENZA_FASTAS[@]}")"
-  OUT_FLU="${OUT_DIR}/${DATE}_Influenza-${FLU_SUBTYPE}_primer_report.csv"
-  {
-    echo "=== Influenza (${FLU_SUBTYPE}) ==="
-    printf "%s\n" "${INFLUENZA_FASTAS[@]}"
-  } >> "${OUT_DIR}/RUN_LOG_${STAMP}.txt"
+  declare -a FLU_H1_FASTAS FLU_H3_FASTAS FLU_B_FASTAS FLU_A_FASTAS
+  for f in "${INFLUENZA_FASTAS[@]}"; do
+    sub="$(detect_flu_subtype_file "$f")"
+    case "$sub" in
+      H1) FLU_H1_FASTAS+=("$f") ;;
+      H3) FLU_H3_FASTAS+=("$f") ;;
+      B)  FLU_B_FASTAS+=("$f")  ;;
+      *)  FLU_A_FASTAS+=("$f")  ;; # unknown → full A panel
+    esac
+  done
 
-  python3 "${PRIMER_SCRIPT}" \
-    --primers "${PRIMER_JSON}" \
-    --virus "influenza" \
-    --flu-type "${FLU_SUBTYPE}" \
-    --fasta "${INFLUENZA_FASTAS[@]}" \
-    --output "${OUT_FLU}"
+  if [ "${#FLU_H1_FASTAS[@]}" -gt 0 ]; then
+    OUT_FLU_H1="${OUT_DIR}/${DATE}_Influenza-H1_primer_report.csv"
+    {
+      echo "=== Influenza (H1) ==="
+      printf "%s\n" "${FLU_H1_FASTAS[@]}"
+    } >> "${OUT_DIR}/RUN_LOG_${STAMP}.txt"
+    python3 "${PRIMER_SCRIPT}" \
+      --primers "${PRIMER_JSON}" \
+      --virus "influenza" \
+      --flu-type "H1" \
+      --fasta "${FLU_H1_FASTAS[@]}" \
+      --output "${OUT_FLU_H1}"
+  fi
+
+  if [ "${#FLU_H3_FASTAS[@]}" -gt 0 ]; then
+    OUT_FLU_H3="${OUT_DIR}/${DATE}_Influenza-H3_primer_report.csv"
+    {
+      echo "=== Influenza (H3) ==="
+      printf "%s\n" "${FLU_H3_FASTAS[@]}"
+    } >> "${OUT_DIR}/RUN_LOG_${STAMP}.txt"
+    python3 "${PRIMER_SCRIPT}" \
+      --primers "${PRIMER_JSON}" \
+      --virus "influenza" \
+      --flu-type "H3" \
+      --fasta "${FLU_H3_FASTAS[@]}" \
+      --output "${OUT_FLU_H3}"
+  fi
+
+  if [ "${#FLU_B_FASTAS[@]}" -gt 0 ]; then
+    OUT_FLU_B="${OUT_DIR}/${DATE}_Influenza-B_primer_report.csv"
+    {
+      echo "=== Influenza (B) ==="
+      printf "%s\n" "${FLU_B_FASTAS[@]}"
+    } >> "${OUT_DIR}/RUN_LOG_${STAMP}.txt"
+    python3 "${PRIMER_SCRIPT}" \
+      --primers "${PRIMER_JSON}" \
+      --virus "influenza" \
+      --flu-type "B" \
+      --fasta "${FLU_B_FASTAS[@]}" \
+      --output "${OUT_FLU_B}"
+  fi
+
+  if [ "${#FLU_A_FASTAS[@]}" -gt 0 ]; then
+    OUT_FLU_A="${OUT_DIR}/${DATE}_Influenza-A_primer_report.csv"
+    {
+      echo "=== Influenza (A - unspecified) ==="
+      printf "%s\n" "${FLU_A_FASTAS[@]}"
+    } >> "${OUT_DIR}/RUN_LOG_${STAMP}.txt"
+    python3 "${PRIMER_SCRIPT}" \
+      --primers "${PRIMER_JSON}" \
+      --virus "influenza" \
+      --flu-type "A" \
+      --fasta "${FLU_A_FASTAS[@]}" \
+      --output "${OUT_FLU_A}"
+  fi
 fi
+
 
 # 2) SARS-CoV-2
 if [ "${#SARS_FASTAS[@]}" -gt 0 ]; then
@@ -284,4 +360,4 @@ fi
 ############################################
 upload_reports
 
-log "Done. hou2 sai3 laa3 — neat and finished."
+log "finished."
