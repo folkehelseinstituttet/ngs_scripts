@@ -9,7 +9,7 @@ CONDA_ENV="PRIMER_CHECK"
 # Git repo for primer checker (always update/clone)
 REPO_URL="https://github.com/RasmusKoRiis/primer-checker.git"
 REPO_DIR="${HOME}/primer-checker"     # local checkout path
-PRIMER_SCRIPT="${REPO_DIR}/primer_blast.py"
+PRIMER_SCRIPT="${REPO_DIR}/primer_checker.py"
 
 # N-drive primers location (your path, relative to the SMB share)
 # N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\Sesongfiler\primercheck_db
