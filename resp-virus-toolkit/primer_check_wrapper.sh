@@ -134,19 +134,26 @@ conda activate PRIMER_CHECK
 # update negs_script repo
 ############################################
 # Ensure ngs_scripts is present and updated
-mkdir -p "${NGS_REPO_DIR%/*}"
-if [ -n "${NGS_REPO_BRANCH}" ]; then
-  # if you want to force a branch
-  if [ -d "${NGS_REPO_DIR}/.git" ]; then
-    git -C "${NGS_REPO_DIR}" fetch --prune --quiet
-    git -C "${NGS_REPO_DIR}" checkout -q "${NGS_REPO_BRANCH}" || true
-    git -C "${NGS_REPO_DIR}" reset --hard "origin/${NGS_REPO_BRANCH}"
-  else
-    git clone --depth 1 --branch "${NGS_REPO_BRANCH}" "${NGS_REPO_URL}" "${NGS_REPO_DIR}"
-  fi
+mkdir -p "$(dirname "${NGS_REPO_DIR}")"
+
+if [ -d "${NGS_REPO_DIR}/.git" ]; then
+  git -C "${NGS_REPO_DIR}" fetch --prune --quiet
+  # pick branch: explicit > origin/HEAD > main
+  BRANCH="${NGS_REPO_BRANCH:-$(git -C "${NGS_REPO_DIR}" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || echo main)}"
+  git -C "${NGS_REPO_DIR}" checkout -q "${BRANCH}" || true
+  git -C "${NGS_REPO_DIR}" reset --hard "origin/${BRANCH}"
 else
-  NGS_SHA="$(update_repo "${NGS_REPO_DIR}" "${NGS_REPO_URL}")"
+  if [ -n "${NGS_REPO_BRANCH}" ]; then
+    git clone --depth 1 --branch "${NGS_REPO_BRANCH}" "${NGS_REPO_URL}" "${NGS_REPO_DIR}"
+  else
+    git clone --depth 1 "${NGS_REPO_URL}" "${NGS_REPO_DIR}"
+  fi
 fi
+
+NGS_SHA="$(git -C "${NGS_REPO_DIR}" rev-parse --short HEAD || echo unknown)"
+log "ngs_scripts @ ${NGS_SHA}"
+echo "ngs_scripts commit: ${NGS_SHA}" >> "${OUT_DIR}/RUN_LOG_${STAMP}.txt"
+
  
 ############################################
 # Pre-flight
