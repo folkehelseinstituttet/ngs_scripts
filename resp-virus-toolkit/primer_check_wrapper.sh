@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Activate conda
+source ~/miniconda3/etc/profile.d/conda.sh
+
 ############################################
 # Config — adjust for your environment
 ############################################
