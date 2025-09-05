@@ -5,6 +5,8 @@ set -Eeuo pipefail
 # Config — adjust for your environment
 ############################################
 CONDA_ENV="PRIMER_CHECK"
+NGS_REPO_URL="https://github.com/folkehelseinstituttet/ngs_scripts.git"
+NGS_REPO_DIR="${HOME}/ngs_scripts"
 
 # Git repo for primer checker (always update/clone)
 REPO_URL="https://github.com/RasmusKoRiis/primer-checker.git"
@@ -124,6 +126,28 @@ EOF
 # conda activate
 ############################################
 conda activate PRIMER_CHECK
+
+############################################
+# update negs_script repo
+############################################
+# Ensure ngs_scripts is present and updated
+mkdir -p "${NGS_REPO_DIR%/*}"
+if [ -n "${NGS_REPO_BRANCH}" ]; then
+  # if you want to force a branch
+  if [ -d "${NGS_REPO_DIR}/.git" ]; then
+    git -C "${NGS_REPO_DIR}" fetch --prune --quiet
+    git -C "${NGS_REPO_DIR}" checkout -q "${NGS_REPO_BRANCH}" || true
+    git -C "${NGS_REPO_DIR}" reset --hard "origin/${NGS_REPO_BRANCH}"
+  else
+    git clone --depth 1 --branch "${NGS_REPO_BRANCH}" "${NGS_REPO_URL}" "${NGS_REPO_DIR}"
+  fi
+else
+  NGS_SHA="$(update_repo "${NGS_REPO_DIR}" "${NGS_REPO_URL}")"
+fi
+# Log commit for provenance
+NGS_SHA="${NGS_SHA:-$(git -C "${NGS_REPO_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+log "ngs_scripts @ ${NGS_SHA}"
+echo "ngs_scripts commit: ${NGS_SHA}" >> "${OUT_DIR}/RUN_LOG_${STAMP}.txt"
  
 ############################################
 # Pre-flight
