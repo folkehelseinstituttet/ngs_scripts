@@ -144,10 +144,6 @@ if [ -n "${NGS_REPO_BRANCH}" ]; then
 else
   NGS_SHA="$(update_repo "${NGS_REPO_DIR}" "${NGS_REPO_URL}")"
 fi
-# Log commit for provenance
-NGS_SHA="${NGS_SHA:-$(git -C "${NGS_REPO_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
-log "ngs_scripts @ ${NGS_SHA}"
-echo "ngs_scripts commit: ${NGS_SHA}" >> "${OUT_DIR}/RUN_LOG_${STAMP}.txt"
  
 ############################################
 # Pre-flight
