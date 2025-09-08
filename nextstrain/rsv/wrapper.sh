@@ -137,6 +137,7 @@ rm ${DATA_DIR}/sequences_world.fasta
 
 
 #conda activate nextstrain
+conda activate SNAKEMAKE 
 
 cd $BASE_DIR/rsv
 
