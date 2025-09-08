@@ -73,7 +73,7 @@ cp $BASE_DIR/rsv_nextstrain/Nextstrain_Ref_database/RSVA/sequences_world.fasta.x
 DATA_DIR="$BASE_DIR/rsv/data/a"
 
 cd $BASE_DIR/rsv/
-conda activate NEXTSTRAIN
+conda activate SNAKEMAKE 
 
 python3 merge_and_clean.py a
 
@@ -109,7 +109,7 @@ cp $BASE_DIR/rsv_nextstrain/Nextstrain_Ref_database/RSVB/sequences_world.fasta.x
 DATA_DIR="$BASE_DIR/rsv/data/b"
 
 conda deactivate 
-conda activate NEXTSTRAIN
+conda activate SNAKEMAKE
 python merge_and_clean.py b
 conda deactivate 
 conda activate SEQKIT
