@@ -93,7 +93,7 @@ export TOWER_WORKSPACE_ID=150755685543204
 
 ## Set up environment
 BASE_DIR=/mnt/tempdata/
-TMP_DIR=/mnt/tempdata/fastq
+TMP_DIR=/mnt/tempdata/fastq_hcv
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/${AGENS}/${YEAR}
