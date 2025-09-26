@@ -1,15 +1,13 @@
-name: Publish Docker image
+name: Publish Docker image (hcv_illumina)
 
 on:
   push:
-    branches: [ "main" ]   # only build when pushing to main
-    tags: [ "v*" ]         # also build when creating a git tag like v1.0.0
-  workflow_dispatch:       # allow manual runs
+    tags:
+      - "v*.*.*"   # e.g. v1.0.0
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
       packages: write
@@ -25,20 +23,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}/labware-import
-          tags: |
-            type=ref,event=branch
-            type=ref,event=tag
-            type=sha
+      - name: Extract tag
+        id: vars
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v5
         with:
-          context: ./docker/labware-import
+          context: ./hcv_illumina
+          file: ./hcv_illumina/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ghcr.io/jonbra/ngs_scripts/hcv_illumina:${{ env.TAG }}
