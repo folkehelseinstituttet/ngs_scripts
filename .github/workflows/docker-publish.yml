@@ -35,4 +35,4 @@ jobs:
           file: ./hcv_illumina/Dockerfile
           push: true
           tags: |
-            ghcr.io/jonbra/ngs_scripts/hcv_illumina:${{ env.TAG }}
+            ghcr.io/folkehelseinstituttet/ngs_scripts/hcv_illumina:${{ env.TAG }}
