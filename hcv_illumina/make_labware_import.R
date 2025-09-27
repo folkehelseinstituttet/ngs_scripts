@@ -12,8 +12,9 @@ if (length(args) < 1) {
   stop("Usage: make_lw_import.R <Summary.csv> [output.tsv]", call. = FALSE)
 }
 
-input_file <- args[1]
-output_file <- ifelse(length(args) >= 2, args[2], "Genotype_mapping_summary_long_LW_import.tsv")
+input_file  <- args[1]
+run         <- args[2]
+output_file <- paste0(args[2], "_HCV_genotype_and_GLUE_summary.tsv")
 
 # Read input
 final <- read_csv(input_file, show_col_types = FALSE)
