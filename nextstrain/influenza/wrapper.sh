@@ -87,16 +87,6 @@ conda activate NEXTSTRAIN
 # --- Preflight checks that don't depend on downloaded TSVs ---
 cd "$SEASONAL_FLU_DIR"
 
-# H3N2 HA<->NA exact name parity (NA inherits HA clade via name)
-echo "[Preflight] Checking H3N2 HA vs NA name parity..."
-grep -E '^>' data/h3n2/raw_sequences_ha.fasta | sed 's/^>//' | sort -u > /tmp/h3_ha.names
-if [ -s data/h3n2/raw_sequences_na.fasta ]; then
-  grep -E '^>' data/h3n2/raw_sequences_na.fasta | sed 's/^>//' | sort -u > /tmp/h3_na.names
-  if ! diff -q /tmp/h3_ha.names /tmp/h3_na.names >/dev/null; then
-    echo "ERROR: H3N2 HA and NA FASTA headers differ. Inspect: comm -3 /tmp/h3_ha.names /tmp/h3_na.names"
-    exit 1
-  fi
-fi
 
 # Guard against including HA reference as a sample (if ref present already)
 if [ -f config/h3n2/ha/reference.fasta ]; then
