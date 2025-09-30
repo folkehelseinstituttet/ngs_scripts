@@ -83,7 +83,7 @@ conda activate NEXTSTRAIN
 cd $BASE_DIR/seasonal-flu 
 
 echo "Making the Nextstrain build."
-nextstrain build .  --configfile profiles/niph/builds.yaml --cores 14 
+nextstrain build .  --configfile profiles/niph/builds.yaml --cores 14 --forceall
 
 echo "Build finished. Copying auspice files to N for inspection."
 
