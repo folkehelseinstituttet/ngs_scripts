@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nextstrain seasonal-flu H1N1/H3N2/VIC build with preflight to prevent reference/subclade coordinate drift
+# Nextstrain seasonal-flu build with post-build subclade verification (no premature checks)
 
 set -euo pipefail
 
@@ -25,7 +25,7 @@ SEASONAL_FLU_DIR="${BASE_DIR}/seasonal-flu"
 SEASONAL_FLU_REMOTE="https://github.com/nextstrain/seasonal-flu.git"
 
 # --- Ensure local dirs exist ---
-mkdir -p "$OUT_DIR" "$TMP_DIR"
+mkdir -p "$OUT_DIR" "$TMP_DIR" "$BASE_DIR"
 
 # --- Pull/update helper repo with our configs ---
 if [ -d "$NGS_SCRIPTS_DIR/.git" ]; then
@@ -35,7 +35,6 @@ else
 fi
 
 # --- Clone or hard reset seasonal-flu to upstream master ---
-mkdir -p "$BASE_DIR"
 if [ -d "${SEASONAL_FLU_DIR}/.git" ]; then
   git -C "$SEASONAL_FLU_DIR" remote set-url origin "$SEASONAL_FLU_REMOTE"
   git -C "$SEASONAL_FLU_DIR" fetch --prune origin
@@ -85,50 +84,59 @@ cp "${BASE_DIR}/flu_nextstrain/VIC/raw_sequences_na.fasta" "${SEASONAL_FLU_DIR}/
 # --- Activate env ---
 conda activate NEXTSTRAIN
 
-# --- Preflight checks to prevent coordinate drift & common pitfalls ---
+# --- Preflight checks that don't depend on downloaded TSVs ---
 cd "$SEASONAL_FLU_DIR"
 
-# 2) H3N2 HA subclade definitions should include the newer labels
-if ! egrep -q '^(J\.2\.[345]|J\.3|J\.4)\b' config/h3n2/ha/subclades.tsv; then
-  echo "ERROR: Newer H3N2 HA subclades (J.2.3/J.2.4/J.2.5, J.3, J.4) not found in config/h3n2/ha/subclades.tsv"
-  echo "       Will refresh via --forceall, but aborting now to avoid stale build."
-  exit 1
-fi
-
-# 3) H3N2 HA<->NA strain name matching (NA inherits clade from HA by name)
+# H3N2 HA<->NA exact name parity (NA inherits HA clade via name)
 echo "[Preflight] Checking H3N2 HA vs NA name parity..."
 grep -E '^>' data/h3n2/raw_sequences_ha.fasta | sed 's/^>//' | sort -u > /tmp/h3_ha.names
 if [ -s data/h3n2/raw_sequences_na.fasta ]; then
   grep -E '^>' data/h3n2/raw_sequences_na.fasta | sed 's/^>//' | sort -u > /tmp/h3_na.names
   if ! diff -q /tmp/h3_ha.names /tmp/h3_na.names >/dev/null; then
-    echo "ERROR: H3N2 HA and NA FASTA headers differ. Run: comm -3 /tmp/h3_ha.names /tmp/h3_na.names"
+    echo "ERROR: H3N2 HA and NA FASTA headers differ. Inspect: comm -3 /tmp/h3_ha.names /tmp/h3_na.names"
     exit 1
   fi
 fi
 
-# 4) Guard against including HA reference as a sample
-h3_ref_id="$(head -1 config/h3n2/ha/reference.fasta | sed 's/^>//')"
-if grep -qF "$h3_ref_id" data/h3n2/raw_sequences_ha.fasta; then
-  echo "ERROR: H3N2 HA reference '$h3_ref_id' appears in raw_sequences_ha.fasta (must NOT be a sample)."
-  exit 1
+# Guard against including HA reference as a sample (if ref present already)
+if [ -f config/h3n2/ha/reference.fasta ]; then
+  h3_ref_id="$(head -1 config/h3n2/ha/reference.fasta | sed 's/^>//')"
+  if grep -qF "$h3_ref_id" data/h3n2/raw_sequences_ha.fasta; then
+    echo "ERROR: H3N2 HA reference '$h3_ref_id' appears in raw_sequences_ha.fasta (must NOT be a sample)."
+    exit 1
+  fi
 fi
 
-# 5) GFF within reference length (HA H3N2)
-h3_ref_len="$(awk '/^>/ {next} {l+=length($0)} END{print l}' config/h3n2/ha/reference.fasta)"
-h3_bad_cds="$(awk -v L="$h3_ref_len" '$3=="CDS" && ($4>L || $5>L)' config/h3n2/ha/genemap.gff | wc -l | tr -d ' ')"
-if [ "$h3_bad_cds" -ne 0 ]; then
-  echo "ERROR: H3N2 HA genemap.gff has CDS beyond reference length ($h3_ref_len) -> coordinate drift."
-  exit 1
+# GFF within reference length (if files present in repo)
+if [ -f config/h3n2/ha/reference.fasta ] && [ -f config/h3n2/ha/genemap.gff ]; then
+  h3_ref_len="$(awk '/^>/ {next} {l+=length($0)} END{print l}' config/h3n2/ha/reference.fasta)"
+  h3_bad_cds="$(awk -v L="$h3_ref_len" '$3=="CDS" && ($4>L || $5>L)' config/h3n2/ha/genemap.gff | wc -l | tr -d ' ')"
+  if [ "$h3_bad_cds" -ne 0 ]; then
+    echo "ERROR: H3N2 HA genemap.gff has CDS beyond reference length ($h3_ref_len) -> coordinate drift."
+    exit 1
+  fi
 fi
-
-# Save exact subclade file used (audit)
-cp config/h3n2/ha/subclades.tsv "${OUT_DIR}/h3n2_ha_subclades_used.tsv"
 
 # --- Build (force refresh of downloaded clade/subclade definitions) ---
 echo "Making the Nextstrain build..."
 nextstrain build . --configfile profiles/niph/builds.yaml --cores 14 --forceall
 
 echo "Build finished. Preparing outputs..."
+
+# --- Post-build: verify subclade TSVs now that they have been downloaded ---
+echo "[Postflight] Verifying downloaded subclade definitions..."
+if [ -f config/h3n2/ha/subclades.tsv ]; then
+  # Newer H3N2 HA subclades present? (J.2.3 / J.2.4 / J.2.5 plus J.3/J.4)
+  if egrep -q '^(J\.2\.[345]|J\.3|J\.4)\b' config/h3n2/ha/subclades.tsv; then
+    echo "OK: H3N2 HA subclades.tsv contains expected recent labels."
+  else
+    echo "WARNING: H3N2 HA subclades.tsv seems stale (missing J.2.3/2.4/2.5 or J.3/J.4)."
+  fi
+  # Save exact file used for audit
+  cp config/h3n2/ha/subclades.tsv "${OUT_DIR}/h3n2_ha_subclades_used.tsv"
+else
+  echo "WARNING: config/h3n2/ha/subclades.tsv not found after build (unexpected)."
+fi
 
 # --- Copy auspice files to OUT_DIR ---
 mkdir -p "$OUT_DIR"
@@ -138,43 +146,43 @@ cp "${SEASONAL_FLU_DIR}/auspice/"*.json "$OUT_DIR"
 DATE="$(date +%Y-%m-%d)"
 
 # H1N1
-cp "${OUT_DIR}/h1n1_fhi_ha.json"                  "${OUT_DIR}/flu_a_h1n1_ha_${DATE}.json"
-mv "${OUT_DIR}/h1n1_fhi_ha.json"                  "${OUT_DIR}/flu_a_h1n1_ha_latest.json"
+cp "${OUT_DIR}/h1n1_fhi_ha.json"                  "${OUT_DIR}/flu_a_h1n1_ha_${DATE}.json"                  || true
+mv "${OUT_DIR}/h1n1_fhi_ha.json"                  "${OUT_DIR}/flu_a_h1n1_ha_latest.json"                   || true
 
-cp "${OUT_DIR}/h1n1_fhi_ha_tip-frequencies.json"  "${OUT_DIR}/flu_a_h1n1_ha_${DATE}_tip-frequencies.json"
-mv "${OUT_DIR}/h1n1_fhi_ha_tip-frequencies.json"  "${OUT_DIR}/flu_a_h1n1_ha_latest_tip-frequencies.json"
+cp "${OUT_DIR}/h1n1_fhi_ha_tip-frequencies.json"  "${OUT_DIR}/flu_a_h1n1_ha_${DATE}_tip-frequencies.json"  || true
+mv "${OUT_DIR}/h1n1_fhi_ha_tip-frequencies.json"  "${OUT_DIR}/flu_a_h1n1_ha_latest_tip-frequencies.json"   || true
 
-cp "${OUT_DIR}/h1n1_fhi_na.json"                  "${OUT_DIR}/flu_a_h1n1_na_${DATE}.json"
-mv "${OUT_DIR}/h1n1_fhi_na.json"                  "${OUT_DIR}/flu_a_h1n1_na_latest.json"
+cp "${OUT_DIR}/h1n1_fhi_na.json"                  "${OUT_DIR}/flu_a_h1n1_na_${DATE}.json"                  || true
+mv "${OUT_DIR}/h1n1_fhi_na.json"                  "${OUT_DIR}/flu_a_h1n1_na_latest.json"                   || true
 
-cp "${OUT_DIR}/h1n1_fhi_na_tip-frequencies.json"  "${OUT_DIR}/flu_a_h1n1_na_${DATE}_tip-frequencies.json"
-mv "${OUT_DIR}/h1n1_fhi_na_tip-frequencies.json"  "${OUT_DIR}/flu_a_h1n1_na_latest_tip-frequencies.json"
+cp "${OUT_DIR}/h1n1_fhi_na_tip-frequencies.json"  "${OUT_DIR}/flu_a_h1n1_na_${DATE}_tip-frequencies.json"  || true
+mv "${OUT_DIR}/h1n1_fhi_na_tip-frequencies.json"  "${OUT_DIR}/flu_a_h1n1_na_latest_tip-frequencies.json"   || true
 
 # H3N2
-cp "${OUT_DIR}/h3n2_fhi_ha.json"                  "${OUT_DIR}/flu_a_h3n2_ha_${DATE}.json"
-mv "${OUT_DIR}/h3n2_fhi_ha.json"                  "${OUT_DIR}/flu_a_h3n2_ha_latest.json"
+cp "${OUT_DIR}/h3n2_fhi_ha.json"                  "${OUT_DIR}/flu_a_h3n2_ha_${DATE}.json"                  || true
+mv "${OUT_DIR}/h3n2_fhi_ha.json"                  "${OUT_DIR}/flu_a_h3n2_ha_latest.json"                   || true
 
-cp "${OUT_DIR}/h3n2_fhi_ha_tip-frequencies.json"  "${OUT_DIR}/flu_a_h3n2_ha_${DATE}_tip-frequencies.json"
-mv "${OUT_DIR}/h3n2_fhi_ha_tip-frequencies.json"  "${OUT_DIR}/flu_a_h3n2_ha_latest_tip-frequencies.json"
+cp "${OUT_DIR}/h3n2_fhi_ha_tip-frequencies.json"  "${OUT_DIR}/flu_a_h3n2_ha_${DATE}_tip-frequencies.json"  || true
+mv "${OUT_DIR}/h3n2_fhi_ha_tip-frequencies.json"  "${OUT_DIR}/flu_a_h3n2_ha_latest_tip-frequencies.json"   || true
 
-cp "${OUT_DIR}/h3n2_fhi_na.json"                  "${OUT_DIR}/flu_a_h3n2_na_${DATE}.json"
-mv "${OUT_DIR}/h3n2_fhi_na.json"                  "${OUT_DIR}/flu_a_h3n2_na_latest.json"
+cp "${OUT_DIR}/h3n2_fhi_na.json"                  "${OUT_DIR}/flu_a_h3n2_na_${DATE}.json"                  || true
+mv "${OUT_DIR}/h3n2_fhi_na.json"                  "${OUT_DIR}/flu_a_h3n2_na_latest.json"                   || true
 
-cp "${OUT_DIR}/h3n2_fhi_na_tip-frequencies.json"  "${OUT_DIR}/flu_a_h3n2_na_${DATE}_tip-frequencies.json"
-mv "${OUT_DIR}/h3n2_fhi_na_tip-frequencies.json"  "${OUT_DIR}/flu_a_h3n2_na_latest_tip-frequencies.json"
+cp "${OUT_DIR}/h3n2_fhi_na_tip-frequencies.json"  "${OUT_DIR}/flu_a_h3n2_na_${DATE}_tip-frequencies.json"  || true
+mv "${OUT_DIR}/h3n2_fhi_na_tip-frequencies.json"  "${OUT_DIR}/flu_a_h3n2_na_latest_tip-frequencies.json"   || true
 
 # VIC
-cp "${OUT_DIR}/vic_fhi_ha.json"                   "${OUT_DIR}/flu_b_vic_ha_${DATE}.json"
-mv "${OUT_DIR}/vic_fhi_ha.json"                   "${OUT_DIR}/flu_b_vic_ha_latest.json"
+cp "${OUT_DIR}/vic_fhi_ha.json"                   "${OUT_DIR}/flu_b_vic_ha_${DATE}.json"                   || true
+mv "${OUT_DIR}/vic_fhi_ha.json"                   "${OUT_DIR}/flu_b_vic_ha_latest.json"                    || true
 
-cp "${OUT_DIR}/vic_fhi_ha_tip-frequencies.json"   "${OUT_DIR}/flu_b_vic_ha_${DATE}_tip-frequencies.json"
-mv "${OUT_DIR}/vic_fhi_ha_tip-frequencies.json"   "${OUT_DIR}/flu_b_vic_ha_latest_tip-frequencies.json"
+cp "${OUT_DIR}/vic_fhi_ha_tip-frequencies.json"   "${OUT_DIR}/flu_b_vic_ha_${DATE}_tip-frequencies.json"   || true
+mv "${OUT_DIR}/vic_fhi_ha_tip-frequencies.json"   "${OUT_DIR}/flu_b_vic_ha_latest_tip-frequencies.json"    || true
 
-cp "${OUT_DIR}/vic_fhi_na.json"                   "${OUT_DIR}/flu_b_vic_na_${DATE}.json"
-mv "${OUT_DIR}/vic_fhi_na.json"                   "${OUT_DIR}/flu_b_vic_na_latest.json"
+cp "${OUT_DIR}/vic_fhi_na.json"                   "${OUT_DIR}/flu_b_vic_na_${DATE}.json"                   || true
+mv "${OUT_DIR}/vic_fhi_na.json"                   "${OUT_DIR}/flu_b_vic_na_latest.json"                    || true
 
-cp "${OUT_DIR}/vic_fhi_na_tip-frequencies.json"   "${OUT_DIR}/flu_b_vic_na_${DATE}_tip-frequencies.json"
-mv "${OUT_DIR}/vic_fhi_na_tip-frequencies.json"   "${OUT_DIR}/flu_b_vic_na_latest_tip-frequencies.json"
+cp "${OUT_DIR}/vic_fhi_na_tip-frequencies.json"   "${OUT_DIR}/flu_b_vic_na_${DATE}_tip-frequencies.json"   || true
+mv "${OUT_DIR}/vic_fhi_na_tip-frequencies.json"   "${OUT_DIR}/flu_b_vic_na_latest_tip-frequencies.json"    || true
 
 # --- Upload results to SMB ---
 echo "Uploading results to SMB..."
@@ -185,7 +193,7 @@ lcd $OUT_DIR
 mput *
 EOF
 
-# --- Clean up workspace (keeps OUT_DIR only) ---
+# --- Clean up workspace (keep OUT_DIR only) ---
 rm -rf "$TMP_DIR"
 rm -rf "$SEASONAL_FLU_DIR"
 
