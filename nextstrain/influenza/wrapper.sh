@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nextstrain seasonal-flu build with post-build subclade verification (no premature checks)
+# Nextstrain seasonal-flu build with post-build subclade verification (and patched metadata parsing)
 
 set -euo pipefail
 
@@ -63,14 +63,13 @@ cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/builds.yaml"      "${SEASONAL_FLU_
 cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/config.yaml"      "${SEASONAL_FLU_DIR}/profiles/niph/"
 cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/prepare_data.smk" "${SEASONAL_FLU_DIR}/profiles/niph/"
 
-# Ensure builds.yaml points to our local rule file
+# Ensure builds.yaml points to our local rule file (if it referenced profiles/gisaid before)
 if grep -q 'profiles/gisaid/prepare_data\.smk' "${SEASONAL_FLU_DIR}/profiles/niph/builds.yaml"; then
   sed -i 's#profiles/gisaid/prepare_data\.smk#profiles/niph/prepare_data.smk#g' "${SEASONAL_FLU_DIR}/profiles/niph/builds.yaml"
 fi
 
-# Fix the column the rule splits (must be full_location after the rename)
+# Patch prepare_data.smk: split full_location (after rename) not location
 sed -i 's/csvtk sep -f location/csvtk sep -f full_location/' "${SEASONAL_FLU_DIR}/profiles/niph/prepare_data.smk"
-
 
 # --- Copy data into seasonal-flu expected locations ---
 cp "${BASE_DIR}/flu_nextstrain/H1/metadata.xls"            "${SEASONAL_FLU_DIR}/data/h1n1pdm/"
@@ -91,12 +90,11 @@ conda activate NEXTSTRAIN
 # --- Preflight checks that don't depend on downloaded TSVs ---
 cd "$SEASONAL_FLU_DIR"
 
-
 # Guard against including HA reference as a sample (if ref present already)
 if [ -f config/h3n2/ha/reference.fasta ]; then
   h3_ref_id="$(head -1 config/h3n2/ha/reference.fasta | sed 's/^>//')"
   if grep -qF "$h3_ref_id" data/h3n2/raw_sequences_ha.fasta; then
-    echo "ERROR: H3N2 HA reference '$h3_ref_id' appears in raw_sequences_ha.fasta (must NOT be a sample)."
+    echo "ERROR: H3N2 HA reference '$h3_ref_id' appears in raw_sequences_ha.fasta (must NOT be a sample)." >&2
     exit 1
   fi
 fi
@@ -106,7 +104,18 @@ if [ -f config/h3n2/ha/reference.fasta ] && [ -f config/h3n2/ha/genemap.gff ]; t
   h3_ref_len="$(awk '/^>/ {next} {l+=length($0)} END{print l}' config/h3n2/ha/reference.fasta)"
   h3_bad_cds="$(awk -v L="$h3_ref_len" '$3=="CDS" && ($4>L || $5>L)' config/h3n2/ha/genemap.gff | wc -l | tr -d ' ')"
   if [ "$h3_bad_cds" -ne 0 ]; then
-    echo "ERROR: H3N2 HA genemap.gff has CDS beyond reference length ($h3_ref_len) -> coordinate drift."
+    echo "ERROR: H3N2 HA genemap.gff has CDS beyond reference length ($h3_ref_len) -> coordinate drift." >&2
+    exit 1
+  fi
+fi
+
+# Optional: H3N2 HA<->NA exact name parity (NA inherits HA clade via name)
+if [ -s data/h3n2/raw_sequences_na.fasta ]; then
+  echo "[Preflight] Checking H3N2 HA vs NA name parity..."
+  grep -E '^>' data/h3n2/raw_sequences_ha.fasta | sed 's/^>//' | sort -u > /tmp/h3_ha.names
+  grep -E '^>' data/h3n2/raw_sequences_na.fasta | sed 's/^>//' | sort -u > /tmp/h3_na.names
+  if ! diff -q /tmp/h3_ha.names /tmp/h3_na.names >/dev/null; then
+    echo "ERROR: H3N2 HA and NA FASTA headers differ. Inspect: comm -3 /tmp/h3_ha.names /tmp/h3_na.names" >&2
     exit 1
   fi
 fi
@@ -120,16 +129,14 @@ echo "Build finished. Preparing outputs..."
 # --- Post-build: verify subclade TSVs now that they have been downloaded ---
 echo "[Postflight] Verifying downloaded subclade definitions..."
 if [ -f config/h3n2/ha/subclades.tsv ]; then
-  # Newer H3N2 HA subclades present? (J.2.3 / J.2.4 / J.2.5 plus J.3/J.4)
   if egrep -q '^(J\.2\.[345]|J\.3|J\.4)\b' config/h3n2/ha/subclades.tsv; then
     echo "OK: H3N2 HA subclades.tsv contains expected recent labels."
   else
-    echo "WARNING: H3N2 HA subclades.tsv seems stale (missing J.2.3/2.4/2.5 or J.3/J.4)."
+    echo "WARNING: H3N2 HA subclades.tsv seems stale (missing J.2.3/2.4/2.5 or J.3/J.4)." >&2
   fi
-  # Save exact file used for audit
   cp config/h3n2/ha/subclades.tsv "${OUT_DIR}/h3n2_ha_subclades_used.tsv"
 else
-  echo "WARNING: config/h3n2/ha/subclades.tsv not found after build (unexpected)."
+  echo "WARNING: config/h3n2/ha/subclades.tsv not found after build (unexpected)." >&2
 fi
 
 # --- Copy auspice files to OUT_DIR ---
