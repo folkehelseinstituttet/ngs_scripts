@@ -88,36 +88,6 @@ conda activate NEXTSTRAIN
 # --- Preflight checks to prevent coordinate drift & common pitfalls ---
 cd "$SEASONAL_FLU_DIR"
 
-# 1) Snapshot key files
-echo "[Preflight] Snapshot (first line + md5) of key files:"
-for f in \
-  config/h1n1pdm/ha/reference.fasta \
-  config/h1n1pdm/ha/genemap.gff \
-  config/h1n1pdm/ha/subclades.tsv \
-  config/h1n1pdm/na/reference.fasta \
-  config/h1n1pdm/na/genemap.gff \
-  config/h1n1pdm/na/subclades.tsv \
-  config/h3n2/ha/reference.fasta \
-  config/h3n2/ha/genemap.gff \
-  config/h3n2/ha/subclades.tsv \
-  config/h3n2/ha/clades.tsv \
-  config/h3n2/na/reference.fasta \
-  config/h3n2/na/genemap.gff \
-  config/h3n2/na/subclades.tsv \
-  config/vic/ha/reference.fasta \
-  config/vic/ha/genemap.gff \
-  config/vic/ha/subclades.tsv \
-  config/vic/na/reference.fasta \
-  config/vic/na/genemap.gff \
-  config/vic/na/subclades.tsv
-do
-  test -f "$f" || { echo "MISSING: $f"; exit 1; }
-  echo "==> $f"
-  head -n 1 "$f" || true
-  md5sum "$f" || true
-  echo
-done
-
 # 2) H3N2 HA subclade definitions should include the newer labels
 if ! egrep -q '^(J\.2\.[345]|J\.3|J\.4)\b' config/h3n2/ha/subclades.tsv; then
   echo "ERROR: Newer H3N2 HA subclades (J.2.3/J.2.4/J.2.5, J.3, J.4) not found in config/h3n2/ha/subclades.tsv"
