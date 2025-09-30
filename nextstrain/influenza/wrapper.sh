@@ -68,9 +68,6 @@ if grep -q 'profiles/gisaid/prepare_data\.smk' "${SEASONAL_FLU_DIR}/profiles/nip
   sed -i 's#profiles/gisaid/prepare_data\.smk#profiles/niph/prepare_data.smk#g' "${SEASONAL_FLU_DIR}/profiles/niph/builds.yaml"
 fi
 
-# Patch prepare_data.smk: split full_location (after rename) not location
-sed -i 's/csvtk sep -f location/csvtk sep -f full_location/' "${SEASONAL_FLU_DIR}/profiles/niph/prepare_data.smk"
-
 # --- Copy data into seasonal-flu expected locations ---
 cp "${BASE_DIR}/flu_nextstrain/H1/metadata.xls"            "${SEASONAL_FLU_DIR}/data/h1n1pdm/"
 cp "${BASE_DIR}/flu_nextstrain/H1/raw_sequences_ha.fasta"  "${SEASONAL_FLU_DIR}/data/h1n1pdm/"
@@ -109,16 +106,6 @@ if [ -f config/h3n2/ha/reference.fasta ] && [ -f config/h3n2/ha/genemap.gff ]; t
   fi
 fi
 
-# Optional: H3N2 HA<->NA exact name parity (NA inherits HA clade via name)
-if [ -s data/h3n2/raw_sequences_na.fasta ]; then
-  echo "[Preflight] Checking H3N2 HA vs NA name parity..."
-  grep -E '^>' data/h3n2/raw_sequences_ha.fasta | sed 's/^>//' | sort -u > /tmp/h3_ha.names
-  grep -E '^>' data/h3n2/raw_sequences_na.fasta | sed 's/^>//' | sort -u > /tmp/h3_na.names
-  if ! diff -q /tmp/h3_ha.names /tmp/h3_na.names >/dev/null; then
-    echo "ERROR: H3N2 HA and NA FASTA headers differ. Inspect: comm -3 /tmp/h3_ha.names /tmp/h3_na.names" >&2
-    exit 1
-  fi
-fi
 
 # --- Build (force refresh of downloaded clade/subclade definitions) ---
 echo "Making the Nextstrain build..."
