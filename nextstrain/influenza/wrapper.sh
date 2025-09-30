@@ -63,10 +63,14 @@ cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/builds.yaml"      "${SEASONAL_FLU_
 cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/config.yaml"      "${SEASONAL_FLU_DIR}/profiles/niph/"
 cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/prepare_data.smk" "${SEASONAL_FLU_DIR}/profiles/niph/"
 
-# Ensure builds.yaml points to our local rule file (if it referenced profiles/gisaid before)
+# Ensure builds.yaml points to our local rule file
 if grep -q 'profiles/gisaid/prepare_data\.smk' "${SEASONAL_FLU_DIR}/profiles/niph/builds.yaml"; then
   sed -i 's#profiles/gisaid/prepare_data\.smk#profiles/niph/prepare_data.smk#g' "${SEASONAL_FLU_DIR}/profiles/niph/builds.yaml"
 fi
+
+# Fix the column the rule splits (must be full_location after the rename)
+sed -i 's/csvtk sep -f location/csvtk sep -f full_location/' "${SEASONAL_FLU_DIR}/profiles/niph/prepare_data.smk"
+
 
 # --- Copy data into seasonal-flu expected locations ---
 cp "${BASE_DIR}/flu_nextstrain/H1/metadata.xls"            "${SEASONAL_FLU_DIR}/data/h1n1pdm/"
