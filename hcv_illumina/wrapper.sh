@@ -48,16 +48,14 @@ RUN=""
 AGENS=""
 YEAR=""
 VERSION="v1.0.6"  # Default version
-RESUME=""
 
-while getopts "hr:a:y:v:z" opt; do
+while getopts "hr:a:y:v:" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
         y) YEAR="$OPTARG" ;;
         v) VERSION="$OPTARG";;
-        z) RESUME="-resume";;
         ?) usage ;;
     esac
 done
@@ -171,7 +169,7 @@ nextflow pull folkehelseinstituttet/hcv_illumina -r $VERSION
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run folkehelseinstituttet/hcv_illumina/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false $RESUME
+nextflow run folkehelseinstituttet/hcv_illumina/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false -resume
 
 ## Create a Labware import file from the Summary file
 mkdir $HOME/$RUN/labware_import
