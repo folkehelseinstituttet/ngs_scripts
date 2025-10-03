@@ -169,7 +169,7 @@ nextflow pull folkehelseinstituttet/hcv_illumina -r $VERSION
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run folkehelseinstituttet/hcv_illumina/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false -resume
+nextflow run folkehelseinstituttet/hcv_illumina/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false -cleanup true -resume
 
 ## Create a Labware import file from the Summary file
 mkdir $HOME/$RUN/labware_import
@@ -193,6 +193,5 @@ mput *
 EOF
 
 ## Clean up
-nextflow clean -f
 rm -rf $HOME/out_hcv
 rm -rf $TMP_DIR
