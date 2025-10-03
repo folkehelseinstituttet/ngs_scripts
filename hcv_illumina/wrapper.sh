@@ -146,8 +146,8 @@ echo "Creating samplesheet"
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR/ \
     -v $HOME/$RUN:/out \
-    docker.io/jonbra/create_samplesheet:1.0 \
-    Rscript create_samplesheet.R $TMP_DIR /out/samplesheet.csv ${AGENS}
+    ghcr.io/jonbra/viralseq_utils:v1.0.2 \
+    $TMP_DIR /out/samplesheet.csv
 
 ### Run the main pipeline ###
 
@@ -171,10 +171,16 @@ nextflow pull folkehelseinstituttet/hcv_illumina -r $VERSION
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run folkehelseinstituttet/hcv_illumina/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false --labware true $RESUME
+nextflow run folkehelseinstituttet/hcv_illumina/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false $RESUME
 
-## Rename LW import file 
-mv $HOME/$RUN/labware_import/Genotype_mapping_summary_long_LW_import.tsv $HOME/$RUN/labware_import/${RUN}_HCV_genotype_and_GLUE_summary.tsv
+## Create a Labware import file from the Summary file
+mkdir $HOME/$RUN/labware_import
+docker run --rm \
+  -v "$HOME/$RUN/summary:/input" \
+  -v "$HOME/$RUN/labware_import:/output" \
+  ghcr.io/jonbra/hcv-labware-import:v1.0.0 \
+  /input/Summary.csv \
+  /output/$RUN
 
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
