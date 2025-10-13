@@ -5,7 +5,7 @@ args <- commandArgs(trailingOnly = TRUE)
 SID <- args[1] #RunID from argument
 
 source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
-source("N:/Virologi/Influensa/RARI/BN FLU 24-25.R")
+source("N:/Virologi/Influensa/RARI/2526/BN FLU 25-26.R")
 
 library(lubridate)
 library(tidyverse)
