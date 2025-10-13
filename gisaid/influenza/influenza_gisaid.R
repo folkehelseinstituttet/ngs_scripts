@@ -30,7 +30,7 @@ host <- "Human"
 Location <- "Norway"
 sub_lab <- "Norwegian Institute of Public Health, Department of Virology"
 address <- "P.O.Box 222 Skoyen, 0213 Oslo, Norway"
-authors <- "Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; Knutsen, MF"
+authors <- "Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; ,Dieseth MS"
 GISAIDnr <- 3869  # Converting directly to numeric
 Sequencing_Technology <- "Oxford Nanopore"
 Assembly_Method <- "IRMA FLU-minion"
@@ -39,7 +39,7 @@ Sequencing_Strategy <- "Targeted-amplification "
 # Read Lab_ID data
 Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Laboratory.xlsx")
 
-source("N:/Virologi/Influensa/RARI/BN FLU 24-25.R")
+source("N:/Virologi/Influensa/RARI/2526/BN FLU 25-26.R")
 
 
 # Proceed with data filtering and selection
