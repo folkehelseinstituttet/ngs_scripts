@@ -1,6 +1,8 @@
+# Assign the arguments to variables
+
 library(writexl)
 source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
-source("N:/Virologi/Influensa/RARI/BN FLU 24-25 Nextstrain.R")
+source("N:/Virologi/Influensa/RARI/2526/BN FLU 25-26 Nextstrain.R")
 
 
 library(lubridate)
@@ -32,19 +34,19 @@ GISAIDnr <- 3869  # Converting directly to numeric
 # Read Lab_ID data
 Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Laboratory.xlsx")
 
-source("N:/Virologi/Influensa/RARI/BN FLU 24-25 Nextstrain.R")
+source("N:/Virologi/Influensa/RARI/2526/BN FLU 25-26 Nextstrain.R")
 
 
 # Proceed with data filtering and selection
 fludb <- fludb %>%
   filter(ngs_sekvens_resultat != "") %>%             # Remove empty results
-  #filter(ngs_report == "" | is.na(ngs_report)) %>%             # Remove empty results
+  filter(ngs_report == "" | is.na(ngs_report)) %>%             # Remove empty results
   filter(!(ngs_sekvens_resultat %in% c("NA", "N2", "N1")))  # Keep rows that are NOT NA, N2, or N1
 
 
 
 # Now select the required columns
-fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "tessy_variable", "pasient_kjonn", "prove_innsender_id", "pasient_fylke_name", "prove_kategori")
+fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "pasient_kjnn", "prove_innsender_id", "pasient_fylke_name", "prove_kategori")
 
 # Data cleaning and manipulation
 fludb <- fludb %>% 
@@ -61,7 +63,7 @@ fludb <- fludb %>%
       str_starts(ngs_sekvens_resultat, "B/Victoria") ~ "Victoria",
       TRUE ~ ""
     ),
-    Host_Gender = if_else(toupper(pasient_kjonn) %in% c("M", "F"), toupper(pasient_kjonn), NA_character_),  # Creating Host_Gender column
+    Host_Gender = if_else(toupper(pasient_kjnn) %in% c("M", "F"), toupper(pasient_kjnn), NA_character_),  # Creating Host_Gender column
     Year = year(as.Date(prove_tatt)),  # Extracting year from Sampledate
     age = pasient_alder, 
     Uniq_nr = str_sub(key, start = 5, end = 9),  # Extracting unique number
@@ -76,26 +78,6 @@ merged_df <- merge(fludb, Lab_ID, by.x = "prove_innsender_id", by.y = "Innsender
 merged_df$GISAID_Nr <- ifelse(is.na(merged_df$GISAID_Nr) | is.na(merged_df$GISAID_Nr), GISAIDnr, merged_df$GISAID_Nr)
 
 #rm(fludb)
-
-merged_df <- merged_df %>%
-  mutate(
-    prove_tatt_chr  = as.character(prove_tatt),
-    prove_tatt_dt   = parse_date_time(
-      prove_tatt_chr,
-      orders = c("Ymd", "Y-m-d",
-                 "dmy", "d.m.Y", "d/m/Y",
-                 "Ymd HMS", "Y-m-d H:M:S",
-                 "dmy HMS", "d.m.Y H:M:S", "d/m/Y H:M:S"),
-      exact = FALSE
-    ) %>% as_date()
-  )
-
-# Optional: see any rows that didn’t parse
-bad_dates <- merged_df %>% filter(is.na(prove_tatt_dt)) %>% distinct(prove_tatt_chr)
-if (nrow(bad_dates)) print(bad_dates)
-
-merged_df_ok <- merged_df %>% 
-  filter(!is.na(prove_tatt_dt))
 
 
 
@@ -133,9 +115,9 @@ tmp <- merged_df %>%
     "Submitting_Sample_Id" = merged_df$key,
     "Originating_Lab" = merged_df$GISAID_Nr,
     "Originating_Sample_Id" = "",
-    "Collection_Month" = month(merged_df$prove_tatt_dt),
-    "Collection_Year" = year(merged_df$prove_tatt_dt),
-    "Collection_Date" = format(as.Date(merged_df$prove_tatt_dt), "%Y-%m-%d"),
+    "Collection_Month" = month(merged_df$prove_tatt),
+    "Collection_Year" = year(merged_df$prove_tatt),
+    "Collection_Date" = format(as.Date(merged_df$prove_tatt), "%Y-%m-%d"),
     "Antigen_Character" = "",
     "Adamantanes_Resistance_geno" = "",
     "Oseltamivir_Resistance_geno" = "",
@@ -352,3 +334,5 @@ copy_folder(output_dir_h3, file.path(flu_nextstrain_dir, "H3"))
 copy_folder(output_dir_vic, file.path(flu_nextstrain_dir, "VIC"))
 
 cat("All folders and their contents have been successfully copied to", flu_nextstrain_dir, "\n")
+
+
