@@ -4,6 +4,7 @@ args <- commandArgs(trailingOnly = TRUE)
 # Assign the arguments to variables
 SID <- args[1] #RunID from argument
 
+
 source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
 source("N:/Virologi/Influensa/RARI/2526/BN FLU 25-26.R")
 
@@ -52,9 +53,9 @@ fludb <- fludb %>%
 
 
 # Now select the required columns
-fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "tessy_variable", "pasient_kjonn", 
+fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "pasient_kjnn", 
                           "prove_innsender_id", "pasient_fylke_name", "pasient_status", "prove_kategori", "prove_material", "ngs_reads_ha",
-                          "ngs_reads_na", "ngs_reads_m", "ngs_reads_ns", "ngs_reads_np", "ngs_reads_pa", "ngs_reads_pb1", "ngs_reads_pb2")
+                          "ngs_reads_na", "ngs_reads_m", "ngs_reads_ns", "ngs_reads_np", "ngs_reads_pa", "ngs_reads_pb1", "ngs_reads_pb2", "ngs_qc_sum")
 
 # Data cleaning and manipulation
 fludb <- fludb %>% 
@@ -71,7 +72,7 @@ fludb <- fludb %>%
       str_starts(ngs_sekvens_resultat, "B/Victoria") ~ "Victoria",
       TRUE ~ ""
     ),
-    Host_Gender = if_else(toupper(pasient_kjonn) %in% c("M", "F"), toupper(pasient_kjonn), NA_character_),  # Creating Host_Gender column
+    Host_Gender = if_else(toupper(pasient_kjnn) %in% c("M", "F"), toupper(pasient_kjnn), NA_character_),  # Creating Host_Gender column
     Year = year(as.Date(prove_tatt)),  # Extracting year from Sampledate
     age = pasient_alder, 
     Uniq_nr = str_sub(key, start = 5, end = 9),  # Extracting unique number
@@ -91,7 +92,6 @@ merged_df <- merge(fludb, Lab_ID, by.x = "prove_innsender_id", by.y = "Innsender
 # Replace NA and non-numeric values in GISAID_Nr column
 merged_df$GISAID_Nr <- ifelse(is.na(merged_df$GISAID_Nr) | is.na(merged_df$GISAID_Nr), GISAIDnr, merged_df$GISAID_Nr)
 
-rm(fludb)
 
 ################### FASTA FILE :
 tmp <- merged_df %>%
@@ -147,12 +147,12 @@ tmp <- merged_df %>%
     "Note" = "",
     "provider_sample_id" = "",
     "Sampling_Strategy" = ifelse(merged_df$prove_kategori == "P1_", 
-                               "Sentinel surveillance (ARI)", 
-                               ifelse(merged_df$pasient_status == "Inneliggende", 
-                                      "Non-sentinel surveillance (hospital)", 
-                                      ifelse(merged_df$prove_kategori == "P2_" & merged_df$pasient_status == "Poliklinisk", 
-                                             "Non-sentinel surveillance (outpatient)", 
-                                             ""))),
+                                 "Sentinel surveillance (ARI)", 
+                                 ifelse(merged_df$pasient_status == "Inneliggende", 
+                                        "Non-sentinel surveillance (hospital)", 
+                                        ifelse(merged_df$prove_kategori == "P2_" & merged_df$pasient_status == "Poliklinisk", 
+                                               "Non-sentinel surveillance (outpatient)", 
+                                               ""))),
     "Sequencing_Technology" = Sequencing_Technology,
     "Assembly_Method" = Assembly_Method,
     "Sequencing_Strategy" = Sequencing_Strategy
@@ -215,7 +215,6 @@ desired_order <- c(
   "provider_sample_id"
 )
 
-rm(merged_df)
 
 submission <- tmp %>%
   select(all_of(desired_order))
@@ -250,6 +249,60 @@ for (i in 1:nrow(filtered_seq)) {
   
   # Write the header and sequence to file
   cat(">", header, "\n", sequence, "\n", file = file_con, sep = "")
+}
+
+
+# Try to locate a source for `ngs_qc_sum` keyed by sample `key`
+qc_source <- NULL
+if (exists("merged_df") && "ngs_qc_sum" %in% names(merged_df)) {
+  qc_source <- merged_df %>% select(key, ngs_qc_sum)
+} else if (exists("fludb") && "ngs_qc_sum" %in% names(fludb)) {
+  qc_source <- fludb %>% select(key, ngs_qc_sum)
+} else if ("ngs_qc_sum" %in% names(tmp)) {
+  # Fallback if you already carried it into `tmp` under some name
+  # (rare) — adjust if needed
+  qc_source <- tmp %>%
+    transmute(key = Submitting_Sample_Id, ngs_qc_sum = ngs_qc_sum)
+}
+
+if (!is.null(qc_source)) {
+  # Long-form: one row per gene:issue, keep only FS/MS
+  qc_long <- qc_source %>%
+    filter(!is.na(ngs_qc_sum), ngs_qc_sum != "") %>%
+    mutate(Submitting_Sample_Id = key) %>%
+    separate_rows(ngs_qc_sum, sep = "\\|") %>%
+    separate(ngs_qc_sum, into = c("gene", "issue"), sep = ":", fill = "right", extra = "merge") %>%
+    filter(issue %in% c("FS", "MS")) %>%
+    mutate(target_col = dplyr::recode(gene,
+                                      "HA"  = "Seq_Id (HA)",
+                                      "NA"  = "Seq_Id (NA)",
+                                      "PB1" = "Seq_Id (PB1)",
+                                      "PB2" = "Seq_Id (PB2)",
+                                      "PA"  = "Seq_Id (PA)",
+                                      "M"   = "Seq_Id (MP)",  # handle M vs MP naming
+                                      "MP"  = "Seq_Id (MP)",
+                                      "NS"  = "Seq_Id (NS)",
+                                      "NP"  = "Seq_Id (NP)",
+                                      .default = NA_character_
+    )) %>%
+    filter(!is.na(target_col)) %>%
+    distinct(Submitting_Sample_Id, target_col)
+  
+  # Apply: blank the affected Seq_Id cells
+  if (nrow(qc_long) > 0) {
+    for (i in seq_len(nrow(qc_long))) {
+      sid <- qc_long$Submitting_Sample_Id[i]
+      col <- qc_long$target_col[i]
+      if (col %in% names(submission)) {
+        submission[submission$Submitting_Sample_Id == sid, col] <- ""
+      }
+    }
+  }
+  
+  # Re-write CSV with the QC-filtered values
+  write.csv(submission, output_path_csv, row.names = FALSE, fileEncoding = "UTF-8")
+} else {
+  warning("ngs_qc_sum not found in current environment; skipped QC-based Seq_Id clearing.")
 }
 
 # Close the file connection
