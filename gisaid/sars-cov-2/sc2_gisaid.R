@@ -3,9 +3,8 @@ args <- commandArgs(trailingOnly = TRUE)
 
 # Assign the arguments to variables
 SID <- args[1] #RunID from argument
-SID <- "SAR016A" #RunID from argument
 submitter <- args[2]
-submitter = "RasmusKRiis"
+
 
 
 source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
