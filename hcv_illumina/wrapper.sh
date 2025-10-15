@@ -80,8 +80,8 @@ cd $HOME
 
 
 # Sometimes the pipeline has been cloned locally. Remove it to avoid version conflicts
-if [ -d "$HOME/hcv_illumina" ]; then 
-    rm -rf $HOME/hcv_illumina
+if [ -d "$HOME/hcvtyper" ]; then 
+    rm -rf $HOME/hcvtyper
 fi
 
 # Export the access token for web monitoring with tower
@@ -165,11 +165,11 @@ set -u
 #fi
 
 # Make sure the latest pipeline is available
-nextflow pull folkehelseinstituttet/hcv_illumina -r $VERSION
+nextflow pull folkehelseinstituttet/hcvtyper -r $VERSION
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow run folkehelseinstituttet/hcv_illumina/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" --agens $AGENS -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false -resume
+nextflow run folkehelseinstituttet/hcvtyper/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN"  -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false -resume
 
 ## Create a Labware import file from the Summary file
 mkdir $HOME/$RUN/labware_import
