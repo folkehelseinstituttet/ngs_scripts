@@ -151,8 +151,8 @@ nextflow run RasmusKoRiis/nf-core-sars/main.nf \
   --samplesDir "$SAMPLEDIR" \
   --outdir "$HOME/$RUN" \
   --primerdir $SARS_DATABASE/$PRIMER \
-  --reference  $SARS_DATABASE/$PRIMER/SARS-CoV-2.reference.fasta \
-  --primer_bed $SARS_DATABASE/$PRIMER/SARS-CoV-2.scheme.bed \
+  --reference  "$SARS_DATABASE/primer_schemes/ncov-2019_midnight/v3.0.0/ncov-2019_midnight.reference.fasta" \
+  --primer_bed "$SARS_DATABASE/primer_schemes/ncov-2019_midnight/v3.0.0/ncov-2019_midnight.scheme.bed" \
   --runid "$RUN" \
   --spike "$SARS_DATABASE/Spike_mAbs_inhibitors.csv" \
   --rdrp "$SARS_DATABASE/RdRP_inhibitors.csv" \
