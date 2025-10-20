@@ -183,6 +183,6 @@ fi
 
 
 ## Clean up
-#nextflow clean -f
+nextflow clean -f
 #rm -rf $HOME/out
-#rm -rf $TMP_DIR
+rm -rf $TMP_DIR
