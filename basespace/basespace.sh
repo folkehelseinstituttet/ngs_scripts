@@ -65,14 +65,33 @@ SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run
 
 echo "Getting the Run ID on the BaseSpace server"
-# List Runs on BaseSpace and get the Run id (third column separated by | and whitespaces)
-id=$(bs list projects | grep "${RUN}" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
 
-# If no matching run was found on Basespace, exit the script
-if [[ -z "$id" ]]; then
-    echo "Could not find the Run id on Basespace. Please check the spelling"
+# Capture the full line(s) that match the run name
+matches=$(bs list projects | grep "${RUN}")
+
+# If no matches found
+if [[ -z "$matches" ]]; then
+    echo "❌ Could not find any matching runs on BaseSpace for pattern '${RUN}'. Please check the spelling."
     exit 1
 fi
+
+# Count number of matches
+num_matches=$(echo "$matches" | wc -l)
+
+# If more than one match found, list them and exit
+if (( num_matches > 1 )); then
+    echo "⚠️  Multiple runs on Basespace match '${RUN}'. Please refine your search or specify the exact run name."
+    echo
+    echo "Matching runs on Basespace:"
+    echo "$matches" | awk -F '|' '{print "• " $2}' | sed 's/^[[:space:]]*//'
+    echo
+    exit 1
+fi
+
+# Otherwise, extract the Run ID (third column)
+id=$(echo "$matches" | awk -F '|' '{print $3}' | awk '{$1=$1};1')
+
+echo "✅ Found matching run on Basespace with ID: $id"
 
 echo "Downloading fastq files"
 # First clean up the tempdrive
