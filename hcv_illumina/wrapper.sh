@@ -183,7 +183,7 @@ docker run --rm \
 ## Then move the results to the N: drive
 echo "Moving results to the N: drive"
 mkdir $HOME/out_hcv
-mv $RUN/ out_hcv/
+cp -r $RUN/ out_hcv/
 
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
