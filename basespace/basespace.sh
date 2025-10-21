@@ -64,6 +64,9 @@ SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run
 
+# NOTE: use fastq_tmp as the working fastq directory name
+FASTQ_DIR_NAME="fastq_tmp"
+
 echo "Getting the Run ID on the BaseSpace server"
 
 # Capture the full line(s) that match the run name
@@ -95,7 +98,7 @@ echo "✅ Found matching run on Basespace with ID: $id"
 
 echo "Downloading fastq files"
 # First clean up the tempdrive
-DIRECTORY="$BASE_DIR/fastq"
+DIRECTORY="$BASE_DIR/${FASTQ_DIR_NAME}"
 if [ -d "$DIRECTORY" ]; then
     echo "Directory $DIRECTORY exists. Deleting..."
     rm -rf "$DIRECTORY"
@@ -104,17 +107,17 @@ else
     echo "Directory $DIRECTORY does not exist. Creating it."
 fi
 # Download to a sub-directory for easier copying to N: later
-mkdir -p $BASE_DIR/fastq
+mkdir -p "$BASE_DIR/${FASTQ_DIR_NAME}"
 
 # Then download the fastq files
-bs download project -i ${id} --extension=fastq.gz -o $BASE_DIR/fastq/$RUN
+bs download project -i ${id} --extension=fastq.gz -o "$BASE_DIR/${FASTQ_DIR_NAME}/$RUN"
 
 # Execute commands based on the platform specified
 if [[ $PLATFORM == "miseq" ]]; then
     echo "Running commands for MiSeq platform..."
     
     # Clean up the folder names
-    RUN_DIR="$BASE_DIR/fastq/${RUN}"
+    RUN_DIR="$BASE_DIR/${FASTQ_DIR_NAME}/${RUN}"
     # Find only directories in the current directory. Loop through them and rename
     # mindepth 1 excludes the RUN_DIR directory. maxdepth 1 includes only the sudirectories of RUN_DIR
     find "$RUN_DIR" -mindepth 1 -maxdepth 1 -type d -print0 | while IFS= read -r -d '' folder; do
@@ -135,12 +138,12 @@ if [[ $PLATFORM == "miseq" ]]; then
     smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
     prompt OFF
     recurse ON
-    lcd $BASE_DIR/fastq
+    lcd $BASE_DIR/${FASTQ_DIR_NAME}
     mput *
 EOF
     
     ## Clean up
-    rm -rf $BASE_DIR/fastq
+    rm -rf "$BASE_DIR/${FASTQ_DIR_NAME}"
 elif [[ $PLATFORM == "nextseq" ]]; then
     echo "Running commands for NextSeq platform..."
     # Define output directory
@@ -150,7 +153,7 @@ elif [[ $PLATFORM == "nextseq" ]]; then
     mkdir -p $BASE_DIR/$OUTPUT_DIR
 
     # Loop through each sample directory, create new subdirectories for each sample and copy the fastq files to the corresponding directory
-    for fastq in "$BASE_DIR/fastq/$RUN"/*/*.fastq.gz; do
+    for fastq in "$BASE_DIR/${FASTQ_DIR_NAME}/$RUN"/*/*.fastq.gz; do
             # Extract the basename
             base=$(basename $fastq)
         
@@ -197,13 +200,13 @@ elif [[ $PLATFORM == "nextseq" ]]; then
 EOF
 
     ## Clean up
-    rm -rf $BASE_DIR/fastq
+    rm -rf "$BASE_DIR/${FASTQ_DIR_NAME}"
     rm -rf $BASE_DIR/final
 
     echo "All done!"
 elif [[ $PLATFORM == "nextseq_virus" ]]; then
     echo "Running commands for NextSeq virus platform (directory renaming)..."
-    RUN_DIR="$BASE_DIR/fastq/${RUN}"
+    RUN_DIR="$BASE_DIR/${FASTQ_DIR_NAME}/${RUN}"
     # Safety check
     if [ ! -d "$RUN_DIR" ]; then
         echo "Run directory $RUN_DIR does not exist."
@@ -226,12 +229,12 @@ elif [[ $PLATFORM == "nextseq_virus" ]]; then
     smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
     prompt OFF
     recurse ON
-    lcd $BASE_DIR/fastq/
+    lcd $BASE_DIR/${FASTQ_DIR_NAME}/
     mput *
 EOF
 
     ## Clean up
-    rm -rf $BASE_DIR/fastq
+    rm -rf "$BASE_DIR/${FASTQ_DIR_NAME}"
 
     echo "All done!"
 else
