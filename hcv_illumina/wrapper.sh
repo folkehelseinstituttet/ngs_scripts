@@ -194,5 +194,6 @@ EOF
 
 ## Clean up
 rm -rf $HOME/out_hcv
+rm -rf $RUN
 rm -rf $TMP_DIR
 nextflow clean -f
