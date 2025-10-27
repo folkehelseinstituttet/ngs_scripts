@@ -47,7 +47,7 @@ usage() {
 RUN=""
 AGENS=""
 YEAR=""
-VERSION="v1.1.3"  # Default version
+VERSION="v1.1.4"  # Default version
 
 while getopts "hr:a:y:v:" opt; do
     case "$opt" in
