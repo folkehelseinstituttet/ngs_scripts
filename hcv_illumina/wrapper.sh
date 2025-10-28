@@ -165,6 +165,9 @@ set -u
 #fi
 
 # Make sure the latest pipeline is available
+# Log which version will be used (this goes to the existing wrapper log because of the exec+tee above)
+echo "Using VERSION=${VERSION}" | tee -a /home/ngs/hcv_illumina_wrapper.log >> "$LOGFILE"
+
 nextflow pull folkehelseinstituttet/hcvtyper -r $VERSION
 
 # Start the pipeline
