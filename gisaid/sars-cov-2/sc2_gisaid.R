@@ -7,6 +7,7 @@ submitter <- args[2]
 
 
 
+
 source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
 source("N:/Virologi/Influensa/RARI/2526/BN SC2 25-26.R")
 
@@ -117,8 +118,8 @@ sarsdb <- sarsdb %>%
 
 # Now select the required columns
 sarsdb <- sarsdb %>% select("key","prove_tatt","pasient_fylke_name","pasient_kjnn","prove_material", "pasient_alder", "prove_kategori","pasient_fylke_nr","prove_innsender_id",  
-                            "ngs_depth", "ngs_primer_vers")
-                            
+                            "ngs_depth", "ngs_primer_vers", "nc_coverage", "Lab", "Lab_address")
+
 # Data cleaning and manipulation
 sarsdb <- sarsdb %>% 
   mutate(
@@ -134,7 +135,7 @@ sarsdb <- sarsdb %>%
     ),
     Primer_vers = case_when(  
       str_starts(ngs_primer_vers, "VM.3") ~ "Midnight version 3"
-  ))
+    ))
 
 
 merged_df <- merge(sarsdb, Lab_ID, by.x = "prove_innsender_id", by.y = "Innsender nr", all.x = TRUE)
@@ -160,7 +161,7 @@ tmp <- merged_df %>%
     "covv_seq_technology" = paste(Sequencing_Technology, sarsdb$Primer_vers, sep = "-"),
     "covv_assembly_method" = Assembly_Method,
     "covv_orig_lab" = sarsdb$Lab,
-    "covv_orig_lab_addr" = sarsdb$Lab_addres,
+    "covv_orig_lab_addr" = sarsdb$Lab_address,
     "covv_subm_lab" = "Norwegian Institute of Public Health, Department of Virology",
     "covv_subm_lab_addr" = "P.O.Box 222 Skoyen, 0213 Oslo, Norway",
     "covv_authors" = authors,
@@ -232,19 +233,38 @@ write.csv(submission, output_path_csv, row.names = FALSE, fileEncoding = "UTF-8"
 output_filename_fasta <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".fasta")
 output_path_fasta <- file.path(output_dir_csv, output_filename_fasta)
 
-# Create the FASTA file
-file_con <- file(output_path_fasta, open = "w") # Open the file in write mode
+# --- Build name map and write FASTA with covv_virus_name headers ---
 
-# Loop through each row in filtered_seq to create the FASTA entries and write to file
-for (i in seq_len(nrow(filtered_seq))) {
-  # Use only the key as the header (trimmed from "experiment|key")
-  header   <- as.character(filtered_seq$key[i])
-  sequence <- gsub("\\s+", "", as.character(filtered_seq$sequence[i]))  # optional: strip whitespace
+# 1) Map key -> covv_virus_name (use `tmp` before you narrowed columns)
+name_map <- tmp %>%
+  dplyr::select(key, covv_virus_name) %>%
+  dplyr::distinct()
 
-  # Write the header and sequence to file
-  cat(">", header, "\n", sequence, "\n", file = file_con, sep = "")
+# 2) Attach names to filtered_seq
+fasta_df <- filtered_seq %>%
+  dplyr::select(key, sequence) %>%
+  dplyr::left_join(name_map, by = "key")
+
+# 3) Sanity check: any missing names?
+missing_names <- fasta_df %>% dplyr::filter(is.na(covv_virus_name))
+if (nrow(missing_names) > 0) {
+  warning(sprintf(
+    "Missing covv_virus_name for %d sequences. Falling back to `key` for those headers.",
+    nrow(missing_names)
+  ))
+  fasta_df <- fasta_df %>%
+    dplyr::mutate(covv_virus_name = dplyr::coalesce(covv_virus_name, key))
 }
 
+# 4) Write FASTA using covv_virus_name as header
+file_con <- file(output_path_fasta, open = "w")
+on.exit(close(file_con), add = TRUE)
+
+for (i in seq_len(nrow(fasta_df))) {
+  header   <- as.character(fasta_df$covv_virus_name[i])
+  sequence <- gsub("\\s+", "", as.character(fasta_df$sequence[i]))
+  cat(">", header, "\n", sequence, "\n", file = file_con, sep = "")
+}
 
 # Close the file connection
 close(file_con)
