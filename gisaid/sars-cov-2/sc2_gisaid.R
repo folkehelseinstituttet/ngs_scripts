@@ -236,13 +236,15 @@ output_path_fasta <- file.path(output_dir_csv, output_filename_fasta)
 file_con <- file(output_path_fasta, open = "w") # Open the file in write mode
 
 # Loop through each row in filtered_seq to create the FASTA entries and write to file
-for (i in 1:nrow(filtered_seq)) {
-  header <- paste(filtered_seq$experiment[i], filtered_seq$key[i], sep = "|")
-  sequence <- filtered_seq$sequence[i]
-  
+for (i in seq_len(nrow(filtered_seq))) {
+  # Use only the key as the header (trimmed from "experiment|key")
+  header   <- as.character(filtered_seq$key[i])
+  sequence <- gsub("\\s+", "", as.character(filtered_seq$sequence[i]))  # optional: strip whitespace
+
   # Write the header and sequence to file
   cat(">", header, "\n", sequence, "\n", file = file_con, sep = "")
 }
+
 
 # Close the file connection
 close(file_con)
