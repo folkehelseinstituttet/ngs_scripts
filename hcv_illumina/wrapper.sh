@@ -2,15 +2,33 @@
 
 set -euo pipefail
 
+# Maintained by: Jon Bråte (jon.brate@fhi.no)
+
+# Send all stdout/stderr to the main wrapper log (and to the console when not detached)
 exec > >(tee -a /home/ngs/hcv_illumina_wrapper.log) 2>&1
 
-# Trap errors and log them
+# Send all stdout/stderr to the main wrapper log (and to the console when not detached)
 LOGFILE="/home/ngs/hcv_illumina_wrapper_error.log"
+
+# Small helper to write status; STATUS_FILE is set after args are parsed.
+# Writes to LOGFILE (append), wrapper log (append) and updates STATUS_FILE atomically
+set_status() {
+    msg="[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    # history
+    echo "$msg" >> "$LOGFILE"
+    # main log as well
+    echo "$msg" >> /home/ngs/hcv_illumina_wrapper.log
+    # atomic write of the single-line status file if it's defined
+    if [ -n "${STATUS_FILE:-}" ]; then
+        tmp="${STATUS_FILE}.tmp"
+        printf '%s\n' "$msg" > "$tmp" && mv "$tmp" "$STATUS_FILE"
+    fi
+}
 
 # Trap for detailed error info: line number and command
 trap 'echo "[$(date)] Error at line $LINENO: \"$BASH_COMMAND\" exited with status $?" >> "$LOGFILE"' ERR
 
-# Trap for any script exits
+# Trap for any script exits (success or failure)
 trap 'ec=$?;
   if [ $ec -ne 0 ]; then
     msg="[$(date)] Script exited with error code $ec"
@@ -22,12 +40,6 @@ trap 'ec=$?;
     echo "$msg" >> "$LOGFILE"
     echo "$msg"
   fi' EXIT
-
-# Activate conda
-source ~/miniconda3/etc/profile.d/conda.sh
-
-# Maintained by: Jon Bråte (jon.brate@fhi.no)
-# Version: 1.0
 
 # Define the script name and usage
 SCRIPT_NAME=$(basename "$0")
@@ -47,7 +59,7 @@ usage() {
 RUN=""
 AGENS=""
 YEAR=""
-VERSION="v1.1.5"  # Default version
+VERSION="v1.1.5"  # Default version of the HCVTyper Nextflow pipeline
 
 while getopts "hr:a:y:v:" opt; do
     case "$opt" in
@@ -60,12 +72,23 @@ while getopts "hr:a:y:v:" opt; do
     esac
 done
 
-# Make sure the latest version of the ngs_scripts repo is present locally
+# Setup a simple per-run status file in $HOME so other terminals can poll it
+if [ -n "${RUN:-}" ]; then
+    STATUS_FILE="$HOME/hcv_illumina_${RUN}_status.txt"
+else
+    STATUS_FILE="$HOME/hcv_illumina_unknown_status.txt"
+fi
 
-# Define the directory and the GitHub repository URL
+# initialize status file and log initial status
+printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" > "$STATUS_FILE"
+set_status "Started wrapper. RUN=$RUN AGENS=$AGENS YEAR=$YEAR VERSION=$VERSION"
+
+
+# Make sure the latest version of the ngs_scripts repo is present locally
 REPO="$HOME/ngs_scripts"
 REPO_URL="https://github.com/folkehelseinstituttet/ngs_scripts.git"
 
+set_status "Ensuring local copy of ngs_scripts (pull/clone)"
 # Check if the directory exists
 if [ -d "$REPO" ]; then
     echo "Directory 'ngs_scripts' exists. Pulling latest changes..."
@@ -78,10 +101,10 @@ fi
 
 cd $HOME
 
-
-# Sometimes the pipeline has been cloned locally. Remove it to avoid version conflicts
+# Remove potentially conflicting local pipeline clone
 if [ -d "$HOME/hcvtyper" ]; then 
     rm -rf $HOME/hcvtyper
+    set_status "Removed local hcvtyper directory to avoid conflicts"
 fi
 
 # Export the access token for web monitoring with tower
@@ -89,14 +112,12 @@ export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkOD
 # Add workspace ID for Virus_NGS
 export TOWER_WORKSPACE_ID=150755685543204
 
-## Set up environment
+## Set up environment variables and paths
 BASE_DIR=/mnt/tempdata/
 TMP_DIR=/mnt/tempdata/fastq_hcv
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/${AGENS}/${YEAR}
-# Uncomment for testing
-#SMB_DIR=Virologi/NGS/tmp/
 
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
@@ -130,51 +151,58 @@ fi
 mkdir -p "$TMP_DIR"
 
 ### Prepare the run ###
-
-echo "Copying fastq files from the N drive"
+set_status "Copying fastq files from the N drive (SMB_INPUT=$SMB_INPUT)"
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_INPUT <<EOF
 prompt OFF
 recurse ON
 lcd $TMP_DIR
 mget *
 EOF
+
+set_status "Fastq copy complete. Files are in $TMP_DIR"
     
 # Create a samplesheet by running the supplied Rscript in a docker container.
-echo "Creating samplesheet"
+set_status "Creating samplesheet"
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR/ \
     -v $HOME/$RUN:/out \
     ghcr.io/jonbra/viralseq_utils:v1.0.2 \
     $TMP_DIR /out/samplesheet.csv
 
+set_status "Samplesheet created: $HOME/$RUN/samplesheet.csv"
+
 ### Run the main pipeline ###
 
 # Activate the conda environment that holds Nextflow
 # Temporarily disable set -u because the JAVA_HOME variable is unset
 set +u
+source ~/miniconda3/etc/profile.d/conda.sh
 conda activate NEXTFLOW
 set -u
 
-# If not resuming a nextflow run, then clean-up the nextflow work and cache
-#if [ -z "$RESUME" ]; then # -z tests if the variable is empty
-#  # Clean up Nextflow cache to remove unused files
-#  nextflow clean -f
-#  # Clean up empty work directories
-#  # || true allows the script to continue if it can't delete everything
-#  find /mnt/tempdata/work -type d -empty -delete || true
-#fi
+set_status "Activated NEXTFLOW conda environment"
+
+# Log which version will be used
+set_status "Using VERSION=${VERSION}"
+echo "Using VERSION=${VERSION}" | tee -a /home/ngs/hcv_illumina_wrapper.log >> "$LOGFILE"
 
 # Make sure the latest pipeline is available
 # Log which version will be used (this goes to the existing wrapper log because of the exec+tee above)
 echo "Using VERSION=${VERSION}" | tee -a /home/ngs/hcv_illumina_wrapper.log >> "$LOGFILE"
 
+# Pull the pipeline version
+set_status "Pulling hcvtyper version ${VERSION}"
 nextflow pull folkehelseinstituttet/hcvtyper -r $VERSION
+set_status "Pulled hcvtyper version ${VERSION}"
 
 # Start the pipeline
-echo "Map to references and create consensus sequences"
+set_status "Starting Nextflow run. This may take several hours. Log file: $LOGFILE. Check the log file with: cat $LOGFILE to see the status."
 nextflow run folkehelseinstituttet/hcvtyper/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN"  -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false
 
+set_status "Nextflow run finished"
+
 ## Create a Labware import file from the Summary file
+set_status "Creating labware import file from Summary"
 mkdir $HOME/$RUN/labware_import
 docker run --rm \
   -v "$HOME/$RUN/summary:/input" \
@@ -183,8 +211,10 @@ docker run --rm \
   /input/Summary.csv \
   /output/$RUN
 
+set_status "Labware import file created"
+
 ## Then move the results to the N: drive
-echo "Moving results to the N: drive"
+set_status "Moving results to the N: drive"
 mkdir $HOME/out_hcv
 cp -r $RUN/ out_hcv/
 
@@ -195,8 +225,14 @@ lcd $HOME/out_hcv/
 mput *
 EOF
 
+set_status "Results copied to N: drive"
+
 ## Clean up
 rm -rf $HOME/out_hcv
 rm -rf $RUN
 rm -rf $TMP_DIR
 nextflow clean -f
+
+set_status "Cleanup complete"
+
+# End of script
