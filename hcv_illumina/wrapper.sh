@@ -7,38 +7,49 @@ set -euo pipefail
 # Send all stdout/stderr to the main wrapper log (and to the console when not detached)
 exec > >(tee -a /home/ngs/hcv_illumina_wrapper.log) 2>&1
 
-# Send all stdout/stderr to the main wrapper log (and to the console when not detached)
+# Error/history log file
 LOGFILE="/home/ngs/hcv_illumina_wrapper_error.log"
 
-# Small helper to write status; STATUS_FILE is set after args are parsed.
-# Writes to LOGFILE (append), wrapper log (append) and updates STATUS_FILE atomically
+# Provide a conservative default STATUS_FILE early so very early failures still write somewhere.
+# This will be overwritten with the run-specific file after argument parsing.
+STATUS_FILE="$HOME/hcv_illumina_unknown_status.txt"
+printf '[%s] Initialized (unknown run)\n' "$(date +'%Y-%m-%d %H:%M:%S')" > "$STATUS_FILE"
+
+# Small helper to write status; STATUS_FILE will be updated after args are parsed.
+# Writes to LOGFILE (append), wrapper log (append) and updates STATUS_FILE atomically.
 set_status() {
     msg="[$(date +'%Y-%m-%d %H:%M:%S')] $1"
     # history
     echo "$msg" >> "$LOGFILE"
-    # main log as well
+    # also write to the main wrapper log for completeness
     echo "$msg" >> /home/ngs/hcv_illumina_wrapper.log
     # atomic write of the single-line status file if it's defined
     if [ -n "${STATUS_FILE:-}" ]; then
         tmp="${STATUS_FILE}.tmp"
-        printf '%s\n' "$msg" > "$tmp" && mv "$tmp" "$STATUS_FILE"
+        if printf '%s\n' "$msg" > "$tmp"; then
+            mv "$tmp" "$STATUS_FILE" || echo "[$(date)] Failed to mv $tmp to $STATUS_FILE" >> "$LOGFILE"
+        else
+            echo "[$(date)] Failed to write status to $tmp" >> "$LOGFILE"
+        fi
     fi
 }
 
 # Trap for detailed error info: line number and command
-trap 'echo "[$(date)] Error at line $LINENO: \"$BASH_COMMAND\" exited with status $?" >> "$LOGFILE"' ERR
+trap 'set_status "Error at line $LINENO: \"$BASH_COMMAND\" exited with status $?"' ERR
+
+# Trap for termination signals so we update the status file on graceful termination
+trap 'set_status "Received SIGTERM - terminating"; exit 143' SIGTERM
+trap 'set_status "Received SIGHUP - terminating"; exit 129' SIGHUP
 
 # Trap for any script exits (success or failure)
 trap 'ec=$?;
   if [ $ec -ne 0 ]; then
-    msg="[$(date)] Script exited with error code $ec"
-    echo "$msg" >> "$LOGFILE"
-    echo "$msg" >&2
+    set_status "Script exited with error code $ec"
+    echo "Script exited with error code $ec" >&2
     echo "Did you remember to change \"RUN_NAME\"?" >&2
   else
-    msg="[$(date)] Script completed successfully."
-    echo "$msg" >> "$LOGFILE"
-    echo "$msg"
+    set_status "Script completed successfully."
+    echo "Script completed successfully."
   fi' EXIT
 
 # Define the script name and usage
@@ -72,14 +83,12 @@ while getopts "hr:a:y:v:" opt; do
     esac
 done
 
-# Setup a simple per-run status file in $HOME so other terminals can poll it
+# Now that arguments are parsed, set a run-specific status file and initialize it.
 if [ -n "${RUN:-}" ]; then
     STATUS_FILE="$HOME/hcv_illumina_${RUN}_status.txt"
 else
     STATUS_FILE="$HOME/hcv_illumina_unknown_status.txt"
 fi
-
-# initialize status file and log initial status
 printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" > "$STATUS_FILE"
 set_status "Started wrapper. RUN=$RUN AGENS=$AGENS YEAR=$YEAR VERSION=$VERSION"
 
