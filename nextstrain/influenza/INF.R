@@ -60,7 +60,7 @@ fludb$prove_tatt <- parse_date_col(fludb$prove_tatt)
 # Proceed with data filtering and selection
 fludb <- fludb %>%
   filter(ngs_sekvens_resultat != "") %>%               # Remove empty results
-  filter(ngs_report == "" | is.na(ngs_report)) %>%     # Keep empty/NA reports
+  #filter(ngs_report == "" | is.na(ngs_report)) %>%     # Keep empty/NA reports
   filter(!(ngs_sekvens_resultat %in% c("NA", "N2", "N1")))  # Drop NA/N2/N1 “results”
 
 # Now select the required columns
