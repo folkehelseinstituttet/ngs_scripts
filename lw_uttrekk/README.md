@@ -78,6 +78,7 @@ Den har følgende kolonner:
 | X_SAMPLE_LOC_ID          |                       |
 | BIRTH_DATE               |   Fødselsdato                    |
 | GENDER                   |   Kjønn                    |
+|PATIENT| Info om prøve er fra samme pasient |
 
 
 # TESTS  
@@ -127,3 +128,13 @@ Den har følgende kolonner:
 |ON_WORKBOOK||
 |X_AGENS||
 |ALIAS||
+
+# Ordre-tabellen
+
+`tbl(con, "ORDERS_VIEW")`.
+
+| Kolonne           | Beskrivelse       |
+|--------------------------|-----------------------|
+|FOR_ENTITY| Info om prøve er fra samme pasient |
+|ORDER_NUM| Kobling til "SAMPLE_VIEW" for eksempel |
+
