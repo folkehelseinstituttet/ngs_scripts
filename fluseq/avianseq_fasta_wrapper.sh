@@ -137,6 +137,10 @@ EOF
 #FASTA CONTROL POINT
 cd $SAMPLEDIR
 
+#Removes duplicated seqeunces and renames headers for downstream analysis
+dedup_rename_fasta_avianseq.py *fasta
+cat *dedup*.fasta > $RUN.fasta
+
     
 # Create a samplesheet by running the supplied Rscript in a docker container.
 #ADD CODE FOR HANDLING OF SAMPLESHEET
@@ -158,7 +162,7 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   -profile docker,server \
   --file avian-fasta \
   --genotype_database "$GENOTYPE_DATABASE"
-  --fasta $FASTA
+  --fasta "$SAMPLEDIR/$RUN.fasta"
   --samplesDir "$SAMPLEDIR" \
   --outdir "$HOME/$RUN" \
   --ha_database "$HA_DATABASE" \
