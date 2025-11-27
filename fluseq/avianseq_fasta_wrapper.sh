@@ -89,7 +89,7 @@ fi
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
-    SMB_INPUT=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/12-Eport/${YEAR}/${RUN}
+    SMB_INPUT=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/12-Export/${YEAR}/${RUN}
 else 
 	echo "Error: Year cannot be larger than $current_year"
 	exit 1
@@ -112,13 +112,14 @@ EOF
 
 
 ## Set up databases
-SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
+SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "/fasta" -print -quit)
 SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
 FLU_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db
 HA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_HA.fasta
 NA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_NA.fasta
 MAMMALIAN_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Mammalian_Mutations_of_Intrest_2324.xlsx
 INHIBTION_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Inhibtion_Mutations_of_Intrest_2324.xlsx
+GENOTYPE_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/H5_genotype_database.fasta
 REASSORTMENT_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/reassortment_database.fasta
 SEQUENCE_REFERENCES=/mnt/tempdata/influensa_db/flu_seq_db/sequence_references
 NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
@@ -132,6 +133,10 @@ lcd $FLU_DATABASE
 mget *
 EOF
 
+
+#FASTA CONTROL POINT
+cd $SAMPLEDIR
+
     
 # Create a samplesheet by running the supplied Rscript in a docker container.
 #ADD CODE FOR HANDLING OF SAMPLESHEET
@@ -139,18 +144,21 @@ EOF
 ### Run the main pipeline ###
 
 # Activate the conda environment that holds Nextflow
+cd $HOME
 conda activate NEXTFLOW
 
 # Make sure the latest pipeline is available
 #nextflow pull folkehelseinstituttet/viralseq
 
 # Start the pipeline
-echo "Map to references and create consensus sequences"
+echo "Analysing consensus sequences"
 nextflow pull RasmusKoRiis/nf-core-fluseq
 nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   -r master \
   -profile docker,server \
-  --input "$SAMPLESHEET" \
+  --file avian-fasta \
+  --genotype_database "$GENOTYPE_DATABASE"
+  --fasta $FASTA
   --samplesDir "$SAMPLEDIR" \
   --outdir "$HOME/$RUN" \
   --ha_database "$HA_DATABASE" \
