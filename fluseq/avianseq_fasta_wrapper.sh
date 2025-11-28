@@ -124,6 +124,7 @@ REASSORTMENT_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/reassortment_databas
 SEQUENCE_REFERENCES=/mnt/tempdata/influensa_db/flu_seq_db/sequence_references
 NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
 MUTATION_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/Mutation_lists
+SAMPLESHEET=/mnt/tempdata/influensa_db/flu_seq_db/samplesheet.csv
 
 echo "Updateing mutation lists"
 smbclient $SMB_HOST -A $SMB_AUTH -D $MUTATION_LITS <<EOF
@@ -161,8 +162,9 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   -r master \
   -profile docker,server \
   --file avian-fasta \
-  --genotype_database "$GENOTYPE_DATABASE"
-  --fasta "$SAMPLEDIR/$RUN.fasta"
+  --input $SAMPLESHEET \
+  --genotype_database "$GENOTYPE_DATABASE" \
+  --fasta "$SAMPLEDIR/$RUN.fasta" \
   --samplesDir "$SAMPLEDIR" \
   --outdir "$HOME/$RUN" \
   --ha_database "$HA_DATABASE" \
