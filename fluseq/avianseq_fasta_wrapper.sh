@@ -113,7 +113,6 @@ EOF
 
 ## Set up databases
 SAMPLEDIR="$TMP_DIR/$RUN"
-SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
 FLU_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db
 HA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_HA.fasta
 NA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_NA.fasta
