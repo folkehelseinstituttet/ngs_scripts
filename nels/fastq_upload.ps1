@@ -47,18 +47,14 @@ param(
 # =============================================================================
 
 # Local base directory path (year and DirectoryName will be appended)
-$LocalBasePath = "N:\Virologi\NGS\3-Sekvenseringsbiblioteker"
-
-# Remote server configuration
-$RemoteHost = "nels.bioinfo.no"
-$RemoteBasePath = "/nels/uploads"
+$LocalBasePath = "N:\NGS\3-Sekvenseringsbiblioteker\$Year\Illumina_Run\"
 
 # =============================================================================
 # SCRIPT LOGIC
 # =============================================================================
 
 # Construct the full local directory path
-$LocalDirectory = Join-Path -Path $LocalBasePath -ChildPath "$Year\$DirectoryName"
+$LocalDirectory = Join-Path -Path $LocalBasePath -ChildPath "$DirectoryName"
 
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "FASTQ Upload Script for NELS" -ForegroundColor Cyan
@@ -121,13 +117,20 @@ Write-Host ""
 Write-Host "Starting upload..." -ForegroundColor Yellow
 Write-Host ""
 
-# Construct the remote destination
-$RemoteDestination = "${RemoteUser}@${RemoteHost}:${RemoteBasePath}/"
+
+# Construct the remote destination for NELS Personal area
+$RemoteDataHost = "data.nels.elixir.no"
+$RemoteLoginHost = "login.nels.elixir.no"
+$RemotePersonalPath = "Personal/"
+$ProxyCommand = "ssh -i $SshKeyFile -W %h:%p $RemoteUser@$RemoteLoginHost"
+$ScpBaseArgs = @("-i", $SshKeyFile, "-o", "ProxyCommand=$ProxyCommand")
+$RemoteDestination = "$RemoteUser@$RemoteDataHost:$RemotePersonalPath"
+
 
 # Upload metadata file first
 Write-Host "Uploading metadata file..." -ForegroundColor Cyan
-$scpArgs = @("-i", $SshKeyFile, $MetadataFile, $RemoteDestination)
-Write-Host "  scp -i $SshKeyFile $MetadataFile $RemoteDestination"
+$scpArgs = $ScpBaseArgs + @($MetadataFile, $RemoteDestination)
+Write-Host "  scp $($ScpBaseArgs -join ' ') $MetadataFile $RemoteDestination"
 
 try {
     & scp @scpArgs
@@ -147,8 +150,8 @@ $failCount = 0
 
 foreach ($file in $FastqFiles) {
     Write-Host "Uploading: $($file.Name)..." -ForegroundColor Cyan
-    $scpArgs = @("-i", $SshKeyFile, $file.FullName, $RemoteDestination)
-    
+    $scpArgs = $ScpBaseArgs + @($file.FullName, $RemoteDestination)
+    Write-Host "  scp $($ScpBaseArgs -join ' ') $($file.FullName) $RemoteDestination"
     try {
         & scp @scpArgs
         if ($LASTEXITCODE -eq 0) {
