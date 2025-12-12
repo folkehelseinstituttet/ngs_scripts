@@ -124,7 +124,7 @@ $RemoteLoginHost = "login.nels.elixir.no"
 $RemotePersonalPath = "Personal/"
 $ProxyCommand = "ssh -i $SshKeyFile -W %h:%p $RemoteUser@$RemoteLoginHost"
 $ScpBaseArgs = @("-i", $SshKeyFile, "-o", "ProxyCommand=$ProxyCommand")
-$RemoteDestination = "$RemoteUser@$RemoteDataHost:$RemotePersonalPath"
+$RemoteDestination = "$RemoteUser@$RemoteDataHost`:${RemotePersonalPath}"
 
 
 # Upload metadata file first
