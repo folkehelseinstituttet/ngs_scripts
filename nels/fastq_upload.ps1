@@ -118,13 +118,13 @@ Write-Host "Starting upload..." -ForegroundColor Yellow
 Write-Host ""
 
 
-# Construct the remote destination for NELS Personal area
+# Construct the remote destination for NELS project area
 $RemoteDataHost = "data.nels.elixir.no"
 $RemoteLoginHost = "login.nels.elixir.no"
-$RemotePersonalPath = "Personal/"
+$RemoteProjectPath = "Projects/FHI_Caugant_Pathogens_ENA_testsubmission_2020/Nye_Til_ENA/"
 $ProxyCommand = "ssh -i $SshKeyFile -W %h:%p $RemoteUser@$RemoteLoginHost"
 $ScpBaseArgs = @("-i", $SshKeyFile, "-o", "ProxyCommand=$ProxyCommand")
-$RemoteDestination = "$RemoteUser@$RemoteDataHost`:${RemotePersonalPath}"
+$RemoteDestination = "$RemoteUser@$RemoteDataHost`:${RemoteProjectPath}"
 
 
 # Upload metadata file first
