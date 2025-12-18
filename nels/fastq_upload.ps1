@@ -102,7 +102,6 @@ Write-Host "Configuration:" -ForegroundColor Yellow
 Write-Host "  SSH Key:          $SshKeyFile"
 Write-Host "  Local Directory:  $LocalDirectory"
 Write-Host "  Metadata File:    $MetadataFile"
-Write-Host "  Remote Target:    ${RemoteUser}@${RemoteDataHost}:${RemoteProjectPath}"
 Write-Host ""
 
 
@@ -143,6 +142,7 @@ $RemoteProjectPath = "Projects/FHI_Caugant_Pathogens_ENA_testsubmission_2020/Nye
 $ProxyCommand = "ssh -i $SshKeyFile -W %h:%p $RemoteUser@$RemoteLoginHost"
 $ScpBaseArgs = @("-i", $SshKeyFile, "-o", "ProxyCommand=$ProxyCommand")
 $RemoteDestination = "$RemoteUser@$RemoteDataHost`:${RemoteProjectPath}"
+Write-Host "  Remote Target:    $RemoteDestination"
 
 
 
