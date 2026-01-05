@@ -14,12 +14,17 @@ description: "config/description.md"
 strain_id_field: "accession"
 display_strain_field: "strain"
 
+inputs:
+  - name: data
+    metadata: data/{a_or_b}/metadata.tsv.gz
+    sequences: data/{a_or_b}/sequences.fasta.xz
+
 subtypes: ['a','b']
 
 filter:
   # Grouping by year and country ensures representative sampling for non-Norwegian sequences
   group_by: "year country"
-  
+
   # Minimum coverage thresholds
   min_coverage:
     genome: 0.3
@@ -36,10 +41,10 @@ filter:
   resolutions:
     all-time:
       min_date: 1900
-      max_date: 2100  
+      max_date: 2100
     6y:
       min_date: 2018
-      max_date: 2025  
+      max_date: 2025
       background_min_date: 100Y
     3y:
       min_date: 2022
