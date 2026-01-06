@@ -29,8 +29,8 @@ cat ~/mpx_${RUN}_status.txt
 ```
 View logs
 ```
-tail -f /home/ngs/mpx_wrapper.log
-tail -f /home/ngs/mpx_wrapper_error.log
+tail -f ~/mpx_wrapper.log
+tail -f ~/mpx_wrapper_error.log
 ```
 
 ## Samplesheet information
