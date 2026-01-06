@@ -307,7 +307,7 @@ nextflow pull alexanderhes/Mpx_artic_test -r $VERSION || {
 }
 
 # 3. Run it directly from the GitHub handle
-nextflow run alexanderhes/Mpx_artic_test -r $VERSION \
+nextflow run alexanderhes/Mpx_artic -r $VERSION \
     --input_dir "$FINAL_SAMPLESHEET" || {
     set_status "Error: Nextflow pipeline execution failed"
     exit 1
