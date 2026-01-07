@@ -21,6 +21,7 @@ usage() {
     echo "  -s, --season      Specify the season directory of the fastq files on the N-drive (e.g., Ses2425)"
     echo "  -y, --year        Specify the year directory of the fastq files on the N-drive"
     echo "  -v, --validation  Specify validation flag (e.g., VER)"
+	echo "  -b, --source      Specify source (e.g., bn)"
     exit 1
 }
 
@@ -30,8 +31,9 @@ AGENS=""
 SEASON=""
 YEAR=""
 VALIDATION_FLAG=""
+SOURCE=""
 
-while getopts "hr:a:s:y:v:" opt; do
+while getopts "hr:a:s:y:v:b:" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
@@ -39,6 +41,7 @@ while getopts "hr:a:s:y:v:" opt; do
         s) SEASON="$OPTARG" ;;
         y) YEAR="$OPTARG" ;;
         v) VALIDATION_FLAG="$OPTARG" ;;
+        b) SOURCE="$OPTARG" ;;
         ?) usage ;;
     esac
 done
@@ -138,6 +141,12 @@ EOF
 cd $SAMPLEDIR
 
 #Removes duplicated seqeunces and renames headers for downstream analysis
+if [[ "$SOURCE" == "bn" ]]; then
+  for f in *.fasta; do
+    tr -d '\r' < "$f" | perl -pe 's/^>([^|]+)\|(.*)$/>$2|$1/' > "$f.tmp" && mv "$f.tmp" "$f"
+  done
+fi
+
 python3 dedup_rename_fasta_avianseq.py *fasta
 cat *dedup*.fasta > $RUN.fasta
 
