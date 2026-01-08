@@ -64,7 +64,7 @@ SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
 # Set SMB_DIR based on department
 if [[ "$DEPARTMENT" == "v" ]]; then
-    SMB_DIR="Virologi/NGS/0-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run"
+    SMB_DIR="Virologi/NGS/0-Sekvenseringsbiblioteker/Illumina_Run"
 else
     SMB_DIR="NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run"
 fi
