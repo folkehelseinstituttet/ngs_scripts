@@ -13,24 +13,24 @@ usage() {
     echo "  -h, --help        Display this help message"
     echo "  -p, --platform    Can be either nextseq, miseq, or nextseq_virus"
     echo "  -r, --run         Specify the run name (e.g. NGS_SEQ-20240606-01)"
-    echo "  -a, --agens       Specify agens (only required for HCV and ROV)"
     echo "  -y, --year        Specify the year the sequencing was performed (e.g. 2024)"
+    echo "  -d, --department  Specify department: only use b (for bacteriology) or v (for virology)"
     exit 1
 }
 
 # Initialize variables
 PLATFORM=""
 RUN=""
-AGENS=""
+DEPARTMENT=""
 YEAR=""
 
-while getopts "hp:r:n:a:y:" opt; do
+while getopts "hp:r:n:y:d:" opt; do
     case "$opt" in
         h) usage ;;
         p) PLATFORM="$OPTARG" ;;
         r) RUN="$OPTARG" ;;
-        a) AGENS="$OPTARG" ;;
         y) YEAR="$OPTARG" ;;
+        d) DEPARTMENT="$OPTARG" ;;
         ?) usage ;;
     esac
 done
@@ -62,7 +62,12 @@ fi
 BASE_DIR=/mnt/tempdata/
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//Pos1-fhi-svm01/styrt
-SMB_DIR=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run
+# Set SMB_DIR based on department
+if [[ "$DEPARTMENT" == "v" ]]; then
+    SMB_DIR="Virologi/NGS/0-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run"
+else
+    SMB_DIR="NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run"
+fi
 
 # NOTE: use fastq_tmp as the working fastq directory name
 FASTQ_DIR_NAME="fastq_tmp"
