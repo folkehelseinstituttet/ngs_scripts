@@ -33,7 +33,15 @@ while getopts "hp:r:n:y:d:" opt; do
         d) DEPARTMENT="$OPTARG" ;;
         ?) usage ;;
     esac
+
 done
+
+# Check that DEPARTMENT is specified and valid
+if [[ "$DEPARTMENT" != "b" && "$DEPARTMENT" != "v" ]]; then
+    echo "Error: You must specify the department with -d b (bacteriology) or -d v (virology)."
+    usage
+    exit 1
+fi
 
 ## Check if necessary software and files are present
 
