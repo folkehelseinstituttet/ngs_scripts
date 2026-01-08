@@ -130,20 +130,12 @@ SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/${AGENS}/${YEAR}
 
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
-if [ "$YEAR" -eq "$current_year" ]; then
-    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/${YEAR}/Illumina_Run/$RUN"
-elif [ "$YEAR" -lt "$current_year" ]; then 
+if [ "$RUN" = "TEST" ] || [ "$RUN" = "FULL_TEST" ]; then
+    SMB_INPUT="Virologi/NGS/0-Sekvenseringsbiblioteker/TEST/HCV/$RUN"
+elif [ "$YEAR" -gt 2025 ]; then
+    SMB_INPUT="Virologi/NGS/0-Sekvenseringsbiblioteker/Illumina_Run/$RUN"
+else
     SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/Arkiv/${YEAR}/Illumina_Run/$RUN"
-else 
-    echo "Error: Year cannot be larger than $current_year"
-    exit 1
-fi
-
-# If we run on the TEST or FULL_TEST data
-if [ "$RUN" = "TEST" ]; then
-    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/TEST/HCV/$RUN"
-elif [ "$RUN" = "FULL_TEST" ]; then 
-    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/TEST/HCV/$RUN"
 fi
 
 # Create directory to hold the output of the analysis
