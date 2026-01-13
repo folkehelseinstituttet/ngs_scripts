@@ -47,7 +47,7 @@ param(
 # =============================================================================
 
 # Local base directory path for FASTQ files (Year and Run will be appended)
-$LocalBasePath = "N:\NGS\4-SekvenseringsResultater\$Year-Resultater\$Run\fastq\"
+$LocalBasePath = "N:\NGS\4-SekvenseringsResultater\$Year-Resultater\$Run\TOPresults\fastq\"
 
 # Metadata directory and file pattern
 $MetadataDir = "N:\NGS\4-SekvenseringsResultater\ENA-metadata"
@@ -110,11 +110,11 @@ Write-Host "  Metadata File:    $MetadataFile"
 Write-Host ""
 
 
-# Find FASTQ files matching the pattern: contains "GA" OR "ME"
-Write-Host "Searching for FASTQ files with 'GA' or 'ME'..." -ForegroundColor Yellow
+# Find FASTQ files matching the pattern: -GA- or -ME-
+Write-Host "Searching for FASTQ files with '-GA-' or '-ME-'..." -ForegroundColor Yellow
 
 $FastqFiles = Get-ChildItem -Path $LocalDirectory -Filter "*.fastq.gz" -File | 
-    Where-Object { $_.Name -match "GA" -or $_.Name -match "ME" }
+    Where-Object { $_.Name -match "-GA-" -or $_.Name -match "-ME-" }
 
 if ($FastqFiles.Count -eq 0) {
     Write-Host "WARNING: No matching FASTQ files found in $LocalDirectory" -ForegroundColor Yellow
