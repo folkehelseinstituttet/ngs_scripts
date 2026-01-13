@@ -2,7 +2,7 @@
 # ENA Metadata Draft Generator
 #
 # This script scans a run's FASTQ directory for paired files ("GA" or "ME" and "R1"/"R2" or "1P"/"2P"),
-# and generates a draft ENA metadata Excel file with prefilled and placeholder fields.
+# and generates a draft ENA metadata Excel file with FHI_ID and file names.
 #
 # Usage (from command line):
 #   Rscript ENA_metadata_draft_generator.R <year> <run>
@@ -10,7 +10,7 @@
 #   Rscript ENA_metadata_draft_generator.R 2025 NGS_SEQ-20251205-01
 #
 # The output file will be written to:
-#   N:/NGS/4-SekvenseringsResultater/ENA-metadata/<run>_ENA_metadata.xlsx
+#   ~/Downloads/<run>_ENA_metadata.xlsx
 #
 # The script can also be run interactively by setting the 'year' and 'run' variables manually.
 ###########################################################################
@@ -28,7 +28,7 @@ if (length(args) >= 2) {
 
 # ---- PATHS ----
 fastq_dir <- file.path("N:/NGS/4-SekvenseringsResultater", paste0(year, "-Resultater"), run, "TOPresults", "fastq")
-output_xlsx <- file.path("N:/NGS/4-SekvenseringsResultater/ENA-metadata", paste0(run, "_ENA_metadata.xlsx"))
+output_xlsx <- file.path(Sys.getenv("USERPROFILE"), "Downloads", paste0(run, "_ENA_metadata.xlsx"))
 
 # ---- FIND FASTQ FILES ----
 fastq_files <- list.files(fastq_dir, pattern = "(GA|ME).*.fastq.gz$", full.names = FALSE)
@@ -37,45 +37,72 @@ if (length(fastq_files) == 0) {
   stop("No matching FASTQ files found.")
 }
 
+# ---- EXTRACT FHI_ID ----
+# FHI_ID pattern: (GA|ME)-<string>_merged  e.g. "GA-25GB003157" from "2653253-GA-25GB003157_merged_1P.fastq.gz"
+extract_fhi_id <- function(filename) {
+  match <- str_extract(filename, "(GA|ME)-[^_]+(?=_merged)")
+  return(match)
+}
 
 # ---- PAIR FILES ----
- # Support paired files with _R1, _R2, _1P, or _2P followed by _ or . or end of string
-base_names <- str_replace(fastq_files, "(_R1|_R2|_1P|_2P)(_|\\.|$).*", "")
+# Support paired files with _R1, _R2, _1P, or _2P followed by _ or . or end of string
 pair_df <- data.frame(
-  base = base_names,
   file = fastq_files,
+  fhi_id = sapply(fastq_files, extract_fhi_id, USE.NAMES = FALSE),
   is_fwd = grepl("(_R1|_1P)", fastq_files),
   is_rev = grepl("(_R2|_2P)", fastq_files),
   stringsAsFactors = FALSE
 )
 
-# Only keep base names that have both a forward and reverse file
-paired_basenames <- intersect(pair_df$base[pair_df$is_fwd], pair_df$base[pair_df$is_rev])
+# Check for files where FHI_ID could not be extracted
+missing_id <- pair_df$file[is.na(pair_df$fhi_id)]
+if (length(missing_id) > 0) {
+  warning("Could not extract FHI_ID from the following files:\n  ", paste(missing_id, collapse = "\n  "))
+}
 
-rows <- lapply(paired_basenames, function(b) {
-  fwd <- pair_df$file[pair_df$base == b & pair_df$is_fwd]
-  rev <- pair_df$file[pair_df$base == b & pair_df$is_rev]
+# Remove files with missing FHI_ID
+pair_df <- pair_df[!is.na(pair_df$fhi_id), ]
+
+# Only keep FHI_IDs that have both a forward and reverse file
+paired_ids <- intersect(pair_df$fhi_id[pair_df$is_fwd], pair_df$fhi_id[pair_df$is_rev])
+
+# Check for unpaired files
+unpaired_fwd <- setdiff(pair_df$fhi_id[pair_df$is_fwd], paired_ids)
+unpaired_rev <- setdiff(pair_df$fhi_id[pair_df$is_rev], paired_ids)
+if (length(unpaired_fwd) > 0) {
+  warning("Forward files without matching reverse:\n  ", paste(unpaired_fwd, collapse = "\n  "))
+}
+if (length(unpaired_rev) > 0) {
+  warning("Reverse files without matching forward:\n  ", paste(unpaired_rev, collapse = "\n  "))
+}
+
+if (length(paired_ids) == 0) {
+  stop("No valid paired FASTQ files found.")
+}
+
+rows <- lapply(paired_ids, function(id) {
+  fwd <- pair_df$file[pair_df$fhi_id == id & pair_df$is_fwd]
+  rev <- pair_df$file[pair_df$fhi_id == id & pair_df$is_rev]
+  fwd_id <- extract_fhi_id(fwd)
+  rev_id <- extract_fhi_id(rev)
+  
+  # Validate that FHI_ID matches between forward and reverse
+
+if (fwd_id != rev_id) {
+    warning("FHI_ID mismatch for pair: ", fwd, " (", fwd_id, ") vs ", rev, " (", rev_id, ")")
+  }
+  
   data.frame(
-    sample_alias = "FILL_IN",
-    study_accession = "FILL_IN",
-    instrument_model = "FILL_IN",
-    library_name = "FILL_IN",
-    library_source = "GENOMIC",
-    library_selection = "other",
-    library_strategy = "WGS",
-    library_layout = "paired",
+    FHI_ID = id,
     forward_file_name = fwd,
-    forward_file_md5 = "FILL_IN",
     reverse_file_name = rev,
-    reverse_file_md5 = "FILL_IN",
-    library_construction_protocol = "FILL_IN",
-    design_description = "FILL_IN",
-    insert_size = "FILL_IN",
     stringsAsFactors = FALSE
   )
 })
 
 metadata_df <- do.call(rbind, rows)
+
+cat("Found", nrow(metadata_df), "valid paired samples.\n")
 
 # ---- WRITE XLSX ----
 write.xlsx(metadata_df, output_xlsx, rowNames = FALSE)
