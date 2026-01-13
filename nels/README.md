@@ -1,12 +1,45 @@
-# NELS helper scripts
+# Create metadata file for NELS upload
+
+Quick start (if you've done this before)
+--------------
+1. Navigate to `C:\Users\<username>` in PowerShell: 
+   ```powershell
+   cd $env:USERPROFILE
+   ```
+2. Create the info to be copied into the ENA template. Replace year and run as needed:
+   ```powershell
+   & 'C:\Program Files\R\R-4.5.2\bin\x64\Rscript.exe' -e "year <- 2025; run <- 'NGS_SEQ-20251205-01'; source('https://raw.githubusercontent.com/folkehelseinstituttet/ngs_scripts/main/nels/ENA_metadata_draft_generator.R')"
+   ```
+3. This will create an excel file in the `C:\Users\username>` folder named `TEMP_ENA_metadata.xlsx`. Open it in Excel, copy the columns into the ENA metadata template and save as a new file. 
+
+Setup (first time only)
+-----------------------
+1. Install R 4.5.2 or later from "Firmaportalen"
+
+   ![Screenshot of R installation in Firmaportalen](Screenshot%202026-01-13%20135809.png)
+
+2. Install required R packages (change R-4.5.2 if you installed another version):
+   ```powershell
+   & 'C:\Program Files\R\R-4.5.2\bin\x64\Rscript.exe' -e "install.packages(c('openxlsx','stringr'), repos='https://cloud.r-project.org')"
+   ```
+
+# Upload files to NELS
+
+1. Ensure you have downloaded your private SSH key file from NELS and saved it to `C:\Users\<username>`
+2. Then run the following code. Change `username.key` to your SSH key filename, and change year, run id and remote username as needed:
+
+```powershell
+$script = Join-Path $env:USERPROFILE 'fastq_upload.ps1'; Invoke-WebRequest 'https://raw.githubusercontent.com/folkehelseinstituttet/ngs_scripts/main/nels/fastq_upload.ps1' -OutFile $script; & $script -SshKeyFile "$env:USERPROFILE\username.key" -Year 2025 -Run 'NGS_SEQ-20251205-01' -RemoteUser 'username'
+```
+
+
+# Detailed overview
 
 This folder contains two helper scripts used to prepare and upload sequencing run data to NELS:
 
 - `ENA_metadata_draft_generator.R` — create a draft ENA metadata Excel file from FASTQ files
 - `fastq_upload.ps1` — upload the metadata file and FASTQ files to the NELS server via `scp` (using a jump host)
 
-Quick overview
---------------
 1. Generate a draft metadata file with the R script.
 2. Inspect / complete the generated XLSX file in Excel.
 3. Run the PowerShell upload script to send the metadata and FASTQ files to NELS.
