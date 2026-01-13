@@ -10,7 +10,7 @@
 #   Rscript ENA_metadata_draft_generator.R 2025 NGS_SEQ-20251205-01
 #
 # The output file will be written to:
-#   ~/Downloads/<run>_ENA_metadata.xlsx
+#   C:\Users\<username>\<run>_ENA_metadata.xlsx
 #
 # The script can also be run interactively by setting the 'year' and 'run' variables manually.
 ###########################################################################
@@ -28,10 +28,11 @@ if (length(args) >= 2) {
 
 # ---- PATHS ----
 fastq_dir <- file.path("N:/NGS/4-SekvenseringsResultater", paste0(year, "-Resultater"), run, "TOPresults", "fastq")
-output_xlsx <- file.path(Sys.getenv("USERPROFILE"), "Downloads", paste0(run, "_ENA_metadata.xlsx"))
+output_xlsx <- file.path(Sys.getenv("USERPROFILE"), paste0(run, "_ENA_metadata.xlsx"))
 
 # ---- FIND FASTQ FILES ----
-fastq_files <- list.files(fastq_dir, pattern = "(GA|ME).*.fastq.gz$", full.names = FALSE)
+# Only match files with -GA- or -ME- (not MK files that happen to contain ME in sample ID)
+fastq_files <- list.files(fastq_dir, pattern = "-(GA|ME)-.*\\.fastq\\.gz$", full.names = FALSE)
 
 if (length(fastq_files) == 0) {
   stop("No matching FASTQ files found.")
