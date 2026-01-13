@@ -28,7 +28,7 @@ if (length(args) >= 2) {
 
 # ---- PATHS ----
 fastq_dir <- file.path("N:/NGS/4-SekvenseringsResultater", paste0(year, "-Resultater"), run, "TOPresults", "fastq")
-output_xlsx <- file.path(Sys.getenv("USERPROFILE"), paste0(run, "_ENA_metadata.xlsx"))
+output_xlsx <- file.path(Sys.getenv("USERPROFILE"), paste0(run, "TEMP_ENA_metadata.xlsx"))
 
 # ---- FIND FASTQ FILES ----
 # Only match files with -GA- or -ME- (not MK files that happen to contain ME in sample ID)
