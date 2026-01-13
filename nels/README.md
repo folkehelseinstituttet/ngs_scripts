@@ -10,7 +10,8 @@ Quick start (if you've done this before)
    ```powershell
    & 'C:\Program Files\R\R-4.5.2\bin\x64\Rscript.exe' -e "year <- 2025; run <- 'NGS_SEQ-20251205-01'; source('https://raw.githubusercontent.com/folkehelseinstituttet/ngs_scripts/main/nels/ENA_metadata_draft_generator.R')"
    ```
-3. This will create an excel file in the `C:\Users\username>` folder named `TEMP_ENA_metadata.xlsx`. Open it in Excel, copy the columns into the ENA metadata template and save as a new file. 
+3. This will create an excel file in the `C:\Users\username>` folder named `TEMP_ENA_metadata.xlsx`. Open it in Excel, copy the columns into the ENA metadata template and save as a new file.   
+**NB!** The metadada file must start with the Run id, and must be stored in the `N:/NGS/4-SekvenseringsResultater/ENA-metadata/`.
 
 Setup (first time only)
 -----------------------
