@@ -21,6 +21,11 @@
 
 .EXAMPLE
     .\fastq_upload.ps1 -SshKeyFile "C:\keys\my_key" -Year 2025 -Run "NGS_SEQ-20251113-01" -RemoteUser "myuser"
+
+.NOTES
+    Related: Before running this script, generate metadata with ENA_metadata_draft_generator.R.
+    On Windows, if Rscript is not in PATH, call it by full path:
+        & 'C:\Program Files\R\R-4.5.2\bin\x64\Rscript.exe' nels/ENA_metadata_draft_generator.R 2025 NGS_SEQ-...
 #>
 
 param(
