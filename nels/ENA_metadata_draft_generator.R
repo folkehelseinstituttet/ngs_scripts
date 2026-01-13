@@ -27,7 +27,7 @@ if (length(args) >= 2) {
 }
 
 # ---- PATHS ----
-fastq_dir <- file.path("N:/NGS/4-SekvenseringsResultater", paste0(year, "-Resultater"), run, "fastq")
+fastq_dir <- file.path("N:/NGS/4-SekvenseringsResultater", paste0(year, "-Resultater"), run, "TOPresults", "fastq")
 output_xlsx <- file.path("N:/NGS/4-SekvenseringsResultater/ENA-metadata", paste0(run, "_ENA_metadata.xlsx"))
 
 # ---- FIND FASTQ FILES ----

@@ -47,7 +47,7 @@ Rscript nels/ENA_metadata_draft_generator.R 2025 NGS_SEQ-20251205-01
 The script will scan:
 
 ```
-N:/NGS/4-SekvenseringsResultater/<year>-Resultater/<run>/fastq/
+N:/NGS/4-SekvenseringsResultater/<year>-Resultater/<run>/TOPresults/fastq/
 ```
 
 and produce the draft Excel file at:
