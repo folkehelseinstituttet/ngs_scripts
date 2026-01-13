@@ -15,10 +15,18 @@ Requirements
 ------------
 - R (with `Rscript`) for `ENA_metadata_draft_generator.R`.
   - R packages: `openxlsx`, `stringr`.
+  - **Note:** On Windows, if Rscript is not in PATH, call it by full path:
+    ```
+    C:\Program Files\R\R-4.5.2\bin\x64\Rscript.exe
+    ```
   - Install packages (example):
 
 ```powershell
+# If Rscript is on PATH:
 Rscript -e "install.packages(c('openxlsx','stringr'), repos='https://cloud.r-project.org')"
+
+# If Rscript is NOT on PATH (use full path with &):
+& 'C:\Program Files\R\R-4.5.2\bin\x64\Rscript.exe' -e "install.packages(c('openxlsx','stringr'), repos='https://cloud.r-project.org')"
 ```
 
 - PowerShell (Windows) and a working `scp`/`ssh` command in PATH for `fastq_upload.ps1`.
@@ -29,7 +37,11 @@ How to create the draft metadata (R)
 Run the R script with `year` and `run` arguments. Example (from repo root):
 
 ```powershell
+# If Rscript is on PATH:
 Rscript nels/ENA_metadata_draft_generator.R 2025 NGS_SEQ-20251205-01
+
+# If Rscript is NOT on PATH (Windows, use & with full path):
+& 'C:\Program Files\R\R-4.5.2\bin\x64\Rscript.exe' nels/ENA_metadata_draft_generator.R 2025 NGS_SEQ-20251205-01
 ```
 
 The script will scan:
