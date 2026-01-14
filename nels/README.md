@@ -30,7 +30,7 @@ Setup (first time only)
 2. Then run the following code. Change `username.key` to your SSH key filename, and change year, run id and remote username as needed:
 
 ```powershell
-$script = Join-Path $env:USERPROFILE 'fastq_upload.ps1'; Invoke-WebRequest 'https://raw.githubusercontent.com/folkehelseinstituttet/ngs_scripts/main/nels/fastq_upload.ps1' -OutFile $script; & $script -SshKeyFile "$env:USERPROFILE\username.key" -Year 2025 -Run 'NGS_SEQ-20251205-01' -RemoteUser 'username'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command '$s = Join-Path $env:TEMP "fastq_upload.ps1"; Invoke-WebRequest "https://raw.githubusercontent.com/folkehelseinstituttet/ngs_scripts/main/nels/fastq_upload.ps1" -OutFile $s; & $s -SshKeyFile "$env:USERPROFILE\username.key" -Year 2026 -Run "NGS_SEQ-20260109-01_test" -RemoteUser "username"'
 ```
 
 
