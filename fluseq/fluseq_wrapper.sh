@@ -89,9 +89,9 @@ fi
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
-    SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Nanopore_Grid_Run/${RUN}
+    SMB_INPUT=NGS/Virologi/NGS/0-Sekvenseringsbiblioteker/Nanopore_Grid_Run
 elif [ "$YEAR" -lt "$current_year" ]; then 
-	SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/Arkiv/${YEAR}/Nanopore_Grid_Run/${RUN}
+	SMB_INPUT=NGS/Virologi/NGS/0-Sekvenseringsbiblioteker/Nanopore_Grid_Run
 else 
 	echo "Error: Year cannot be larger than $current_year"
 	exit 1
