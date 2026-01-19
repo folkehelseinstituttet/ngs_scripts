@@ -2,14 +2,25 @@ library(odbc)
 library(tidyverse)
 library(lubridate)
 
+# Script version 1.0
+
+outdir <- "//red.fhi.sec/fil/Styrt/iLabStatistikk"
+outfile <- file.path(outdir, paste0("HCV.csv"))
+
+# Define the semafor file
+readyfile <- sub("\\.csv$", ".ready", outfile)
+
+# Remove the semafor file if it exists
+if (file.exists(readyfile)) {
+	unlink(readyfile)
+}
+
 # Establish connection to Lab Ware ----------------------------------------
-# Variables stored in Renviron file
+
 con <- odbc::dbConnect(odbc::odbc(),
                        Driver = Sys.getenv("SQL_DRIVER"),
                        Server = Sys.getenv("SQL_SERVER"),
                        Database = Sys.getenv("SQL_DATABASE"))
-
-# HCV uttrekk til FHI Statistikk ------------------------------------------
 
 # Extract sequencing Results and limit to "HCV_GEN"
 # Could be further filtered. 
@@ -32,6 +43,7 @@ analysis <- tbl(con, "TEST_VIEW") %>%
 
 # Close database connection
 odbc::dbDisconnect(con)
+
 
 # Filter the analysis to get HCV samples analysed with NGS
 analysis_filtered <- analysis %>% 
@@ -136,9 +148,13 @@ summary_df <- bind_rows(
 ) %>% 
   select(YEAR, GENOTYPE, ANTALL, FLAGG) %>% 
   arrange(YEAR)
-
+  
+# Write the data file
 write_delim(summary_df,
-            paste0(format(Sys.Date(), "%Y-%m-%d"), "_HCV_FHI_statistikk.csv"),
+            outfile,
             delim = ";",
             quote = "all"
             )
+
+# Write the semafor file
+file.create(readyfile)
