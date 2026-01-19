@@ -4,7 +4,7 @@ library(lubridate)
 
 # Script version 1.2
 
-outdir <- "OUTDIR_FHISTATISTIKK"
+outdir <- "OUTDIR"
 outfile <- file.path(outdir, paste0("HCV_665.csv"))
 
 # Define the semafor file
