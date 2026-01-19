@@ -2,9 +2,9 @@ library(odbc)
 library(tidyverse)
 library(lubridate)
 
-# Script version 1.1
+# Script version 1.2
 
-outdir <- "//red.fhi.sec/fil/Styrt/iLabStatistikk"
+outdir <- "OUTDIR"
 outfile <- file.path(outdir, paste0("HCV_665.csv"))
 
 # Define the semafor file
