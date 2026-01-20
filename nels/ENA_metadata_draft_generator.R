@@ -27,7 +27,35 @@ if (length(args) >= 2) {
 }
 
 # ---- PATHS ----
-fastq_dir <- file.path("N:/NGS/4-SekvenseringsResultater", paste0(year, "-Resultater"), run, "TOPresults", "fastq")
+# Prefer TOPresults/fastq if present, otherwise fall back to run/fastq.
+fastq_dir_top <- file.path("N:/NGS/4-SekvenseringsResultater", paste0(year, "-Resultater"), run, "TOPresults", "fastq")
+fastq_dir_plain <- file.path("N:/NGS/4-SekvenseringsResultater", paste0(year, "-Resultater"), run, "fastq")
+
+if (dir.exists(fastq_dir_top)) {
+  fastq_dir <- fastq_dir_top
+} else if (dir.exists(fastq_dir_plain)) {
+  fastq_dir <- fastq_dir_plain
+} else {
+  # Try case-insensitive match for any directory named like 'topresults' under the run folder
+  run_dir <- file.path("N:/NGS/4-SekvenseringsResultater", paste0(year, "-Resultater"), run)
+  if (dir.exists(run_dir)) {
+    candidates <- list.dirs(run_dir, full.names = TRUE, recursive = FALSE)
+    tr_idx <- grep("topresults", basename(candidates), ignore.case = TRUE)
+    if (length(tr_idx) > 0) {
+      candidate_top <- file.path(candidates[tr_idx[1]], "fastq")
+      if (dir.exists(candidate_top)) {
+        fastq_dir <- candidate_top
+      } else {
+        stop("No TOPresults/fastq or run/fastq directory found under: ", run_dir)
+      }
+    } else {
+      stop("No TOPresults/fastq or run/fastq directory found under: ", run_dir)
+    }
+  } else {
+    stop("Run directory does not exist: ", run_dir)
+  }
+}
+
 output_xlsx <- file.path(Sys.getenv("USERPROFILE"), paste0(run, "TEMP_ENA_metadata.xlsx"))
 
 # ---- FIND FASTQ FILES ----
