@@ -46,8 +46,14 @@ param(
 # CONFIGURATION - Modify these paths as needed
 # =============================================================================
 
-# Local base directory path for FASTQ files (Year and Run will be appended)
-$LocalBasePath = "N:\NGS\4-SekvenseringsResultater\$Year-Resultater\$Run\TOPresults\fastq\"
+# Check the two expected locations for FASTQ files in order:
+# 1) TOPresults\fastq
+# 2) fastq
+$RunBase = "N:\NGS\4-SekvenseringsResultater\$Year-Resultater\$Run\"
+$CandidateDirs = @(
+    Join-Path $RunBase "TOPresults\fastq",
+    Join-Path $RunBase "fastq"
+)
 
 # Metadata directory and file pattern
 $MetadataDir = "N:\NGS\4-SekvenseringsResultater\ENA-metadata"
@@ -58,8 +64,20 @@ $MetadataPattern = "$Run*"
 # =============================================================================
 
 
-# Set FASTQ directory
-$LocalDirectory = $LocalBasePath
+# Find a suitable FASTQ directory that contains fastq.gz files
+$LocalDirectory = $null
+foreach ($d in $CandidateDirs) {
+    if (Test-Path $d) {
+        $files = Get-ChildItem -Path $d -Filter "*.fastq.gz" -File -ErrorAction SilentlyContinue
+        if ($files -and $files.Count -gt 0) {
+            $LocalDirectory = $d
+            break
+        }
+    }
+}
+
+# Fallback: preserve previous behaviour by using TOPresults\fastq path
+if (-not $LocalDirectory) { $LocalDirectory = Join-Path $RunBase "TOPresults\fastq" }
 
 # Find metadata file matching $Run*
 $MetadataFiles = Get-ChildItem -Path $MetadataDir -Filter "$MetadataPattern" -File
