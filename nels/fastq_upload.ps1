@@ -49,11 +49,12 @@ param(
 # Check the two expected locations for FASTQ files in order:
 # 1) TOPresults\fastq
 # 2) fastq
-$RunBase = "N:\NGS\4-SekvenseringsResultater\$($Year)-Resultater\$($Run)"
-$CandidateDirs = @(
-    Join-Path $RunBase "TOPresults\fastq",
-    Join-Path $RunBase "fastq"
-)
+# Build RunBase reliably and explicit candidate paths to avoid coercion to arrays
+$RunBase = -f "N:\NGS\4-SekvenseringsResultater\{0}-Resultater\{1}", $Year, $Run
+
+$pathTop = Join-Path -Path $RunBase -ChildPath "TOPresults\fastq"
+$pathFastq = Join-Path -Path $RunBase -ChildPath "fastq"
+$CandidateDirs = @($pathTop, $pathFastq)
 
 # Metadata directory and file pattern
 $MetadataDir = "N:\NGS\4-SekvenseringsResultater\ENA-metadata"
