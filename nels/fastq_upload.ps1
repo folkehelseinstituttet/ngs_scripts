@@ -40,6 +40,9 @@ param(
 
     [Parameter(Mandatory=$true, HelpMessage="Username for the remote server")]
     [string]$RemoteUser
+    ,
+    [Parameter(Mandatory=$false, HelpMessage="If set, do not perform SCP uploads; only list chosen files")]
+    [switch]$DryRun
 )
 
 # =============================================================================
@@ -186,22 +189,28 @@ Add-Content -Path $logFile -Value ("Uploading metadata file...")
 $scpArgs = $ScpBaseArgs + @($MetadataFile, $RemoteDestination)
 Write-Host "  scp $($ScpBaseArgs -join ' ') $MetadataFile $RemoteDestination"
 $metaStatus = ""
-try {
-    & scp @scpArgs
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Failed to upload metadata file" -ForegroundColor Red
+if ($DryRun) {
+    Write-Host "DRYRUN: Skipping metadata scp (would run scp with above args)" -ForegroundColor Yellow
+    $metaStatus = "DRYRUN"
+    Add-Content -Path $logFile -Value ("Metadata upload: DRYRUN")
+} else {
+    try {
+        & scp @scpArgs
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: Failed to upload metadata file" -ForegroundColor Red
+            $metaStatus = "FAIL"
+            Add-Content -Path $logFile -Value ("Metadata upload: FAIL (exit code: $LASTEXITCODE)")
+            exit 1
+        }
+        Write-Host "  Metadata file uploaded successfully" -ForegroundColor Green
+        $metaStatus = "SUCCESS"
+        Add-Content -Path $logFile -Value ("Metadata upload: SUCCESS")
+    } catch {
+        Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
         $metaStatus = "FAIL"
-        Add-Content -Path $logFile -Value ("Metadata upload: FAIL (exit code: $LASTEXITCODE)")
+        Add-Content -Path $logFile -Value ("Metadata upload: FAIL ($($_.Exception.Message))")
         exit 1
     }
-    Write-Host "  Metadata file uploaded successfully" -ForegroundColor Green
-    $metaStatus = "SUCCESS"
-    Add-Content -Path $logFile -Value ("Metadata upload: SUCCESS")
-} catch {
-    Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
-    $metaStatus = "FAIL"
-    Add-Content -Path $logFile -Value ("Metadata upload: FAIL ($($_.Exception.Message))")
-    exit 1
 }
 Add-Content -Path $logFile -Value ("")
 Add-Content -Path $logFile -Value ("FASTQ file uploads:")
@@ -216,15 +225,21 @@ foreach ($file in $FastqFiles) {
     Write-Host "  scp $($ScpBaseArgs -join ' ') $($file.FullName) $RemoteDestination"
     $status = ""
     try {
-        & scp @scpArgs
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "  Success" -ForegroundColor Green
+        if ($DryRun) {
+            Write-Host "  DRYRUN: would run scp for $($file.FullName) -> $RemoteDestination" -ForegroundColor Yellow
             $successCount++
-            $status = "SUCCESS"
+            $status = "DRYRUN"
         } else {
-            Write-Host "  Failed (exit code: $LASTEXITCODE)" -ForegroundColor Red
-            $failCount++
-            $status = "FAIL (exit code: $LASTEXITCODE)"
+            & scp @scpArgs
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "  Success" -ForegroundColor Green
+                $successCount++
+                $status = "SUCCESS"
+            } else {
+                Write-Host "  Failed (exit code: $LASTEXITCODE)" -ForegroundColor Red
+                $failCount++
+                $status = "FAIL (exit code: $LASTEXITCODE)"
+            }
         }
     } catch {
         Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
