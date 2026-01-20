@@ -49,7 +49,7 @@ param(
 # Check the two expected locations for FASTQ files in order:
 # 1) TOPresults\fastq
 # 2) fastq
-$RunBase = "N:\NGS\4-SekvenseringsResultater\$Year-Resultater\$Run\"
+$RunBase = "N:\NGS\4-SekvenseringsResultater\$($Year)-Resultater\$($Run)"
 $CandidateDirs = @(
     Join-Path $RunBase "TOPresults\fastq",
     Join-Path $RunBase "fastq"
