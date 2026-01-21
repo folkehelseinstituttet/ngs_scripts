@@ -13,7 +13,7 @@ LOGFILE="/home/ngs/hcv_illumina_wrapper_error.log"
 # Provide a conservative default STATUS_FILE early so very early failures still write somewhere.
 # This will be overwritten with the run-specific file after argument parsing.
 STATUS_FILE="$HOME/hcv_illumina_unknown_status.txt"
-printf '[%s] Initialized (unknown run)\n' "$(date +'%Y-%m-%d %H:%M:%S')" > "$STATUS_FILE"
+printf '[%s] Initialized (unknown run)\n' "$(date +'%Y-%m-%d %H:%M:%S')" >> "$STATUS_FILE"
 
 # Small helper to write status; STATUS_FILE will be updated after args are parsed.
 # Writes to LOGFILE (append), wrapper log (append) and updates STATUS_FILE atomically.
@@ -23,13 +23,10 @@ set_status() {
     echo "$msg" >> "$LOGFILE"
     # also write to the main wrapper log for completeness
     echo "$msg" >> /home/ngs/hcv_illumina_wrapper.log
-    # atomic write of the single-line status file if it's defined
+    # Append status line to STATUS_FILE if it's defined
     if [ -n "${STATUS_FILE:-}" ]; then
-        tmp="${STATUS_FILE}.tmp"
-        if printf '%s\n' "$msg" > "$tmp"; then
-            mv "$tmp" "$STATUS_FILE" || echo "[$(date)] Failed to mv $tmp to $STATUS_FILE" >> "$LOGFILE"
-        else
-            echo "[$(date)] Failed to write status to $tmp" >> "$LOGFILE"
+        if ! printf '%s\n' "$msg" >> "$STATUS_FILE"; then
+            echo "[$(date)] Failed to append status to $STATUS_FILE" >> "$LOGFILE"
         fi
     fi
 }
@@ -89,7 +86,7 @@ if [ -n "${RUN:-}" ]; then
 else
     STATUS_FILE="$HOME/hcv_illumina_unknown_status.txt"
 fi
-printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" > "$STATUS_FILE"
+printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" >> "$STATUS_FILE"
 set_status "Started wrapper. RUN=$RUN AGENS=$AGENS YEAR=$YEAR VERSION=$VERSION"
 
 
