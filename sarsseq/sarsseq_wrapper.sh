@@ -101,9 +101,9 @@ fi
 
 current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
-    SMB_INPUT=NGS/Virologi/NGS/0-Sekvenseringsbiblioteker/Nanopore_Grid_Run
+    SMB_INPUT=Virologi/NGS/0-Sekvenseringsbiblioteker/Nanopore_Grid_Run
 elif [ "$YEAR" -lt "$current_year" ]; then 
-	SMB_INPUT=NGS/Virologi/NGS/0-Sekvenseringsbiblioteker/Nanopore_Grid_Run
+	SMB_INPUT=Virologi/NGS/0-Sekvenseringsbiblioteker/Nanopore_Grid_Run
 else 
 	echo "Error: Year cannot be larger than $current_year"
 	exit 1
