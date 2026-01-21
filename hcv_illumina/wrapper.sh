@@ -208,7 +208,7 @@ mkdir $HOME/$RUN/labware_import
 docker run --rm \
   -v "$HOME/$RUN/summary:/input" \
   -v "$HOME/$RUN/labware_import:/output" \
-  ghcr.io/jonbra/hcv-labware-import:v1.0.2 \
+  ghcr.io/jonbra/hcv-labware-import:v1.0.3 \
   /input/Summary.csv \
   /output/$RUN
 
