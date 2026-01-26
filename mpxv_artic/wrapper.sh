@@ -113,14 +113,18 @@ SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/${AGENS}/${YEAR}
 SMB_SAMPLESHEET_REMOTE=/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/${AGENS}/${YEAR}/Samplesheets
 
 # Determine Input Directory based on Year/Test status
-current_year=$(date +"%Y")
 if [ "$RUN" = "TEST" ] || [ "$RUN" = "FULL_TEST" ]; then
     SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/TEST/MPX/$RUN/$RUN/"
-elif [ "$YEAR" -le "$current_year" ]; then
-    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/${YEAR}/Nanopore_Grid_Run/$RUN/$RUN"
+elif [ "$YEAR" -ge 2026 ]; then
+    # -----------------------------------------------------------------------
+    # PATH FOR 2026 AND NEWER
+    # -----------------------------------------------------------------------
+    SMB_INPUT="/Virologi/NGS/0-Sekvenseringsbiblioteker/Nanopore_Grid_Run/$RUN/$RUN"
 else 
-    echo "Error: Year cannot be larger than $current_year"
-    exit 1
+    # -----------------------------------------------------------------------
+    # LEGACY PATH FOR 2025 AND OLDER
+    # -----------------------------------------------------------------------
+    SMB_INPUT="NGS/3-Sekvenseringsbiblioteker/${YEAR}/Nanopore_Grid_Run/$RUN/$RUN"
 fi
 
 # Create directories
@@ -128,7 +132,18 @@ mkdir -p "$TMP_RES"
 mkdir -p "$TMP_DIR"
 mkdir -p "$TMP_SAMPLESHEET_DIR"
 
-# --- 3. DOWNLOAD DATA FROM SMB ---
+# --- 3. VERIFY REMOTE PATH & DOWNLOAD DATA ---
+
+echo "Verifying that remote path exists: $SMB_INPUT"
+
+# Check if the path exists by trying to list it (-c "ls"). 
+# If smbclient returns a non-zero exit code, the path is likely invalid.
+if ! smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_INPUT" -c "ls" >/dev/null 2>&1; then
+    set_status "Error: Remote path not found on N-drive: $SMB_INPUT"
+    echo "Error: The constructed path does not exist on the server."
+    echo "Path attempted: $SMB_INPUT"
+    exit 1
+fi
 
 # Debug: show the SMB_INPUT
 echo "Listing directories in: $SMB_INPUT"
