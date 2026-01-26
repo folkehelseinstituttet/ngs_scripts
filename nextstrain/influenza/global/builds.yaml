@@ -47,7 +47,7 @@ builds:
     enable_glycosylation: true
     subsamples:
       global:
-          filters: "--group-by region year month --subsample-max-sequences 3000   --exclude-where 'country!=Norway'"
+          filters: "--group-by region year month --subsample-max-sequences 100   --exclude-where 'country!=Norway'"
       norway:
           filters: "--group-by region year month --subsample-max-sequences 99999  --exclude-where 'country=Norway'"
 
@@ -63,7 +63,7 @@ builds:
     enable_glycosylation: true
     subsamples:
       global:
-          filters: "--group-by region year month --subsample-max-sequences 3000   --exclude-where 'country!=Norway'"
+          filters: "--group-by region year month --subsample-max-sequences 100   --exclude-where 'country!=Norway'"
       norway:
           filters: "--group-by region year month --subsample-max-sequences 99999  --exclude-where 'country=Norway'"
 
