@@ -22,7 +22,7 @@ WORK_DIR="${BASE_DIR}/avianflu_nextstrain"  # Holds raw input data
 OUT_DIR="${BASE_DIR}/avianflu_nextstrain_out/${DATE}" # Holds final Auspice JSONs
 
 # SMB share (adjust if moved)
-SMB_HOST="//Pos1-fhi-svm01/styrt"
+SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
 SMB_AUTH="$HOME/.smbcreds"                  # username/password file
 SMB_SOURCE="Virologi/NGS/tmp/avianflu_nextstrain"
 SMB_TARGET="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/11-Nextstrain/${DATE}_Nextstrain_Build"
