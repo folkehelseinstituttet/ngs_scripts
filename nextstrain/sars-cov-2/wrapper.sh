@@ -8,7 +8,7 @@ BASE_DIR=/mnt/tempdata/
 TMP_DIR=/mnt/tempdata/nextstrain
 OUT_DIR=/mnt/tempdata/out
 SMB_AUTH=/home/ngs/.smbcreds
-SMB_HOST=//Pos1-fhi-svm01/styrt
+SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
 SMB_DIR=Virologi/NGS/tmp/
 
 # Check if the ngs_scripts directory exists, if not clone it from GitHub
