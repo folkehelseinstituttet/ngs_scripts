@@ -74,7 +74,7 @@ export TOWER_WORKSPACE_ID=150755685543204
 BASE_DIR=/mnt/tempdata/
 TMP_DIR=/mnt/tempdata/fasta_fluseq
 SMB_AUTH=/home/ngs/.smbcreds
-SMB_HOST=//Pos1-fhi-svm01/styrt
+SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/fasta/results
 SMB_DIR_ANALYSIS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/fasta/results/report
 
