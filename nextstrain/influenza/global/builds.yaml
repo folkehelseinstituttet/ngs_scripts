@@ -1,5 +1,5 @@
 custom_rules:
-  - profiles/gisaid/prepare_data.smk
+  - profiles/niph/prepare_data.smk
 
 metadata_fields:
   - Isolate_Name
