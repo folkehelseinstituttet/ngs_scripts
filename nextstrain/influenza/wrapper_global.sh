@@ -86,6 +86,8 @@ sed 's/|.*//' raw_sequences_na_org.fasta > raw_sequences_na.fasta
 cp $HOME/ngs_scripts/nextstrain/influenza/global/builds.yaml $BASE_DIR/seasonal-flu/profiles/niph
 cp $HOME/ngs_scripts/nextstrain/influenza/global/config.yaml $BASE_DIR/seasonal-flu/profiles/niph
 cp $HOME/ngs_scripts/nextstrain/influenza/global/prepare_data.smk $BASE_DIR/seasonal-flu/profiles/niph
+cp $HOME/ngs_scripts/nextstrain/influenza/global/nextstrain.yaml $BASE_DIR/seasonal-flu/workflow/envs
+cp $HOME/ngs_scripts/nextstrain/influenza/global/xls2csv.py $BASE_DIR/seasonal-flu/scripts
 
 cp $BASE_DIR/flu_nextstrain/H1/metadata.xls $BASE_DIR/seasonal-flu/data/h1n1pdm
 cp $BASE_DIR/flu_nextstrain/H1/raw_sequences_ha.fasta $BASE_DIR/seasonal-flu/data/h1n1pdm
