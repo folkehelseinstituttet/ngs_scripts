@@ -109,7 +109,7 @@ python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
   --require-all
 
 rm data/h1n1pdm/metadata.xls
-mv data/h1n1pdm/metadata.c.xls data/h1n1pdm/metadata.xls
+mv data/h1n1pdm/metadata.c.xlsx data/h1n1pdm/metadata.xlsx
 
 python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
   --input data/h3n2/metadata.xls \
