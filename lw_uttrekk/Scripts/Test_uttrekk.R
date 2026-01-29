@@ -43,7 +43,7 @@ if (!dir.exists(outdir)) {
   )
 }
 
-outfile <- file.path(outdir, paste0("test-connection-", run_env, ".txt"))
+outfile <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/test-connection.txt"))
 
 ## ==================================================
 ## Database connection test
