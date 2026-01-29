@@ -121,7 +121,7 @@ python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
   --require-all
 
 rm data/h3n2/metadata.xls
-mv data/h3n2/metadata.c.xlsx data/h1n1pdm/metadata.xlsx
+mv data/h3n2/metadata.c.xlsx data/h3n2pdm/metadata.xlsx
 
 
 python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
@@ -132,7 +132,7 @@ python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
   --require-all
 
 rm data/vic/metadata.xls
-mv data/vic/metadata.c.xlsx data/h1n1pdm/metadata.xlsx
+mv data/vic/metadata.c.xlsx data/vic/metadata.xlsx
 
 conda deactivatev
 
