@@ -99,6 +99,41 @@ cp $BASE_DIR/flu_nextstrain/VIC/raw_sequences_na.fasta $BASE_DIR/seasonal-flu/da
 
 conda activate DATAVALIDATION_NEXTSTRAIN
 
+cd $BASE_DIR/seasonal-flu/
+
+python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
+  --input data/h1n1pdm/metadata.xls \
+  --output data/h1n1pdm/metadata.c.xlsx  \
+  --date-cols Collection_Date \
+  --strain-col Isolate_Name \
+  --require-all
+
+rm data/h1n1pdm/metadata.xls
+mv data/h1n1pdm/metadata.c.xls data/h1n1pdm/metadata.xls
+
+python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
+  --input data/h3n2/metadata.xls \
+  --output data/h3n2/metadata.c.xlsx \
+  --date-cols Collection_Date \
+  --strain-col Isolate_Name \
+  --require-all
+
+rm data/h3n2/metadata.xls
+mv data/h3n2/metadata.c.xls data/h1n1pdm/metadata.xls
+
+
+python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
+  --input data/vic/metadata.xls \
+  --output data/vic/metadata.c.xlsx  \
+  --date-cols Collection_Date \
+  --strain-col Isolate_Name \
+  --require-all
+
+rm data/vic/metadata.xls
+mv data/vic/metadata.c.xls data/h1n1pdm/metadata.xls
+
+
+
 conda deactiavte
 
 
