@@ -121,7 +121,7 @@ python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
   --require-all
 
 rm data/h3n2/metadata.xls
-mv data/h3n2/metadata.c.xlsx data/h3n2pdm/metadata.xlsx
+mv data/h3n2/metadata.c.xlsx data/h3n2/metadata.xlsx
 
 
 python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
