@@ -4,7 +4,7 @@ rule prepare_metadata:
     input:
         metadata="data/{lineage}/metadata.xlsx",
     output:
-        metadata="data/{lineage}/metadata.tsv",
+        metadata="data/{lineage}/metadata_raw.tsv",
     params:
         old_fields=",".join(config["metadata_fields"]),
         new_fields=",".join(config["renamed_metadata_fields"]),
@@ -41,7 +41,7 @@ rule prepare_sequences:
 rule parse_niph:
     input:
         sequences="data/{lineage}/{segment}.fasta",
-        metadata="data/{lineage}/metadata.tsv",
+        metadata="data/{lineage}/metadata_raw.tsv",
     output:
         metadata="data/{lineage}/metadata_{segment}.tsv",
     conda: "../../workflow/envs/nextstrain.yaml"
