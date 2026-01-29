@@ -1,4 +1,4 @@
-ruleorder: prepare_sequences > parse
+ruleorder: prepare_sequences > parse_niph > parse
 
 rule prepare_metadata:
     input:
@@ -38,7 +38,7 @@ rule prepare_sequences:
             | seqkit rmdup -n > {output.sequences}
         """
 
-rule parse:
+rule parse_niph:
     input:
         sequences="data/{lineage}/{segment}.fasta",
         metadata="data/{lineage}/metadata.tsv",
