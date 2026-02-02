@@ -69,7 +69,7 @@ fi
 ## Set up environment
 BASE_DIR=/mnt/tempdata/
 SMB_AUTH=/home/ngs/.smbcreds
-SMB_HOST=//Pos1-fhi-svm01/styrt
+SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
 # Set SMB_DIR based on department
 if [[ "$DEPARTMENT" == "v" ]]; then
     SMB_DIR="Virologi/NGS/0-Sekvenseringsbiblioteker/Illumina_Run"
