@@ -112,21 +112,38 @@ EOF
 
 
 ## Set up databases
-SAMPLEDIR="$TMP_DIR/$RUN"
+SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
+SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
 FLU_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db
 HA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_HA.fasta
 NA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_NA.fasta
 MAMMALIAN_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Mammalian_Mutations_of_Intrest_2324.xlsx
 INHIBTION_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Inhibtion_Mutations_of_Intrest_2324.xlsx
-GENOTYPE_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/H5_genotype_database.fasta
 REASSORTMENT_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/reassortment_database.fasta
 SEQUENCE_REFERENCES=/mnt/tempdata/influensa_db/flu_seq_db/sequence_references
 NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
 MUTATION_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/Mutation_lists
-SAMPLESHEET=/mnt/tempdata/influensa_db/flu_seq_db/samplesheet.csv
+REASSORTMENT_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/reassortment_database.fasta
+GENOTYPE_H5_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/H5_genotype_database.fasta
 
 echo "Updateing mutation lists"
 smbclient $SMB_HOST -A $SMB_AUTH -D $MUTATION_LITS <<EOF
+prompt OFF
+recurse ON
+lcd $FLU_DATABASE
+mget *
+EOF
+
+echo "Updateing genotyping H5 lists"
+smbclient $SMB_HOST -A $SMB_AUTH -D $REASSORTMENT_LITS <<EOF
+prompt OFF
+recurse ON
+lcd $FLU_DATABASE
+mget *
+EOF
+
+echo "Updateing reassortment lists"
+smbclient $SMB_HOST -A $SMB_AUTH -D $GENOTYPE_H5_LITS <<EOF
 prompt OFF
 recurse ON
 lcd $FLU_DATABASE
