@@ -112,7 +112,7 @@ EOF
 
 
 ## Set up databases
-SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
+SAMPLEDIR=$TMP_DIR/$RUN
 SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
 FLU_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db
 HA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_HA.fasta
