@@ -114,8 +114,8 @@ mget $RUN
 EOF
 
 ## Set up databases
-SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
-SAMPLESHEET=/mnt/tempdata/fastq/${RUN}.csv
+SAMPLEDIR=$TMP_DIR/$RUN
+SAMPLESHEET=/mnt/tempdata/influensa_db/flu_seq_db/samplesheet.csv
 FLU_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db
 HA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_HA.fasta
 NA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_NA.fasta
