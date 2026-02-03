@@ -92,25 +92,25 @@ fi
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
-        SMB_INPUT=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/12-Export/${YEAR}/${RUN}
-else 
-	echo "Error: Year cannot be larger than $current_year"
-	exit 1
+    SMB_INPUT="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/12-Export/${YEAR}"
+else
+    echo "Error: Year cannot be larger than $current_year"
+    exit 1
 fi
 
-
 # Create directory to hold the output of the analysis
-mkdir -p $HOME/$RUN
-mkdir $TMP_DIR
+mkdir -p "$HOME/$RUN"
+mkdir -p "$TMP_DIR"
 
-### Prepare the run ###
+# Optional: avoid mixing old/new
+rm -rf "$TMP_DIR/$RUN"
 
-echo "Copying fastq files from the N drive"
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_INPUT <<EOF
+echo "Copying run folder from the N drive"
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_INPUT" <<EOF
 prompt OFF
 recurse ON
 lcd $TMP_DIR
-mget *
+mget $RUN
 EOF
 
 ## Set up databases
