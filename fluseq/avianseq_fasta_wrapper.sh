@@ -136,20 +136,18 @@ lcd $FLU_DATABASE
 mget *
 EOF
 
-echo "Updateing genotyping H5 lists"
-smbclient $SMB_HOST -A $SMB_AUTH -D $REASSORTMENT_LITS <<EOF
+echo "Updating reassortment database"
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$(dirname "$REASSORTMENT_LITS")" <<EOF
 prompt OFF
-recurse ON
-lcd $FLU_DATABASE
-mget *
+lcd "$FLU_DATABASE"
+mget "$(basename "$REASSORTMENT_LITS")"
 EOF
 
-echo "Updateing reassortment lists"
-smbclient $SMB_HOST -A $SMB_AUTH -D $GENOTYPE_H5_LITS <<EOF
+echo "Updating H5 genotype database"
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$(dirname "$GENOTYPE_H5_LITS")" <<EOF
 prompt OFF
-recurse ON
-lcd $FLU_DATABASE
-mget *
+lcd "$FLU_DATABASE"
+mget "$(basename "$GENOTYPE_H5_LITS")"
 EOF
 
 
