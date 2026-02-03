@@ -155,7 +155,7 @@ EOF
 cd $SAMPLEDIR
 
 #Removes duplicated seqeunces and renames headers for downstream analysis
-python3 dedup_rename_fasta_avianseq.py *fasta
+python3 $HOME/ngs_scripts/fluseq/dedup_rename_fasta_avianseq.py *fasta
 cat *dedup*.fasta > $RUN.fasta
 
     
