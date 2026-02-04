@@ -16,6 +16,10 @@ INSILISCO_DIR="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/6-SA
 WORK_BASE="/mnt/tempdata/primercheck"
 mkdir -p "${WORK_BASE}"
 
+PIPELINE_DIR_DEFAULT="${HOME}/nf-core-sars"
+PIPELINE_DIR="${PIPELINE_DIR:-${PIPELINE_DIR_DEFAULT}}"
+PIPELINE_REPO_URL="${PIPELINE_REPO_URL:-https://github.com/RasmusKoRiis/nf-core-sars.git}"
+
 usage() {
     cat <<EOF
 Usage: ${SCRIPT_NAME} -f <fasta_filename> -b <bed_filename> [options]
@@ -30,6 +34,8 @@ Optional arguments:
   -o <dir>      Output directory (default: ./primercheck-results-<timestamp>)
   -p <profile>  Nextflow profile (default: docker)
   -r <runid>    Run identifier stored in the output CSV (default: derived from FASTA filename)
+  -W <dir>      Path to the nf-core-sars pipeline directory (default: ${PIPELINE_DIR})
+  -U <url>      Git repository URL for nf-core-sars (default: ${PIPELINE_REPO_URL})
   -h            Show this help message
 EOF
     exit 0
@@ -43,7 +49,7 @@ OUTDIR=""
 NF_PROFILE="docker"
 RUN_ID=""
 
-while getopts ":hf:b:P:n:o:p:r:" opt; do
+while getopts ":hf:b:P:n:o:p:r:W:U:" opt; do
     case "$opt" in
         h) usage ;;
         f) FASTA_NAME="$OPTARG" ;;
@@ -53,6 +59,8 @@ while getopts ":hf:b:P:n:o:p:r:" opt; do
         o) OUTDIR="$OPTARG" ;;
         p) NF_PROFILE="$OPTARG" ;;
         r) RUN_ID="$OPTARG" ;;
+        W) PIPELINE_DIR="$OPTARG" ;;
+        U) PIPELINE_REPO_URL="$OPTARG" ;;
         :) echo "Option -$OPTARG requires an argument."; usage ;;
         \?) echo "Unknown option -$OPTARG"; usage ;;
     esac
@@ -124,8 +132,29 @@ if [[ -z "${RUN_ID}" ]]; then
     RUN_ID="${FASTA_NAME%.*}"
 fi
 
-REPO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-pushd "${REPO_DIR}" >/dev/null
+ensure_pipeline_repo() {
+    local repo_dir="$1"
+    local repo_url="$2"
+    if [[ -d "${repo_dir}/.git" ]]; then
+        echo "Updating nf-core-sars in ${repo_dir}"
+        git -C "${repo_dir}" fetch --all --prune
+        git -C "${repo_dir}" pull --ff-only || {
+            echo "WARNING: git pull failed, continuing with existing checkout."
+        }
+    else
+        echo "Cloning nf-core-sars into ${repo_dir}"
+        mkdir -p "$(dirname "${repo_dir}")"
+        git clone "${repo_url}" "${repo_dir}"
+    fi
+    if [[ ! -f "${repo_dir}/main.nf" ]]; then
+        echo "ERROR: main.nf not found in ${repo_dir} after ensuring repository."
+        exit 3
+    fi
+}
+
+ensure_pipeline_repo "${PIPELINE_DIR}" "${PIPELINE_REPO_URL}"
+
+pushd "${PIPELINE_DIR}" >/dev/null
 
 nextflow run main.nf -profile "${NF_PROFILE}" \
     --file primercheck-workflow \
