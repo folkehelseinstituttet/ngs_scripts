@@ -76,7 +76,7 @@ fi
 ## Set up environment
 BASE_DIR=/mnt/tempdata/
 SMB_AUTH=/home/ngs/.smbcreds
-SMB_HOST=//Pos1-fhi-svm01/styrt
+SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
 # Set SMB_DIR based on department
 if [[ "$DEPARTMENT" == "v" ]]; then
     SMB_DIR="Virologi/NGS/0-Sekvenseringsbiblioteker/Illumina_Run"
@@ -130,7 +130,7 @@ fi
 mkdir -p "$BASE_DIR/${FASTQ_DIR_NAME}"
 
 # Then download the fastq files (use selected BaseSpace config)
-bs -c "$CONFIG" download project -i "${id}" --extension=fastq.gz -o "$BASE_DIR/${FASTQ_DIR_NAME}/${RUN}"
+bs download project -c "$CONFIG" -i "${id}" --extension=fastq.gz -o "$BASE_DIR/${FASTQ_DIR_NAME}/${RUN}"
 
 # Execute commands based on the platform specified
 if [[ $PLATFORM == "miseq" ]]; then
