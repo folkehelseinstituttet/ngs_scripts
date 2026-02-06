@@ -43,6 +43,14 @@ if [[ "$DEPARTMENT" != "b" && "$DEPARTMENT" != "v" ]]; then
     exit 1
 fi
 
+# Select BaseSpace config file based on department (b -> bakt.cfg, v -> virus.cfg)
+CONFIG=""
+if [[ "$DEPARTMENT" == "v" ]]; then
+    CONFIG="$HOME/.basespace/virus.cfg"
+else
+    CONFIG="$HOME/.basespace/bakt.cfg"
+fi
+
 ## Check if necessary software and files are present
 
 # The script requires BaseSpace CLI installed (https://developer.basespace.illumina.com/docs/content/documentation/cli/cli-overview)
@@ -53,11 +61,10 @@ then
     exit 1
 fi
 
-# There also has to be a BaseSpace credentials file: $HOME/.basespace/default.cfg
-# Check if the file exists
-if ! test -f ~/.basespace/default.cfg; then
-  echo "BaseSpace credentials file does not exist."
-  exit 1
+# Ensure selected BaseSpace credentials file exists
+if ! test -f "$CONFIG"; then
+    echo "BaseSpace credentials file $CONFIG does not exist."
+    exit 1
 fi
 
 # Check if credential file exists
@@ -83,7 +90,7 @@ FASTQ_DIR_NAME="fastq_tmp"
 echo "Getting the Run ID on the BaseSpace server"
 
 # Capture the full line(s) that match the run name
-matches=$(bs list projects | grep "${RUN}")
+matches=$(bs list projects -c "$CONFIG" | grep "${RUN}")
 
 # If no matches found
 if [[ -z "$matches" ]]; then
@@ -122,8 +129,8 @@ fi
 # Download to a sub-directory for easier copying to N: later
 mkdir -p "$BASE_DIR/${FASTQ_DIR_NAME}"
 
-# Then download the fastq files
-bs download project -i ${id} --extension=fastq.gz -o "$BASE_DIR/${FASTQ_DIR_NAME}/$RUN"
+# Then download the fastq files (use selected BaseSpace config)
+bs -c "$CONFIG" download project -i "${id}" --extension=fastq.gz -o "$BASE_DIR/${FASTQ_DIR_NAME}/${RUN}"
 
 # Execute commands based on the platform specified
 if [[ $PLATFORM == "miseq" ]]; then
