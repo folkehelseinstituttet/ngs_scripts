@@ -130,7 +130,7 @@ fi
 mkdir -p "$BASE_DIR/${FASTQ_DIR_NAME}"
 
 # Then download the fastq files (use selected BaseSpace config)
-bs -c "$CONFIG" download project -i "${id}" --extension=fastq.gz -o "$BASE_DIR/${FASTQ_DIR_NAME}/${RUN}"
+bs download project -c "$CONFIG" -i "${id}" --extension=fastq.gz -o "$BASE_DIR/${FASTQ_DIR_NAME}/${RUN}"
 
 # Execute commands based on the platform specified
 if [[ $PLATFORM == "miseq" ]]; then
