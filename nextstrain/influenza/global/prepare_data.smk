@@ -1,10 +1,10 @@
-ruleorder: prepare_sequences > parse
+ruleorder: prepare_sequences > parse_niph > parse
 
 rule prepare_metadata:
     input:
         metadata="data/{lineage}/metadata.xlsx",
     output:
-        metadata="data/{lineage}/metadata.tsv",
+        metadata="data/{lineage}/metadata_raw.tsv",
     params:
         old_fields=",".join(config["metadata_fields"]),
         new_fields=",".join(config["renamed_metadata_fields"]),
@@ -14,7 +14,7 @@ rule prepare_metadata:
         python3 scripts/xls2csv.py --xls {input.metadata} --output /dev/stdout \
             | csvtk cut -f {params.old_fields} \
             | csvtk rename -f {params.old_fields} -n {params.new_fields} \
-            | csvtk sep -f location --na "N/A" --names region,country,division,location --merge --num-cols 4 --sep " / " \
+            | csvtk sep -f full_location --na "N/A" --names region,country,division,location --merge --num-cols 4 --sep " / " \
             | csvtk replace -f strain -p " " -r "" \
             | csvtk grep -v -r -f strain -p "[\'\\\\]" \
             | csvtk sort -k strain,accession:r \
@@ -38,10 +38,10 @@ rule prepare_sequences:
             | seqkit rmdup -n > {output.sequences}
         """
 
-rule parse:
+rule parse_niph:
     input:
         sequences="data/{lineage}/{segment}.fasta",
-        metadata="data/{lineage}/metadata.tsv",
+        metadata="data/{lineage}/metadata_raw.tsv",
     output:
         metadata="data/{lineage}/metadata_{segment}.tsv",
     conda: "../../workflow/envs/nextstrain.yaml"

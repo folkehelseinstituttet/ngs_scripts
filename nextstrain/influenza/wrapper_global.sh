@@ -88,6 +88,7 @@ cp $HOME/ngs_scripts/nextstrain/influenza/global/config.yaml $BASE_DIR/seasonal-
 cp $HOME/ngs_scripts/nextstrain/influenza/global/prepare_data.smk $BASE_DIR/seasonal-flu/profiles/niph
 cp $HOME/ngs_scripts/nextstrain/influenza/global/nextstrain.yaml $BASE_DIR/seasonal-flu/workflow/envs
 cp $HOME/ngs_scripts/nextstrain/influenza/global/xls2csv.py $BASE_DIR/seasonal-flu/scripts
+cp $HOME/ngs_scripts/nextstrain/influenza/global/filter_metadata_by_ids.py $BASE_DIR/seasonal-flu/scripts
 
 cp $BASE_DIR/flu_nextstrain/H1/metadata.xls $BASE_DIR/seasonal-flu/data/h1n1pdm
 cp $BASE_DIR/flu_nextstrain/H1/raw_sequences_ha.fasta $BASE_DIR/seasonal-flu/data/h1n1pdm
@@ -121,7 +122,7 @@ python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
   --require-all
 
 rm data/h3n2/metadata.xls
-mv data/h3n2/metadata.c.xlsx data/h1n1pdm/metadata.xlsx
+mv data/h3n2/metadata.c.xlsx data/h3n2/metadata.xlsx
 
 
 python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
@@ -132,7 +133,7 @@ python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
   --require-all
 
 rm data/vic/metadata.xls
-mv data/vic/metadata.c.xlsx data/h1n1pdm/metadata.xlsx
+mv data/vic/metadata.c.xlsx data/vic/metadata.xlsx
 
 conda deactivatev
 
