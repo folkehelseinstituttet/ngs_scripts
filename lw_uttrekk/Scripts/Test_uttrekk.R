@@ -1,6 +1,6 @@
 library(odbc)
 
-# Version 1.1
+# Version 1.2
 
 ## ==================================================
 ## Validate required environment variables
@@ -43,7 +43,10 @@ if (!dir.exists(outdir)) {
   )
 }
 
-outfile <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/test-connection.txt"))
+outfile <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/test-LW-connection.txt"))
+
+# Create time stamp
+ts <- format(Sys.time(), "%Y%m%d-%H%M%S")
 
 ## ==================================================
 ## Database connection test
@@ -60,6 +63,7 @@ con <- tryCatch(
   error = function(e) {
     cat(
       "ERROR: Unable to connect to database.\n",
+      "Timestamp: ", ts, "\n",
       "Environment: ", run_env, "\n",
       "Message: ", e$message, "\n", 
       file = outfile
@@ -70,6 +74,7 @@ con <- tryCatch(
   
 cat(
   "Connection successful!\n", 
+  "Timestamp: ", ts, "\n",
   "Environment: ", run_env, "\n",
   file = outfile
 )

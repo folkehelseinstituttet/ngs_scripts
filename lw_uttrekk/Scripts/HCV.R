@@ -4,8 +4,49 @@ library(lubridate)
 
 # Script version 1.2
 
-outdir <- "OUTDIR_FHISTATISTIKK"
-outfile <- file.path(outdir, paste0("HCV_665.csv"))
+## ==================================================
+## Validate required environment variables
+## ==================================================
+
+required_vars <- c(
+  "OUTDIR",
+  "SQL_DRIVER",
+  "SQL_SERVER",
+  "SQL_DATABASE",
+  "RUN_ENV"
+)
+
+missing <- required_vars[Sys.getenv(required_vars) == ""]
+if (length(missing) > 0) {
+  stop(
+    "Missing required environment variables: ",
+    paste(missing, collapse = ", ")
+  )
+}
+
+## ==================================================
+## Resolve variables
+## ==================================================
+
+run_env   <- Sys.getenv("RUN_ENV")   # Test or Prod
+outdir    <- Sys.getenv("OUTDIR")
+sqldriver <- Sys.getenv("SQL_DRIVER")
+sqlserver <- Sys.getenv("SQL_SERVER")
+database  <- Sys.getenv("SQL_DATABASE")
+
+## ==================================================
+## Validate output directory
+## ==================================================
+
+if (!dir.exists(outdir)) {
+  stop(
+    "OUTDIR does not exist: ", outdir,
+    "\nEnvironment: ", run_env
+  )
+}
+
+# Name output file
+outfile <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/HCV_665.csv"))
 
 # Define the semafor file
 readyfile <- sub("\\.csv$", ".ready", outfile)
@@ -15,12 +56,28 @@ if (file.exists(readyfile)) {
 	unlink(readyfile)
 }
 
-# Establish connection to Lab Ware ----------------------------------------
+## ==================================================
+## Establish connection to Lab Ware 
+## ==================================================
 
-con <- odbc::dbConnect(odbc::odbc(),
-                       Driver = Sys.getenv("SQL_DRIVER"),
-                       Server = Sys.getenv("SQL_SERVER"),
-                       Database = Sys.getenv("SQL_DATABASE"))
+con <- tryCatch(
+  {
+    odbc::dbConnect(odbc::odbc(),
+                    Driver = sqldriver,
+                    Server = sqlserver,
+                    Database = database
+    )
+  },
+  error = function(e) {
+    cat(
+      "ERROR: Unable to connect to database.\n",
+      "Environment: ", run_env, "\n",
+      "Message: ", e$message, "\n", 
+      file = outfile
+    )
+    stop("Connection failed")
+  }
+)
 
 # Extract sequencing Results and limit to "HCV_GEN"
 # Could be further filtered. 
