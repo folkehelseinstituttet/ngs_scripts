@@ -2,19 +2,83 @@ library(odbc)
 library(tidyverse)
 library(lubridate)
 
-# Establish connection to Lab Ware ----------------------------------------
-# Variables stored in Renviron file
-con <- odbc::dbConnect(odbc::odbc(),
-                       Driver = Sys.getenv("SQL_DRIVER"),
-                       Server = Sys.getenv("SQL_SERVER"),
-                       Database = Sys.getenv("SQL_DATABASE"))
+# Version 1.1
 
-## Hente ut data fra databasen
+## ==================================================
+## Validate required environment variables
+## ==================================================
+
+required_vars <- c(
+  "OUTDIR",
+  "SQL_DRIVER",
+  "SQL_SERVER",
+  "SQL_DATABASE",
+  "RUN_ENV"
+)
+
+missing <- required_vars[Sys.getenv(required_vars) == ""]
+if (length(missing) > 0) {
+  stop(
+    "Missing required environment variables: ",
+    paste(missing, collapse = ", ")
+  )
+}
+
+## ==================================================
+## Resolve variables
+## ==================================================
+
+run_env   <- Sys.getenv("RUN_ENV")   # Test or Prod
+outdir    <- Sys.getenv("OUTDIR")
+sqldriver <- Sys.getenv("SQL_DRIVER")
+sqlserver <- Sys.getenv("SQL_SERVER")
+database  <- Sys.getenv("SQL_DATABASE")
+
+## ==================================================
+## Validate output directory
+## ==================================================
+
+if (!dir.exists(outdir)) {
+  stop(
+    "OUTDIR does not exist: ", outdir,
+    "\nEnvironment: ", run_env
+  )
+}
+
+# Name output file
+outfile <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_lw_uttrekk.tsv"))
+
+## ==================================================
+## Establish connection to Lab Ware 
+## ==================================================
+
+con <- tryCatch(
+  {
+    odbc::dbConnect(odbc::odbc(),
+                    Driver = sqldriver,
+                    Server = sqlserver,
+                    Database = database
+    )
+  },
+  error = function(e) {
+    cat(
+      "ERROR: Unable to connect to database.\n",
+      "Environment: ", run_env, "\n",
+      "Message: ", e$message, "\n", 
+      file = outfile
+    )
+    stop("Connection failed")
+  }
+)
+
+## ==================================================
+## Extract data from LabWare
+## ==================================================
+
+# Lage liste med relevante faggrupper til filtrering
+faggrupper <- c("HEP_HIV", "HPV", "INFLUENSA", "MMR", "POL_ENT", "ROTA", "VIRUS_CMN")
+
 # Hente ut metadata om alle prøver fra SAMPLE-tabellen
-
-# Lage list med relevante faggrupper til filtrering
-faggrupper <- c("GB", "ENTPATB", "IM", "MYC")
-
 samples <- tbl(con, "SAMPLE_VIEW") %>% 
   # Velge ut relevant kolonner først. Dette for å forenkle hva som skal hentes ut av driveren
   select(SAMPLE_NUMBER, TEXT_ID, GROUP_NAME, SAMPLED_DATE, RECD_DATE, X_MEDICAL_REVIEW, STATUS, X_AGENS) %>% 
@@ -33,7 +97,7 @@ test <- tbl(con, "TEST_VIEW") %>%
   collect()
 
 ngs_info <- test %>% 
-  # Behold baktprøver
+  # Behold virusprøver
   filter(SAMPLE_NUMBER %in% samples_sample_number) %>% 
   # Behold enten "NGS" eller "NGS_PREP"
   filter(ANALYSIS == "NGS" | ANALYSIS == "NGS_PREP") %>%
@@ -59,4 +123,7 @@ ngs_info <- test %>%
 final <- left_join(samples, ngs_info, by = c("SAMPLE_NUMBER" = "SAMPLE_NUMBER"))
 
 # Write final data file
-write_tsv(final, paste0(format(Sys.Date(), "%Y-%m-%d"), "_BAKT_POWERBI_lw_uttrekk.tsv"))
+write_tsv(final, outfile)
+
+# Close connection
+odbc::dbDisconnect(con)
