@@ -193,6 +193,9 @@ if [ ! -f "$RAW_SAMPLESHEET" ]; then
     exit 1
 fi
 
+# Remove BOM (Byte Order Mark) if present
+sed -i '1s/^\xEF\xBB\xBF//' "$RAW_SAMPLESHEET"
+
 awk -F';' -v OFS=';' -v base="$TMP_DIR" '
 # Helper function to remove spaces AND Windows carriage returns (\r)
 function trim(s) {
