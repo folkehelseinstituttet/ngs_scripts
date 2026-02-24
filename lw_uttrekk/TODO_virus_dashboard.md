@@ -4,4 +4,4 @@
 - Identifisere feil - mottaksdato før prøvetatt-dato osv. 
 - Prøver som er barn/barnebarn osv. Hvordan håndtere?
 - PATIENT_ID?
-- Prøver-tatt sekvenser - for få prøver? Noe feil?
+
