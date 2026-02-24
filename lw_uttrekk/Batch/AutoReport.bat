@@ -3,7 +3,7 @@ REM This batch file executes a series of R scripts that queries LabWare and writ
 setlocal EnableExtensions EnableDelayedExpansion
 
 REM File version. Use this to compare against the latest GitHub version.
-REM Version 1.0.0
+REM Version 1.0.1
 
 REM ==================================================
 REM Resolve Batch, Repo, and Environment directories
@@ -57,6 +57,7 @@ call :run Test_base.R
 call :run Test_uttrekk.R
 call :run HCV.R
 call :run GAS.R
+call :run virus_dashboard.R
 
 endlocal
 exit /b 0
