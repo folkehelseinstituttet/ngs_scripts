@@ -88,7 +88,8 @@ samples <- tbl(con, "SAMPLE_VIEW") %>%
   # Remove identical rows
   distinct() %>%
   # Add column indicating if sample is a child sample
-  mutate(child_sample = if_else(ORIGINAL_SAMPLE == SAMPLE_NUMBER, "YES", "NO"))
+  # Child sample have a different ORIGNIAL_SAMPLE than SAMPLE_NUMBER
+  mutate(child_sample = if_else(ORIGINAL_SAMPLE == SAMPLE_NUMBER, "NO", "YES"))
 
 # Trekke ut SAMPLE_NUMBER
 samples_sample_number <- samples %>% distinct(SAMPLE_NUMBER) %>% pull(SAMPLE_NUMBER)
