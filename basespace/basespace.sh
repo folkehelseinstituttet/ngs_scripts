@@ -46,9 +46,9 @@ fi
 # Select BaseSpace config file based on department (b -> bakt.cfg, v -> virus.cfg)
 CONFIG=""
 if [[ "$DEPARTMENT" == "v" ]]; then
-    CONFIG="$HOME/.basespace/virus.cfg"
+    CONFIG="virus"
 else
-    CONFIG="$HOME/.basespace/bakt.cfg"
+    CONFIG="bakt"
 fi
 
 ## Check if necessary software and files are present
@@ -62,8 +62,8 @@ then
 fi
 
 # Ensure selected BaseSpace credentials file exists
-if ! test -f "$CONFIG"; then
-    echo "BaseSpace credentials file $CONFIG does not exist."
+if ! test -f "$HOME/.basespace/${CONFIG}.cfg"; then
+    echo "BaseSpace credentials file $HOME/.basespace/${CONFIG}.cfg does not exist."
     exit 1
 fi
 

@@ -93,15 +93,15 @@ else
     SKIP_RESULTS_MOVE=false
 fi
 
-# Old data is moved to Arkiv
+# Input fastq dir on storage
 current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
-    SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Nanopore_Grid_Run/${RUN}
-elif [ "$YEAR" -lt "$current_year" ]; then 
-	SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/Arkiv/${YEAR}/Nanopore_Grid_Run/${RUN}
-else 
-	echo "Error: Year cannot be larger than $current_year"
-	exit 1
+    SMB_INPUT="Virologi/NGS/0-Sekvenseringsbiblioteker/Nanopore_Grid_Run/${RUN}"
+elif [ "$YEAR" -lt "$current_year" ]; then
+    SMB_INPUT="Virologi/NGS/0-Sekvenseringsbiblioteker/Nanopore_Grid_Run/${RUN}"
+else
+    echo "Error: Year cannot be larger than $current_year"
+    exit 1
 fi
 
 

@@ -89,41 +89,44 @@ fi
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
-    SMB_INPUT=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/12-Export/${YEAR}
-else 
-	echo "Error: Year cannot be larger than $current_year"
-	exit 1
+    SMB_INPUT="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/12-Export/${YEAR}"
+else
+    echo "Error: Year cannot be larger than $current_year"
+    exit 1
 fi
 
-
 # Create directory to hold the output of the analysis
-mkdir -p $HOME/$RUN
-mkdir $TMP_DIR
+mkdir -p "$HOME/$RUN"
+mkdir -p "$TMP_DIR"
 
-### Prepare the run ###
+# Optional: avoid mixing old/new
+rm -rf "$TMP_DIR/$RUN"
 
-echo "Copying fastq files from the N drive"
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_INPUT <<EOF
+echo "Copying run folder from the N drive"
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_INPUT" <<EOF
 prompt OFF
 recurse ON
 lcd $TMP_DIR
-mget *
+mget $RUN
 EOF
 
 
+
 ## Set up databases
-SAMPLEDIR="$TMP_DIR/$RUN"
+SAMPLEDIR=$TMP_DIR/$RUN
+SAMPLESHEET=/mnt/tempdata/influensa_db/flu_seq_db/samplesheet.csv
 FLU_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db
 HA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_HA.fasta
 NA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_NA.fasta
 MAMMALIAN_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Mammalian_Mutations_of_Intrest_2324.xlsx
 INHIBTION_MUTATION_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/Inhibtion_Mutations_of_Intrest_2324.xlsx
-GENOTYPE_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/H5_genotype_database.fasta
 REASSORTMENT_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/reassortment_database.fasta
+GENOTYPE_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/H5_genotype_database.fasta
 SEQUENCE_REFERENCES=/mnt/tempdata/influensa_db/flu_seq_db/sequence_references
 NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
 MUTATION_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/Mutation_lists
-SAMPLESHEET=/mnt/tempdata/influensa_db/flu_seq_db/samplesheet.csv
+REASSORTMENT_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/reassortment_database.fasta
+GENOTYPE_H5_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/H5_genotype_database.fasta
 
 echo "Updateing mutation lists"
 smbclient $SMB_HOST -A $SMB_AUTH -D $MUTATION_LITS <<EOF
@@ -133,12 +136,27 @@ lcd $FLU_DATABASE
 mget *
 EOF
 
+echo "Updating reassortment database"
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$(dirname "$REASSORTMENT_LITS")" <<EOF
+prompt OFF
+lcd "$FLU_DATABASE"
+mget "$(basename "$REASSORTMENT_LITS")"
+EOF
+
+echo "Updating H5 genotype database"
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$(dirname "$GENOTYPE_H5_LITS")" <<EOF
+prompt OFF
+lcd "$FLU_DATABASE"
+mget "$(basename "$GENOTYPE_H5_LITS")"
+EOF
+
+
 
 #FASTA CONTROL POINT
 cd $SAMPLEDIR
 
 #Removes duplicated seqeunces and renames headers for downstream analysis
-python3 dedup_rename_fasta_avianseq.py *fasta
+python3 $HOME/ngs_scripts/fluseq/dedup_rename_fasta_avianseq.py *fasta
 cat *dedup*.fasta > $RUN.fasta
 
     

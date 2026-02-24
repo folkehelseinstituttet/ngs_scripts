@@ -108,7 +108,7 @@ TMP_SAMPLESHEET_DIR=/mnt/tempdata/fastq_mpx/data/samplesheets/
 
 # SMB Credentials and remote Paths
 SMB_AUTH=/home/ngs/.smbcreds
-SMB_HOST=//Pos1-fhi-svm01/styrt
+SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/${AGENS}/${YEAR}
 SMB_SAMPLESHEET_REMOTE=/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/${AGENS}/${YEAR}/Samplesheets
 
@@ -192,6 +192,9 @@ if [ ! -f "$RAW_SAMPLESHEET" ]; then
     echo "Error: Downloaded samplesheet not found at $RAW_SAMPLESHEET"
     exit 1
 fi
+
+# Remove BOM (Byte Order Mark) if present
+sed -i '1s/^\xEF\xBB\xBF//' "$RAW_SAMPLESHEET"
 
 awk -F';' -v OFS=';' -v base="$TMP_DIR" '
 # Helper function to remove spaces AND Windows carriage returns (\r)
