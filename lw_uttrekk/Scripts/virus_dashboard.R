@@ -86,7 +86,9 @@ samples <- tbl(con, "SAMPLE_VIEW") %>%
   filter(GROUP_NAME %in% faggrupper) %>% 
   collect() %>% 
   # Remove identical rows
-  distinct()
+  distinct() %>%
+  # Add column indicating if sample is a child sample
+  mutate(child_sample = if_else(ORIGINAL_SAMPLE == SAMPLE_NUMBER, "YES", "NO"))
 
 # Trekke ut SAMPLE_NUMBER
 samples_sample_number <- samples %>% distinct(SAMPLE_NUMBER) %>% pull(SAMPLE_NUMBER)
