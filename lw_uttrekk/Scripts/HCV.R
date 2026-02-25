@@ -2,14 +2,14 @@ library(odbc)
 library(tidyverse)
 library(lubridate)
 
-# Script version 1.2
+# Script version 1.3
 
 ## ==================================================
 ## Validate required environment variables
 ## ==================================================
 
 required_vars <- c(
-  "OUTDIR",
+  "FHISTAT",
   "SQL_DRIVER",
   "SQL_SERVER",
   "SQL_DATABASE",
@@ -29,7 +29,7 @@ if (length(missing) > 0) {
 ## ==================================================
 
 run_env   <- Sys.getenv("RUN_ENV")   # Test or Prod
-outdir    <- Sys.getenv("OUTDIR")
+outdir    <- Sys.getenv("FHISTAT")   # Files go directly to FHI Statistikk
 sqldriver <- Sys.getenv("SQL_DRIVER")
 sqlserver <- Sys.getenv("SQL_SERVER")
 database  <- Sys.getenv("SQL_DATABASE")
@@ -46,7 +46,7 @@ if (!dir.exists(outdir)) {
 }
 
 # Name output file
-outfile <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/HCV_665.csv"))
+outfile <- file.path(outdir, paste0("/HCV_665.csv"))
 
 # Define the semafor file
 readyfile <- sub("\\.csv$", ".ready", outfile)
