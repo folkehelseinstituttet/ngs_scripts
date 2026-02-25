@@ -196,6 +196,7 @@ fi
 # Remove BOM (Byte Order Mark) if present
 sed -i '1s/^\xEF\xBB\xBF//' "$RAW_SAMPLESHEET"
 
+
 awk -F';' -v OFS=';' -v base="$TMP_DIR" '
 # Helper function to remove spaces AND Windows carriage returns (\r)
 function trim(s) {
@@ -315,11 +316,11 @@ set -u
 
 set_status "Activated NEXTFLOW conda environment"
 
-# 1. Set the version (usually 'main' during development)
-VERSION="main"
+# 1. Set the version (switch back to 'main' once development is complete and merged)
+VERSION="mpxv_artic_v2"
 
 # 2. Tell Nextflow to refresh the code from GitHub
-nextflow pull alexanderhes/Mpx_artic_test -r $VERSION || {
+nextflow pull alexanderhes/Mpx_artic -r $VERSION || {
     set_status "Error: Nextflow pull failed"
     exit 1
 }
