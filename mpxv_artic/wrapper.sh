@@ -317,7 +317,7 @@ set -u
 set_status "Activated NEXTFLOW conda environment"
 
 # 1. Set the version (switch back to 'main' once development is complete and merged)
-VERSION="mpxv_artic_v2"
+VERSION="main"
 
 # 2. Tell Nextflow to refresh the code from GitHub
 nextflow pull alexanderhes/Mpx_artic -r $VERSION || {
