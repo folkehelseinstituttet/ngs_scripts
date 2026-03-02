@@ -1,16 +1,18 @@
 # profiles/niph/prepare_data.smk
 
 ruleorder: prepare_sequences > parse
-# No metadata ruleorder needed once outputs are unique.
 
-# Produce the file that upstream expects *as input* to annotate_metadata_with_gihsn
-# (Upstream will then create metadata_with_gihsn.tsv, and later metadata.tsv)
+# Produce per-segment metadata tables expected by upstream join_metadata:
+#   data/{lineage}/metadata_ha.tsv
+#   data/{lineage}/metadata_na.tsv
+#
+# Upstream will then build:
+#   metadata_joined.tsv -> metadata_with_gihsn.tsv -> metadata.tsv
 rule prepare_metadata:
     input:
         metadata="data/{lineage}/metadata.xls",
     output:
-        # IMPORTANT: must be metadata_joined.tsv (NOT metadata_with_gihsn.tsv, NOT metadata.tsv)
-        metadata="data/{lineage}/metadata_joined.tsv",
+        metadata="data/{lineage}/metadata_{segment}.tsv",
     params:
         old_fields=",".join(config["metadata_fields"]),
         new_fields=",".join(config["renamed_metadata_fields"]),
