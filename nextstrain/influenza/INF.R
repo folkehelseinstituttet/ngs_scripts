@@ -41,6 +41,25 @@ parse_date_col <- function(x) {
   suppressWarnings(as.Date(x))
 }
 
+# Repair common UTF-8/latin1 mojibake from upstream DB (e.g. "MÃ¸re" -> "Møre")
+fix_mojibake_utf8 <- function(x) {
+  x <- as.character(x)
+  needs_fix <- !is.na(x) & grepl("Ã|Â|â", x, useBytes = TRUE)
+  out <- x
+  
+  out[needs_fix] <- vapply(x[needs_fix], function(s) {
+    codepoints <- utf8ToInt(s)
+    if (length(codepoints) == 0L || any(codepoints > 255L)) return(s)
+    
+    repaired <- tryCatch(rawToChar(as.raw(codepoints)), error = function(e) s)
+    validated <- iconv(repaired, from = "UTF-8", to = "UTF-8", sub = "")
+    
+    if (is.na(validated)) s else validated
+  }, FUN.VALUE = character(1))
+  
+  out
+}
+
 # ---------------- Metadata ------------------------------------------
 passage <- "Clinical Specimen"
 host <- "Human"
@@ -69,6 +88,9 @@ fludb <- fludb %>% select(
   "prove_tatt", "pasient_kjnn", "prove_innsender_id", "pasient_fylke_name",
   "prove_kategori"
 )
+
+# Normalize county names before they are used in Location/province fields
+fludb$pasient_fylke_name <- fix_mojibake_utf8(fludb$pasient_fylke_name)
 
 # Data cleaning and manipulation
 fludb <- fludb %>%
