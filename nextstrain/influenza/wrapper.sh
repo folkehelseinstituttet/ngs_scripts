@@ -62,6 +62,7 @@ EOF
 cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/builds.yaml"      "${SEASONAL_FLU_DIR}/profiles/niph/"
 cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/config.yaml"      "${SEASONAL_FLU_DIR}/profiles/niph/"
 cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/prepare_data.smk" "${SEASONAL_FLU_DIR}/profiles/niph/"
+cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/lat_longs.tsv" "${SEASONAL_FLU_DIR}/config/"
 
 # Ensure builds.yaml points to our local rule file (if it referenced profiles/gisaid before)
 if grep -q 'profiles/gisaid/prepare_data\.smk' "${SEASONAL_FLU_DIR}/profiles/niph/builds.yaml"; then
