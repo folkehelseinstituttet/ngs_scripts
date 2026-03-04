@@ -27,6 +27,25 @@ library(readxl)
 library(base64enc)
 library(purrr)
 
+# Repair common UTF-8/latin1 mojibake from upstream DB (e.g. "MÃ¸re" -> "Møre")
+fix_mojibake_utf8 <- function(x) {
+  x <- as.character(x)
+  needs_fix <- !is.na(x) & grepl("Ã|Â|â", x, useBytes = TRUE)
+  out <- x
+
+  out[needs_fix] <- vapply(x[needs_fix], function(s) {
+    codepoints <- utf8ToInt(s)
+    if (length(codepoints) == 0L || any(codepoints > 255L)) return(s)
+
+    repaired <- tryCatch(rawToChar(as.raw(codepoints)), error = function(e) s)
+    validated <- iconv(repaired, from = "UTF-8", to = "UTF-8", sub = "")
+
+    if (is.na(validated)) s else validated
+  }, FUN.VALUE = character(1))
+
+  out
+}
+
 
 # Define metadata
 passage <- "Clinical Specimen"
@@ -119,6 +138,9 @@ sarsdb <- sarsdb %>%
 # Now select the required columns
 sarsdb <- sarsdb %>% select("key","prove_tatt","pasient_fylke_name","pasient_kjnn","prove_material", "pasient_alder", "prove_kategori","pasient_fylke_nr","prove_innsender_id",  
                             "ngs_depth", "ngs_primer_vers", "nc_coverage", "Lab", "Lab_address")
+
+# Normalize county names before they are used in output fields
+sarsdb$pasient_fylke_name <- fix_mojibake_utf8(sarsdb$pasient_fylke_name)
 
 # Data cleaning and manipulation
 sarsdb <- sarsdb %>% 
