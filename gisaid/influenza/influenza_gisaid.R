@@ -4,7 +4,6 @@ args <- commandArgs(trailingOnly = TRUE)
 # Assign the arguments to variables
 SID <- args[1] #RunID from argument
 
-
 source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
 source("N:/Virologi/Influensa/RARI/2526/BN FLU 25-26.R")
 
@@ -23,6 +22,25 @@ library(openxlsx)
 library(readxl)
 library(base64enc)
 library(purrr)
+
+# Repair common UTF-8/latin1 mojibake from upstream DB (e.g. "MÃ¸re" -> "Møre")
+fix_mojibake_utf8 <- function(x) {
+  x <- as.character(x)
+  needs_fix <- !is.na(x) & grepl("Ã|Â|â", x, useBytes = TRUE)
+  out <- x
+  
+  out[needs_fix] <- vapply(x[needs_fix], function(s) {
+    codepoints <- utf8ToInt(s)
+    if (length(codepoints) == 0L || any(codepoints > 255L)) return(s)
+    
+    repaired <- tryCatch(rawToChar(as.raw(codepoints)), error = function(e) s)
+    validated <- iconv(repaired, from = "UTF-8", to = "UTF-8", sub = "")
+    
+    if (is.na(validated)) s else validated
+  }, FUN.VALUE = character(1))
+  
+  out
+}
 
 
 # Define metadata
@@ -56,6 +74,9 @@ fludb <- fludb %>%
 fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "pasient_kjnn", 
                           "prove_innsender_id", "pasient_fylke_name", "pasient_status", "prove_kategori", "prove_material", "ngs_reads_ha",
                           "ngs_reads_na", "ngs_reads_m", "ngs_reads_ns", "ngs_reads_np", "ngs_reads_pa", "ngs_reads_pb1", "ngs_reads_pb2", "ngs_qc_sum")
+
+# Normalize county names before they are used in output fields
+fludb$pasient_fylke_name <- fix_mojibake_utf8(fludb$pasient_fylke_name)
 
 # Data cleaning and manipulation
 fludb <- fludb %>% 
