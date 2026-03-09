@@ -61,6 +61,7 @@ usage() {
     echo "  -r, --run         Specify the run name (e.g. NGS_SEQ-20260210-01)"
     echo "  -a, --agens       Specify agens subfolder on the N-drive (e.g. UkjentVirus)"
     echo "  -y, --year        Specify the year (e.g. 2026)"
+    echo "      --resume      Resume a previous Nextflow run (passes -resume to nextflow)"
     exit 1
 }
 
@@ -68,6 +69,18 @@ usage() {
 RUN=""
 AGENS=""
 YEAR=""
+RESUME=false
+
+# Pre-scan for --resume (getopts only handles short options)
+filtered_args=()
+for arg in "$@"; do
+    if [[ "$arg" == "--resume" ]]; then
+        RESUME=true
+    else
+        filtered_args+=("$arg")
+    fi
+done
+set -- "${filtered_args[@]}"
 
 while getopts "hr:a:y:" opt; do
     case "$opt" in
@@ -91,7 +104,7 @@ else
     STATUS_FILE="$HOME/esv_unknown_status.txt"
 fi
 printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" > "$STATUS_FILE"
-set_status "Started wrapper. RUN=$RUN AGENS=$AGENS YEAR=$YEAR"
+set_status "Started wrapper. RUN=$RUN AGENS=$AGENS YEAR=$YEAR RESUME=$RESUME"
 
 # Set working directory
 cd $HOME
@@ -262,9 +275,13 @@ docker build -t esviritu_pipeline:latest "${PIPELINE_ASSETS}/docker/" || {
 set_status "Docker image built successfully"
 
 # 4. Run it directly from the GitHub handle
-# DB/index paths (host_index, esviritu_db) are resolved from the 'server'
+# DB/index paths (host_index, esviritu_db) are resolved from the server
 # profile in nextflow.config — no need to pass them as CLI flags.
+RESUME_FLAG=""
+$RESUME && RESUME_FLAG="-resume"
+
 nextflow run alexanderhes/Ukjent_virus -r $VERSION \
+    $RESUME_FLAG \
     -profile server \
     --validate \
     --samplesheet "$FINAL_SAMPLESHEET" \
