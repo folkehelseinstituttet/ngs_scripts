@@ -299,6 +299,13 @@ mkdir -p "$BASE_DIR/move_ESV"
 # Move content to staging folder
 mv "$TMP_RES/" "$BASE_DIR/move_ESV"
 
+# Create the remote destination directory before uploading
+smbclient "$SMB_HOST" -A "$SMB_AUTH" <<EOF
+prompt OFF
+cd ${SMB_DIR%/*}
+mkdir ${RUN}
+EOF
+
 smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" <<EOF
 prompt OFF
 recurse ON
