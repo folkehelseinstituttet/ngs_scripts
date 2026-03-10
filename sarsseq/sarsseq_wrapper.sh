@@ -189,6 +189,35 @@ append_dedup() {
     mv "$tmp" "$master"
 }
 
+# Resolve the first existing file from explicit candidates, then from glob patterns.
+resolve_first_file() {
+    local dir="$1"
+    shift
+    local candidates=("$@")
+    local c
+
+    for c in "${candidates[@]}"; do
+        if [ -f "$dir/$c" ]; then
+            echo "$dir/$c"
+            return 0
+        fi
+    done
+
+    # Pattern fallbacks (candidate values that include *)
+    for c in "${candidates[@]}"; do
+        if [[ "$c" == *"*"* ]]; then
+            local found
+            found="$(find "$dir" -maxdepth 1 -type f -name "$c" | sort | head -n 1 || true)"
+            if [ -n "$found" ]; then
+                echo "$found"
+                return 0
+            fi
+        fi
+    done
+
+    return 1
+}
+
 ################################################################################
 # DB locations
 ################################################################################
@@ -250,18 +279,47 @@ download_db "$AMPLICONDB" "$SARS_DATABASE"
 # ADD CODE FOR HANDLING OF SAMPLESHEET
 
 ################################################################################
-# Validate primer dir before pipeline run
+# Validate primer dir and resolve files before pipeline run
 ################################################################################
-if [ -n "${PRIMER}" ]; then
-    if [ ! -d "$SARS_DATABASE/$PRIMER" ]; then
-        echo "ERROR: Primer directory does not exist: $SARS_DATABASE/$PRIMER"
-        echo "Check the -p argument or make sure the primer directory is present."
-        exit 1
-    fi
-else
+if [ -z "${PRIMER}" ]; then
     echo "ERROR: -p <primer> is required for this pipeline."
     exit 1
 fi
+
+PRIMER_DIR="$SARS_DATABASE/$PRIMER"
+if [ ! -d "$PRIMER_DIR" ]; then
+    echo "ERROR: Primer directory does not exist: $PRIMER_DIR"
+    echo "Check the -p argument or make sure the primer directory is present."
+    exit 1
+fi
+
+# Prefer canonical names, then fallback globs.
+BED_LOCAL="$(resolve_first_file "$PRIMER_DIR" \
+    "SARS-CoV-2.scheme.bed" \
+    "ncov-2019_midnight.scheme.bed" \
+    "*.scheme.bed" \
+    "*.bed" || true)"
+
+REF_LOCAL="$(resolve_first_file "$PRIMER_DIR" \
+    "SARS-CoV-2.reference.fasta" \
+    "ncov-2019_midnight.reference.fasta" \
+    "*.reference.fasta" || true)"
+
+if [ -z "$BED_LOCAL" ] || [ ! -f "$BED_LOCAL" ]; then
+    echo "ERROR: Could not resolve primer BED file in $PRIMER_DIR"
+    echo "Expected one of: SARS-CoV-2.scheme.bed, *.scheme.bed, or *.bed"
+    exit 1
+fi
+
+if [ -z "$REF_LOCAL" ] || [ ! -f "$REF_LOCAL" ]; then
+    echo "ERROR: Could not resolve reference FASTA in $PRIMER_DIR"
+    echo "Expected one of: SARS-CoV-2.reference.fasta or *.reference.fasta"
+    exit 1
+fi
+
+echo "Using primer dir : $PRIMER_DIR"
+echo "Using primer bed : $BED_LOCAL"
+echo "Using reference  : $REF_LOCAL"
 
 ################################################################################
 # Run Nextflow pipeline
@@ -283,14 +341,15 @@ nextflow run RasmusKoRiis/nf-core-sars/main.nf \
     --input "$SAMPLESHEET" \
     --samplesDir "$SAMPLEDIR" \
     --outdir "$HOME/$RUN" \
-    --primerdir "$SARS_DATABASE/$PRIMER" \
-    --reference "$SARS_DATABASE/primer_schemes/ncov-2019_midnight/v3.0.0/ncov-2019_midnight.reference.fasta" \
-    --primer_bed "$SARS_DATABASE/primer_schemes/ncov-2019_midnight/v3.0.0/ncov-2019_midnight.scheme.bed" \
+    --primerdir "$PRIMER_DIR" \
+    --reference "$REF_LOCAL" \
+    --primer_bed "$BED_LOCAL" \
     --runid "$RUN" \
     --spike "$SARS_DATABASE/Spike_mAbs_inhibitors.csv" \
     --rdrp "$SARS_DATABASE/RdRP_inhibitors.csv" \
     --clpro "$SARS_DATABASE/3CLpro_inhibitors.csv" \
     --release_version "v1.0.0"
+
 
 ################################################################################
 # Move results locally into out_sarsseq
