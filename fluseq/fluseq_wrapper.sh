@@ -125,8 +125,8 @@ REASSORTMENT_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/reassortment_databas
 SEQUENCE_REFERENCES=/mnt/tempdata/influensa_db/flu_seq_db/sequence_references
 NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
 MUTATION_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/Mutation_lists
-REASSORTMENT_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/reassortment_database.fasta
-GENOTYPE_H5_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/H5_genotype_database.fasta
+REASSORTMENT_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/
+GENOTYPE_H5_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/
 
 echo "Updateing mutation lists"
 smbclient $SMB_HOST -A $SMB_AUTH -D $MUTATION_LITS <<EOF
@@ -141,7 +141,7 @@ smbclient $SMB_HOST -A $SMB_AUTH -D $REASSORTMENT_LITS <<EOF
 prompt OFF
 recurse ON
 lcd $FLU_DATABASE
-mget *
+mget reassortment_database.fasta
 EOF
 
 echo "Updateing reassortment lists"
@@ -149,7 +149,7 @@ smbclient $SMB_HOST -A $SMB_AUTH -D $GENOTYPE_H5_LITS <<EOF
 prompt OFF
 recurse ON
 lcd $FLU_DATABASE
-mget *
+mget H5_genotype_database.fasta
 EOF
 
     
