@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+ #!/usr/bin/env bash
   set -euo pipefail
 
   # Activate conda base hooks
@@ -113,12 +113,8 @@
 
   ### Prepare the run ###
   echo "Copying fastq files from the N drive"
-  smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_INPUT" <<EOF
-  prompt OFF
-  recurse ON
-  lcd $TMP_DIR
-  mget *
-  EOF
+  smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_INPUT" \
+    -c "prompt OFF; recurse ON; lcd $TMP_DIR; mget *"
 
   ## Set up
   SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
@@ -152,7 +148,7 @@
   conda activate NEXTFLOW
   set -u
 
-  # Fix for DSL2 module parse errors caused by inherited/global NXF settings
+  # Force DSL2 parsing and isolate from problematic global Nextflow state
   unset NXF_SYNTAX_PARSER
   unset NXF_DEFAULT_DSL
   export NXF_DEFAULT_DSL=2
@@ -184,12 +180,8 @@
 
   if [[ "$SKIP_RESULTS_MOVE" == false ]]; then
       echo "Uploading full results to N: drive"
-      smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" <<EOF
-  prompt OFF
-  recurse ON
-  lcd $HOME/out_rsvseq
-  mput *
-  EOF
+      smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" \
+        -c "prompt OFF; recurse ON; lcd $HOME/out_rsvseq; mput *"
   else
       echo "Validation mode detected: uploading report CSV files only"
       if [[ ! -d "$HOME/out_rsvseq/$RUN/report" ]]; then
@@ -197,11 +189,8 @@
           exit 1
       fi
 
-      smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
-  prompt OFF
-  lcd $HOME/out_rsvseq/$RUN/report
-  mput *.csv
-  EOF
+      smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" \
+        -c "prompt OFF; lcd $HOME/out_rsvseq/$RUN/report; mput *.csv"
   fi
 
   echo "Run completed successfully."
