@@ -127,6 +127,8 @@ NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
 MUTATION_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/Mutation_lists
 REASSORTMENT_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/
 GENOTYPE_H5_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/
+HUMAN_REFRENCES=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/references/human
+REFERENCE_VALIDATION=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/references
 
 echo "Updateing mutation lists"
 smbclient $SMB_HOST -A $SMB_AUTH -D $MUTATION_LITS <<EOF
@@ -151,6 +153,15 @@ recurse ON
 lcd $FLU_DATABASE
 mget H5_genotype_database.fasta
 EOF
+
+echo "Updating human references"
+smbclient $SMB_HOST -A $SMB_AUTH -D $HUMAN_REFRENCES <<EOF
+prompt OFF
+recurse ON
+lcd $FLU_DATABASE/sequence_references/
+mget *
+EOF
+
 
     
 # Create a samplesheet by running the supplied Rscript in a docker container.
