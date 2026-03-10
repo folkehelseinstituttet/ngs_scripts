@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Activate conda
+# Activate conda base functions
 source ~/miniconda3/etc/profile.d/conda.sh
 
 # Maintained by: Rasmus Kopperud Riis (rasmuskopperud.riis@fhi.no)
@@ -46,8 +46,8 @@ done
 
 # Basic validation
 if [ -z "${RUN}" ] || [ -z "${AGENS}" ] || [ -z "${YEAR}" ]; then
-  echo "ERROR: -r <run>, -a <agens>, and -y <year> are required."
-  usage
+    echo "ERROR: -r <run>, -a <agens>, and -y <year> are required."
+    usage
 fi
 
 echo "Run: $RUN"
@@ -118,13 +118,13 @@ SARS_DATABASE="/mnt/tempdata/sars_db/assets"
 mkdir -p "$SARS_DATABASE"
 
 download_db() {
-  local remote_path="$1"
-  local local_dir="$2"
-  local base
-  base="$(basename "$remote_path")"
+    local remote_path="$1"
+    local local_dir="$2"
+    local base
+    base="$(basename "$remote_path")"
 
-  echo "Downloading DB: $remote_path -> $local_dir/$base"
-  smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$(dirname "$remote_path")" <<EOF
+    echo "Downloading DB: $remote_path -> $local_dir/$base"
+    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$(dirname "$remote_path")" <<EOF
 prompt OFF
 lcd "$local_dir"
 mget "$base"
@@ -132,13 +132,13 @@ EOF
 }
 
 upload_db() {
-  local local_file="$1"
-  local remote_path="$2"
-  local base
-  base="$(basename "$remote_path")"
+    local local_file="$1"
+    local remote_path="$2"
+    local base
+    base="$(basename "$remote_path")"
 
-  echo "Uploading DB: $local_file -> $remote_path"
-  smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$(dirname "$remote_path")" <<EOF
+    echo "Uploading DB: $local_file -> $remote_path"
+    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$(dirname "$remote_path")" <<EOF
 prompt OFF
 lcd "$(dirname "$local_file")"
 mput "$base"
@@ -147,50 +147,50 @@ EOF
 
 # Concatenate many CSVs into one, keeping header only once
 cat_csv_keep_header() {
-  local out="$1"; shift
-  local files=("$@")
+    local out="$1"; shift
+    local files=("$@")
 
-  if [ "${#files[@]}" -eq 0 ]; then
-    echo "No files provided to cat_csv_keep_header for $out"
-    return 0
-  fi
+    if [ "${#files[@]}" -eq 0 ]; then
+        echo "No files provided to cat_csv_keep_header for $out"
+        return 0
+    fi
 
-  head -n 1 "${files[0]}" > "$out"
-  for f in "${files[@]}"; do
-    tail -n +2 "$f" >> "$out" || true
-  done
+    head -n 1 "${files[0]}" > "$out"
+    for f in "${files[@]}"; do
+        tail -n +2 "$f" >> "$out" || true
+    done
 }
 
 # Append NEW rows into MASTER, keep master's header, dedup by exact line
 append_dedup() {
-  local master="$1"
-  local newfile="$2"
+    local master="$1"
+    local newfile="$2"
 
-  if [ ! -s "$newfile" ]; then
-    echo "No new data in $newfile"
-    return 0
-  fi
+    if [ ! -s "$newfile" ]; then
+        echo "No new data in $newfile"
+        return 0
+    fi
 
-  if [ ! -f "$master" ] || [ ! -s "$master" ]; then
-    echo "Master missing/empty -> using newfile as master: $master"
-    cp "$newfile" "$master"
-    return 0
-  fi
+    if [ ! -f "$master" ] || [ ! -s "$master" ]; then
+        echo "Master missing/empty -> using newfile as master: $master"
+        cp "$newfile" "$master"
+        return 0
+    fi
 
-  local tmp
-  tmp="$(mktemp)"
+    local tmp
+    tmp="$(mktemp)"
 
-  head -n 1 "$master" > "$tmp"
-  {
-    tail -n +2 "$master" || true
-    tail -n +2 "$newfile" || true
-  } | awk '!seen[$0]++' >> "$tmp"
+    head -n 1 "$master" > "$tmp"
+    {
+        tail -n +2 "$master" || true
+        tail -n +2 "$newfile" || true
+    } | awk '!seen[$0]++' >> "$tmp"
 
-  mv "$tmp" "$master"
+    mv "$tmp" "$master"
 }
 
 ################################################################################
-# DB locations (FIXED: primer_mismatches vs depth_by_position)
+# DB locations
 ################################################################################
 # Storage (N-drive via SMB)
 PRIMERDB="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/6-SARS-CoV-2_NGS_Dashboard_DB/Primer_overview/primer_mismatches.csv"
@@ -208,9 +208,9 @@ mkdir -p "$TMP_DIR"
 
 # Clean TMP on exit
 cleanup() {
-  echo "Cleaning up temporary data..."
-  nextflow clean -f >/dev/null 2>&1 || true
-  rm -rf "$TMP_DIR"
+    echo "Cleaning up temporary data..."
+    nextflow clean -f >/dev/null 2>&1 || true
+    rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
 
@@ -232,8 +232,8 @@ SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit 2>/
 SAMPLESHEET="/mnt/tempdata/fastq/${RUN}.csv"
 
 if [ -z "${SAMPLEDIR}" ]; then
-  echo "WARNING: Could not find fastq_pass directory under $TMP_DIR/$RUN"
-  echo "         SAMPLEDIR is empty; pipeline may fail unless this is expected."
+    echo "WARNING: Could not find fastq_pass directory under $TMP_DIR/$RUN"
+    echo "         SAMPLEDIR is empty; pipeline may fail unless this is expected."
 fi
 
 ################################################################################
@@ -244,33 +244,53 @@ download_db "$PRIMERDB"   "$SARS_DATABASE"
 download_db "$AMPLICONDB" "$SARS_DATABASE"
 
 ################################################################################
-# TODO: Create samplesheet (your existing plan)
+# TODO: Create samplesheet
 ################################################################################
 # Create a samplesheet by running the supplied Rscript in a docker container.
 # ADD CODE FOR HANDLING OF SAMPLESHEET
 
 ################################################################################
+# Validate primer dir before pipeline run
+################################################################################
+if [ -n "${PRIMER}" ]; then
+    if [ ! -d "$SARS_DATABASE/$PRIMER" ]; then
+        echo "ERROR: Primer directory does not exist: $SARS_DATABASE/$PRIMER"
+        echo "Check the -p argument or make sure the primer directory is present."
+        exit 1
+    fi
+else
+    echo "ERROR: -p <primer> is required for this pipeline."
+    exit 1
+fi
+
+################################################################################
 # Run Nextflow pipeline
 ################################################################################
+# Fix for conda activation scripts that reference JAVA_HOME while set -u is active
+export JAVA_HOME="${JAVA_HOME:-}"
+
+# Temporarily disable nounset because some conda activate scripts break on unset vars
+set +u
 conda activate NEXTFLOW
+set -u
 
 echo "Map to references and create consensus sequences"
 nextflow pull RasmusKoRiis/nf-core-sars
 
 nextflow run RasmusKoRiis/nf-core-sars/main.nf \
-  -r master \
-  -profile docker,server \
-  --input "$SAMPLESHEET" \
-  --samplesDir "$SAMPLEDIR" \
-  --outdir "$HOME/$RUN" \
-  --primerdir "$SARS_DATABASE/$PRIMER" \
-  --reference  "$SARS_DATABASE/primer_schemes/ncov-2019_midnight/v3.0.0/ncov-2019_midnight.reference.fasta" \
-  --primer_bed "$SARS_DATABASE/primer_schemes/ncov-2019_midnight/v3.0.0/ncov-2019_midnight.scheme.bed" \
-  --runid "$RUN" \
-  --spike "$SARS_DATABASE/Spike_mAbs_inhibitors.csv" \
-  --rdrp "$SARS_DATABASE/RdRP_inhibitors.csv" \
-  --clpro "$SARS_DATABASE/3CLpro_inhibitors.csv" \
-  --release_version "v1.0.0"
+    -r master \
+    -profile docker,server \
+    --input "$SAMPLESHEET" \
+    --samplesDir "$SAMPLEDIR" \
+    --outdir "$HOME/$RUN" \
+    --primerdir "$SARS_DATABASE/$PRIMER" \
+    --reference "$SARS_DATABASE/primer_schemes/ncov-2019_midnight/v3.0.0/ncov-2019_midnight.reference.fasta" \
+    --primer_bed "$SARS_DATABASE/primer_schemes/ncov-2019_midnight/v3.0.0/ncov-2019_midnight.scheme.bed" \
+    --runid "$RUN" \
+    --spike "$SARS_DATABASE/Spike_mAbs_inhibitors.csv" \
+    --rdrp "$SARS_DATABASE/RdRP_inhibitors.csv" \
+    --clpro "$SARS_DATABASE/3CLpro_inhibitors.csv" \
+    --release_version "v1.0.0"
 
 ################################################################################
 # Move results locally into out_sarsseq
@@ -282,8 +302,8 @@ mkdir -p "$HOME/out_sarsseq"
 # Move the run dir into out_sarsseq.
 # If it already exists, fail loudly to avoid mixing runs.
 if [ -e "$HOME/out_sarsseq/$RUN" ]; then
-  echo "ERROR: $HOME/out_sarsseq/$RUN already exists. Remove it or choose a different run id."
-  exit 1
+    echo "ERROR: $HOME/out_sarsseq/$RUN already exists. Remove it or choose a different run id."
+    exit 1
 fi
 
 mv "$HOME/$RUN" "$HOME/out_sarsseq/"
@@ -296,44 +316,47 @@ RUN_OUT="$HOME/out_sarsseq/$RUN"
 
 # --- Primer mismatches: merge per-run CSVs -> append into master -> upload ---
 primer_files=()
-while IFS= read -r -d '' f; do primer_files+=("$f"); done < <(
-  find "$RUN_OUT/primer_metrics" -maxdepth 1 -type f -name "*SC2_primer_mismatches.csv" -print0 2>/dev/null || true
+while IFS= read -r -d '' f; do
+    primer_files+=("$f")
+done < <(
+    find "$RUN_OUT/primer_metrics" -maxdepth 1 -type f -name "*SC2_primer_mismatches.csv" -print0 2>/dev/null || true
 )
 
 if [ "${#primer_files[@]}" -gt 0 ]; then
-  primer_run_merged="$SARS_DATABASE/${RUN}_primer_mismatches_merged.csv"
-  echo "Merging primer mismatch CSVs for run: $RUN"
-  cat_csv_keep_header "$primer_run_merged" "${primer_files[@]}"
+    primer_run_merged="$SARS_DATABASE/${RUN}_primer_mismatches_merged.csv"
+    echo "Merging primer mismatch CSVs for run: $RUN"
+    cat_csv_keep_header "$primer_run_merged" "${primer_files[@]}"
 
-  echo "Appending run primer mismatches into master DB: $PRIMER_DATABASE_SERVER"
-  append_dedup "$PRIMER_DATABASE_SERVER" "$primer_run_merged"
+    echo "Appending run primer mismatches into master DB: $PRIMER_DATABASE_SERVER"
+    append_dedup "$PRIMER_DATABASE_SERVER" "$primer_run_merged"
 
-  echo "Uploading updated primer mismatch DB back to storage"
-  upload_db "$PRIMER_DATABASE_SERVER" "$PRIMERDB"
+    echo "Uploading updated primer mismatch DB back to storage"
+    upload_db "$PRIMER_DATABASE_SERVER" "$PRIMERDB"
 else
-  echo "No primer mismatch CSVs found in $RUN_OUT/primer_metrics"
+    echo "No primer mismatch CSVs found in $RUN_OUT/primer_metrics"
 fi
 
 # --- Depth by position / amplicon DB: locate run outputs -> merge -> append -> upload ---
-# Adjust this pattern if your pipeline uses a different filename.
 depth_files=()
-while IFS= read -r -d '' f; do depth_files+=("$f"); done < <(
-  find "$RUN_OUT/depth" -maxdepth 1 -type f -name "*depth_by_position*.csv" -print0 2>/dev/null || true
+while IFS= read -r -d '' f; do
+    depth_files+=("$f")
+done < <(
+    find "$RUN_OUT/depth" -maxdepth 1 -type f -name "*depth_by_position*.csv" -print0 2>/dev/null || true
 )
 
 if [ "${#depth_files[@]}" -gt 0 ]; then
-  depth_run_merged="$SARS_DATABASE/${RUN}_depth_by_position_merged.csv"
-  echo "Merging depth-by-position CSVs for run: $RUN"
-  cat_csv_keep_header "$depth_run_merged" "${depth_files[@]}"
+    depth_run_merged="$SARS_DATABASE/${RUN}_depth_by_position_merged.csv"
+    echo "Merging depth-by-position CSVs for run: $RUN"
+    cat_csv_keep_header "$depth_run_merged" "${depth_files[@]}"
 
-  echo "Appending run depth-by-position into master DB: $AMPLICON_DATABASE_SERVER"
-  append_dedup "$AMPLICON_DATABASE_SERVER" "$depth_run_merged"
+    echo "Appending run depth-by-position into master DB: $AMPLICON_DATABASE_SERVER"
+    append_dedup "$AMPLICON_DATABASE_SERVER" "$depth_run_merged"
 
-  echo "Uploading updated depth-by-position DB back to storage"
-  upload_db "$AMPLICON_DATABASE_SERVER" "$AMPLICONDB"
+    echo "Uploading updated depth-by-position DB back to storage"
+    upload_db "$AMPLICON_DATABASE_SERVER" "$AMPLICONDB"
 else
-  echo "No depth-by-position CSVs found in $RUN_OUT/depth (pattern: *depth_by_position*.csv)"
-  echo "If your pipeline uses a different name/location, update the find() pattern."
+    echo "No depth-by-position CSVs found in $RUN_OUT/depth (pattern: *depth_by_position*.csv)"
+    echo "If your pipeline uses a different name/location, update the find() pattern."
 fi
 
 ################################################################################
@@ -342,7 +365,7 @@ fi
 echo "Moving results to the N: drive"
 
 if [ "$SKIP_RESULTS_MOVE" = false ]; then
-  smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" <<EOF
+    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" <<EOF
 prompt OFF
 recurse ON
 lcd "$HOME/out_sarsseq/"
@@ -351,7 +374,7 @@ EOF
 fi
 
 if [ "$SKIP_RESULTS_MOVE" = true ]; then
-  smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
+    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
 prompt OFF
 lcd "$HOME/out_sarsseq/$RUN/report/"
 cd ${SMB_DIR_ANALYSIS}
