@@ -149,7 +149,6 @@
   set -u
 
   export NXF_VER="24.10.2"
-  export NXF_SYNTAX_PARSER="v1"
   unset NXF_DEFAULT_DSL
   export NXF_HOME="/tmp/nxf_${USER}"
 
