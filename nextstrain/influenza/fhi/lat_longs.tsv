@@ -14391,6 +14391,21 @@ division	Zulia	10.0437564	-72.2191181
 division	Zvolen	48.5782517	19.1247135
 division	ǁKaras	-26.8752094	17.7634818
 division	Сhukotka Region	66.95859821487666	171.89260087191087
+division	Akershus	59.9139	10.7522
+division	Agder	58.1467	7.9956
+division	Buskerud	59.7439	10.2045
+division	Finnmark	70.0744	24.9559
+division	Innlandet	61.1153	10.4662
+division	Møre og Romsdal	62.4722	6.1495
+division	Nordland	67.2804	14.4049
+division	Oslo	59.9139	10.7522
+division	Rogaland	58.9700	5.7331
+division	Telemark	59.2096	9.6090
+division	Troms	69.6492	18.9553
+division	Trøndelag	63.4305	10.3951
+division	Vestfold	59.2675	10.4076
+division	Vestland	60.3930	5.3242
+division	Østfold	59.4340	10.6570
 
 country	Afghanistan	33.7680065	66.2385139
 country	Albania	41.000028	19.9999619
@@ -14605,6 +14620,7 @@ country	Vietnam	16.16667	107.83333
 country	Yemen	16.3471243	47.8915271
 country	Zambia	-14.5186239	27.5599164
 country	Zimbabwe	-18.4554963	29.7468414
+
 
 country	Africa	4.070194	21.824559
 country	Asia	30.451098	86.654576
