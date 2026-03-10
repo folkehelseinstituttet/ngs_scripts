@@ -144,15 +144,17 @@
 
   # Conda activation can fail under 'set -u' because some activate scripts
   # reference unset vars like JAVA_HOME. Temporarily disable nounset.
-  set +u
+ set +u
   conda activate NEXTFLOW
   set -u
 
-  # Force DSL2 parsing and isolate from problematic global Nextflow state
-  unset NXF_SYNTAX_PARSER
+  export NXF_VER="24.10.2"
+  export NXF_SYNTAX_PARSER="v1"
   unset NXF_DEFAULT_DSL
-  export NXF_DEFAULT_DSL=2
   export NXF_HOME="/tmp/nxf_${USER}"
+
+  echo "NXF env:"
+  env | grep '^NXF_' | sort || true
 
   echo "NXF env:"
   env | grep '^NXF_' | sort || true
