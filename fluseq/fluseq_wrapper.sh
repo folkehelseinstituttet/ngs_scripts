@@ -323,7 +323,9 @@ validate_reference_type "$SEQUENCE_REFERENCES/human" "human" "$REFERENCE_TABLE_L
 ### Run the main pipeline ###
 
 # Activate the conda environment that holds Nextflow
+set +u
 conda activate NEXTFLOW
+set -u
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
