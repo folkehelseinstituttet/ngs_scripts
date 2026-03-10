@@ -153,18 +153,20 @@ conda activate NEXTFLOW
 set -u
 
 echo "Map to references and create consensus sequences"
-nextflow pull RasmusKoRiis/nf-core-rsvseq
-nextflow run RasmusKoRiis/nf-core-rsvseq/main.nf \
-  -r master \
-  -profile docker,server \
-  --input "$SAMPLESHEET" \
-  --samplesDir "$SAMPLEDIR" \
-  --primerdir "$RSV_DATABASE/primer" \
-  --primer_schemes_dir "$RSV_DATABASE/primer_schemes" \
-  --primer_scheme "$PRIMER_SCHEME" \
-  --outdir "$HOME/$RUN" \
-  --runid "$RUN" \
-  --release_version "v1.0.0"
+
+nextflow pull RasmusKoRiis/nf-core-rsvseq -r master -latest
+
+nextflow run RasmusKoRiis/nf-core-rsvseq \
+    -r master \
+    -profile docker,server \
+    --input "$SAMPLESHEET" \
+    --samplesDir "$SAMPLEDIR" \
+    --primerdir "$RSV_DATABASE/primer" \
+    --primer_schemes_dir "$RSV_DATABASE/primer_schemes" \
+    --primer_scheme "$PRIMER_SCHEME" \
+    --outdir "$HOME/$RUN" \
+    --runid "$RUN" \
+    --release_version "v1.0.0"
 
 echo "Preparing results for upload"
 mkdir -p "$HOME/out_rsvseq"
