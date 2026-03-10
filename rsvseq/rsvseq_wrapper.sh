@@ -154,7 +154,7 @@ set -u
 
 echo "Map to references and create consensus sequences"
 
-nextflow pull RasmusKoRiis/nf-core-rsvseq -r master -latest
+nextflow pull RasmusKoRiis/nf-core-rsvseq -r master
 
 nextflow run RasmusKoRiis/nf-core-rsvseq \
     -r master \
