@@ -4,6 +4,7 @@ set -euo pipefail
 shopt -s nullglob
 
 # Activate conda
+export JAVA_HOME="${JAVA_HOME:-}"
 source ~/miniconda3/etc/profile.d/conda.sh
 
 # Maintained by: Rasmus Kopperud Riis (rasmuskopperud.riis@fhi.no)
