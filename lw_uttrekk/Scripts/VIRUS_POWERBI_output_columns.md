@@ -59,8 +59,6 @@ Barnprøver er avledede prøver opprettet i LabWare (f.eks. alikvot, ekstraksjon
 
 ### 2. Ekskluder kansellerte prøver
 
-`SAMPLE.STATUS != "X"`
-
 Prøver som har enten `C` eller `X` i `SAMPLE.STATUS` finnes ikke i LabWare (kan være feilregistrering). Bør ikke vises med mindre man spesifikt ønsker dette. 
 
 ### 3. Telle mottatte prøver
