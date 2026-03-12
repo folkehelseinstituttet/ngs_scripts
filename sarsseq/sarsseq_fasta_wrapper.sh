@@ -136,8 +136,9 @@ echo "Using FASTA: $FASTA"
 
 
 # Activate Nextflow env
-export JAVA_HOME="${JAVA_HOME:-}"
+set +u
 conda activate NEXTFLOW
+set -u
 
 echo "Running SARS pipeline"
 nextflow pull RasmusKoRiis/nf-core-sars
