@@ -116,25 +116,10 @@ mget $RUN
 EOF
 
 
-# Create directory to hold the output of the analysis
-mkdir -p $HOME/$RUN
-mkdir $TMP_DIR
-
-### Prepare the run ###
-
-echo "Copying fastq files from the N drive"
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_INPUT <<EOF
-prompt OFF
-recurse ON
-lcd $TMP_DIR
-mget *
-EOF
-
-
 ## Set up 
 SARS_DATABASE=/mnt/tempdata/sars_db/assets
 # after the smbclient download
-FASTA=$(find "$TMP_DIR" -maxdepth 2 -type f -name '*.fasta' | head -n 1)
+FASTA=$(find "$TMP_DIR/$RUN" -maxdepth 2 -type f -name '*.fasta' | head -n 1)
 
 if [[ -z "$FASTA" ]]; then
     echo "❌  No FASTA file found under $TMP_DIR"; exit 1
