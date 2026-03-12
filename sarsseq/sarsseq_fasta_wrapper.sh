@@ -1,19 +1,16 @@
-
 #!/usr/bin/env bash
+set -euo pipefail
 
 # Activate conda
 source ~/miniconda3/etc/profile.d/conda.sh
 
-# TODO
-
 # Maintained by: Rasmus Kopperud Riis (rasmuskopperud.riis@fhi.no)
 # Version: dev
 
-# Define the script name and usage
 SCRIPT_NAME=$(basename "$0")
 
 usage() {
-    echo "Usage: $0 [OPTIONS]"
+    echo "Usage: $SCRIPT_NAME [OPTIONS]"
     echo "Options:"
     echo "  -h                 Display this help message"
     echo "  -r <run>           Specify the run name (e.g., INF077) (required)"
@@ -32,6 +29,7 @@ SEASON=""
 YEAR=""
 PRIMER=""
 VALIDATION_FLAG=""
+SKIP_RESULTS_MOVE=false
 
 # Parse options
 while getopts "hr:p:a:s:y:v:" opt; do
@@ -47,7 +45,13 @@ while getopts "hr:p:a:s:y:v:" opt; do
     esac
 done
 
-# Print parsed arguments (for debugging)
+# Validate required arguments
+if [[ -z "$RUN" || -z "$AGENS" || -z "$YEAR" ]]; then
+    echo "ERROR: -r, -a, and -y are required."
+    usage
+fi
+
+# Print parsed arguments
 echo "Run: $RUN"
 echo "Primer: $PRIMER"
 echo "Agens: $AGENS"
@@ -55,13 +59,10 @@ echo "Season: $SEASON"
 echo "Year: $YEAR"
 echo "Validation Flag: $VALIDATION_FLAG"
 
-# Make sure the latest version of the ngs_scripts repo is present locally
-
-# Define the directory and the GitHub repository URL
+# Repo setup
 REPO="$HOME/ngs_scripts"
 REPO_URL="https://github.com/folkehelseinstituttet/ngs_scripts.git"
 
-# Check if the directory exists
 if [ -d "$REPO" ]; then
     echo "Directory 'ngs_scripts' exists. Pulling latest changes..."
     cd "$REPO"
@@ -71,27 +72,29 @@ else
     git clone "$REPO_URL" "$REPO"
 fi
 
-cd $HOME
+cd "$HOME"
 
+# Remove locally cloned pipeline to avoid version conflicts
+rm -rf "$HOME/sarsseq"
 
-# Sometimes the pipeline has been cloned locally. Remove it to avoid version conflicts
-rm -rf $HOME/sarsseq
+# Tower config
+export TOWER_ACCESS_TOKEN="eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm"
+export TOWER_WORKSPACE_ID="150755685543204"
 
-# Export the access token for web monitoring with tower
-export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
-# Add workspace ID for Virus_NGS
-export TOWER_WORKSPACE_ID=150755685543204
+# Base paths
+BASE_DIR="/mnt/tempdata"
+TMP_DIR="/mnt/tempdata/fastq"
+SMB_AUTH="/home/ngs/.smbcreds"
+SMB_HOST="//pos1-fhi-svm01.fhi.no/styrt"
 
-## Set up environment
-BASE_DIR=/mnt/tempdata/
-TMP_DIR=/mnt/tempdata/fastq
-SMB_AUTH=/home/ngs/.smbcreds
-SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
-SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/${YEAR}
-#SMB_DIR_ANALYSIS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/powerBI
+# Output locations
+LOCAL_RUN_OUTDIR="$HOME/$RUN"
+LOCAL_UPLOAD_ROOT="$HOME/out_sarsseq"
+LOCAL_UPLOAD_RUN="$LOCAL_UPLOAD_ROOT/$RUN"
 
-SMB_DIR="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/3-Summary/${SEASON}/fasta/results"
-SMB_DIR_ANALYSIS="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${YEAR}/fasta/results/report"
+# SARS destinations on SMB
+SMB_DIR="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/8-FASTA-ANALYSIS"
+SMB_DIR_ANALYSIS="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/8-FASTA-ANALYSIS/report"
 
 current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
@@ -103,9 +106,12 @@ else
     exit 1
 fi
 
-mkdir -p "$HOME/$RUN"
+# Prepare local dirs
 mkdir -p "$TMP_DIR"
+mkdir -p "$LOCAL_UPLOAD_ROOT"
 rm -rf "$TMP_DIR/$RUN"
+rm -rf "$LOCAL_RUN_OUTDIR"
+rm -rf "$LOCAL_UPLOAD_RUN"
 
 echo "Copying run folder from the N drive"
 smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_INPUT" <<EOF
@@ -115,69 +121,81 @@ lcd $TMP_DIR
 mget $RUN
 EOF
 
+# Database assets
+SARS_DATABASE="/mnt/tempdata/sars_db/assets"
 
-## Set up 
-SARS_DATABASE=/mnt/tempdata/sars_db/assets
-# after the smbclient download
+# Find FASTA
 FASTA=$(find "$TMP_DIR/$RUN" -maxdepth 2 -type f -name '*.fasta' | head -n 1)
 
 if [[ -z "$FASTA" ]]; then
-    echo "❌  No FASTA file found under $TMP_DIR"; exit 1
+    echo "ERROR: No FASTA file found under $TMP_DIR/$RUN"
+    exit 1
 fi
 
 echo "Using FASTA: $FASTA"
 
-
-# Create a samplesheet by running the supplied Rscript in a docker container.
-#ADD CODE FOR HANDLING OF SAMPLESHEET
-
-### Run the main pipeline ###
-
-# Activate the conda environment that holds Nextflow
+# Activate Nextflow env
 conda activate NEXTFLOW
 
-# Make sure the latest pipeline is available
-#nextflow pull folkehelseinstituttet/viralseq
-
-# Start the pipeline
-echo "Map to references and create consensus sequences"
+echo "Running SARS pipeline"
 nextflow pull RasmusKoRiis/nf-core-sars
+
 nextflow run RasmusKoRiis/nf-core-sars/main.nf \
   -r master \
   -profile docker,server \
   --fasta "$FASTA" \
-  --outdir "$HOME/$RUN" \
+  --outdir "$LOCAL_RUN_OUTDIR" \
   --file fasta-workflow \
   --runid "$RUN" \
   --spike "$SARS_DATABASE/Spike_mAbs_inhibitors.csv" \
   --rdrp "$SARS_DATABASE/RdRP_inhibitors.csv" \
   --clpro "$SARS_DATABASE/3CLpro_inhibitors.csv" \
-  --release_version "v1.0.0" 
+  --release_version "v1.0.0"
 
-echo "Moving results to the N: drive"
-mkdir $HOME/out_sarsseq
-mv $RUN/ out_sarsseq/
+# Verify results exist
+if [[ ! -d "$LOCAL_RUN_OUTDIR" ]]; then
+    echo "ERROR: Expected output directory was not created: $LOCAL_RUN_OUTDIR"
+    exit 1
+fi
+
+if [[ -z "$(find "$LOCAL_RUN_OUTDIR" -mindepth 1 -print -quit)" ]]; then
+    echo "ERROR: Output directory exists but is empty: $LOCAL_RUN_OUTDIR"
+    exit 1
+fi
+
+echo "Pipeline output created at: $LOCAL_RUN_OUTDIR"
+find "$LOCAL_RUN_OUTDIR" -maxdepth 2 | head -n 50
+
+echo "Moving results to local upload staging area"
+mv "$LOCAL_RUN_OUTDIR" "$LOCAL_UPLOAD_ROOT/"
 
 if [ "$SKIP_RESULTS_MOVE" = false ]; then
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+    echo "Uploading full run folder to N drive: $SMB_DIR"
+
+    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" <<EOF
 prompt OFF
 recurse ON
-lcd $HOME/out_sarsseq/
+mkdir $RUN
+cd $RUN
+lcd $LOCAL_UPLOAD_RUN
 mput *
 EOF
 fi
 
 if [ "$SKIP_RESULTS_MOVE" = true ]; then
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_ANALYSIS <<EOF
+    echo "Uploading report CSV files only to N drive: $SMB_DIR_ANALYSIS"
+
+    if [[ ! -d "$LOCAL_UPLOAD_RUN/report" ]]; then
+        echo "ERROR: Report directory not found: $LOCAL_UPLOAD_RUN/report"
+        exit 1
+    fi
+
+    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
 prompt OFF
-lcd $HOME/out_sarsseq/$RUN/report/
-cd ${SMB_DIR_ANALYSIS}
+lcd $LOCAL_UPLOAD_RUN/report
 mput *.csv
 EOF
 fi
 
-
-## Clean up
-#nextflow clean -f
-#rm -rf $HOME/out
-#rm -rf $TMP_DIR
+echo "Done. Final local result location:"
+echo "$LOCAL_UPLOAD_RUN"
