@@ -90,24 +90,30 @@ SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
 SMB_DIR=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/1-Nanopore/${YEAR}
 #SMB_DIR_ANALYSIS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${SEASON}/powerBI
 
-# If validation flag is set, update SMB_DIR_ANALYSIS and skip the results move step
-if [ -n "$VALIDATION_FLAG" ]; then
-    SMB_DIR_ANALYSIS="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/4-Validering/1-sarsseq-validering/Run"
-    SKIP_RESULTS_MOVE=true
-else
-    SKIP_RESULTS_MOVE=false
-fi
+SMB_DIR="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/3-Summary/${SEASON}/fasta/results"
+SMB_DIR_ANALYSIS="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/3-Summary/${YEAR}/fasta/results/report"
 
-# Old data is moved to Arkiv
 current_year=$(date +"%Y")
 if [ "$YEAR" -eq "$current_year" ]; then
-    SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/${YEAR}/Nanopore_Grid_Run/${RUN}
-elif [ "$YEAR" -lt "$current_year" ]; then 
-	SMB_INPUT=NGS/3-Sekvenseringsbiblioteker/Arkiv/${YEAR}/Nanopore_Grid_Run/${RUN}
-else 
-	echo "Error: Year cannot be larger than $current_year"
-	exit 1
+    SMB_INPUT="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/7-Export"
+elif [ "$YEAR" -lt "$current_year" ]; then
+    SMB_INPUT="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/7-Export"
+else
+    echo "ERROR: Year cannot be larger than $current_year"
+    exit 1
 fi
+
+mkdir -p "$HOME/$RUN"
+mkdir -p "$TMP_DIR"
+rm -rf "$TMP_DIR/$RUN"
+
+echo "Copying run folder from the N drive"
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_INPUT" <<EOF
+prompt OFF
+recurse ON
+lcd $TMP_DIR
+mget $RUN
+EOF
 
 
 # Create directory to hold the output of the analysis
