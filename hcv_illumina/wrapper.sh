@@ -67,7 +67,7 @@ usage() {
 RUN=""
 AGENS=""
 YEAR=""
-VERSION="v1.1.5"  # Default version of the HCVTyper Nextflow pipeline
+VERSION="v1.1.7"  # Default version of the HCVTyper Nextflow pipeline
 
 while getopts "hr:a:y:v:" opt; do
     case "$opt" in
