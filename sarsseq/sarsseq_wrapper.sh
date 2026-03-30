@@ -19,6 +19,7 @@ usage() {
     echo "  -s <season>        Specify the season directory of the fastq files on the N-drive (e.g., Ses2425)"
     echo "  -y <year>          Specify the year directory of the fastq files on the N-drive (required)"
     echo "  -v <validation>    Specify validation flag (e.g., VER)"
+    echo "  -b <branch>        Pipeline branch/tag to use (default: master)"
     exit 1
 }
 
@@ -29,9 +30,10 @@ SEASON=""
 YEAR=""
 PRIMER=""
 VALIDATION_FLAG=""
+PIPELINE_BRANCH="master"
 
 # Parse options
-while getopts "hr:p:a:s:y:v:" opt; do
+while getopts "hr:p:a:s:y:v:b:" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
@@ -40,6 +42,7 @@ while getopts "hr:p:a:s:y:v:" opt; do
         s) SEASON="$OPTARG" ;;
         y) YEAR="$OPTARG" ;;
         v) VALIDATION_FLAG="$OPTARG" ;;
+        b) PIPELINE_BRANCH="$OPTARG" ;;
         ?) usage ;;
     esac
 done
@@ -56,6 +59,7 @@ echo "Agens: $AGENS"
 echo "Season: ${SEASON:-}"
 echo "Year: $YEAR"
 echo "Validation Flag: ${VALIDATION_FLAG:-}"
+echo "Pipeline branch: ${PIPELINE_BRANCH}"
 
 ################################################################################
 # Repo sync
@@ -333,10 +337,10 @@ conda activate NEXTFLOW
 set -u
 
 echo "Map to references and create consensus sequences"
-nextflow pull RasmusKoRiis/nf-core-sars
+nextflow pull RasmusKoRiis/nf-core-sars -r "$PIPELINE_BRANCH"
 
 nextflow run RasmusKoRiis/nf-core-sars/main.nf \
-    -r master \
+    -r "$PIPELINE_BRANCH" \
     -profile docker,server \
     --input "$SAMPLESHEET" \
     --samplesDir "$SAMPLEDIR" \
@@ -349,7 +353,6 @@ nextflow run RasmusKoRiis/nf-core-sars/main.nf \
     --rdrp "$SARS_DATABASE/RdRP_inhibitors.csv" \
     --clpro "$SARS_DATABASE/3CLpro_inhibitors.csv" \
     --release_version "v1.0.0"
-
 
 ################################################################################
 # Move results locally into out_sarsseq
