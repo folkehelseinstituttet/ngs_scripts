@@ -2,9 +2,9 @@
 args <- commandArgs(trailingOnly = TRUE)
 
 # Assign the arguments to variables
-SID <- args[1] #RunID from argument
+SID <- args[1]  # RunID from argument
 
-source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
+source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R")
 source("N:/Virologi/Influensa/RARI/2526/BN FLU 25-26.R")
 
 library(lubridate)
@@ -42,38 +42,52 @@ fix_mojibake_utf8 <- function(x) {
   out
 }
 
-
 # Define metadata
 passage <- "Clinical Specimen"
 host <- "Human"
 Location <- "Norway"
 sub_lab <- "Norwegian Institute of Public Health, Department of Virology"
 address <- "P.O.Box 222 Skoyen, 0213 Oslo, Norway"
-authors <- "Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; ,Dieseth MS"
-GISAIDnr <- 3869  # Converting directly to numeric
+authors <- "Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; Dieseth MS"
+GISAIDnr <- 3869
 Sequencing_Technology <- "Oxford Nanopore"
 Assembly_Method <- "IRMA FLU-minion"
-Sequencing_Strategy <- "Targeted-amplification "
+Sequencing_Strategy <- "Targeted-amplification"
 
 # Read Lab_ID data
 Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Laboratory.xlsx")
 
-source("N:/Virologi/Influensa/RARI/2526/BN FLU 25-26.R")
-
-
 # Proceed with data filtering and selection
 fludb <- fludb %>%
-  filter(ngs_run_id == SID) %>%                      # Ensure SID is defined and matches the column
-  filter(ngs_sekvens_resultat != "") %>%             # Remove empty results
-  filter(!(ngs_sekvens_resultat %in% c("NA", "N2", "N1"))) %>%   # Keep rows that are NOT NA, N2, or N1
+  filter(ngs_run_id == SID) %>%
+  filter(!is.na(ngs_sekvens_resultat), ngs_sekvens_resultat != "") %>%
+  filter(!(ngs_sekvens_resultat %in% c("NA", "N2", "N1"))) %>%
   filter(is.na(gisaid_kommentar) | gisaid_kommentar == "")
 
-
-
 # Now select the required columns
-fludb <- fludb %>% select("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "pasient_alder", "prove_tatt", "pasient_kjnn", 
-                          "prove_innsender_id", "pasient_fylke_name", "pasient_status", "prove_kategori", "prove_material", "ngs_reads_ha",
-                          "ngs_reads_na", "ngs_reads_m", "ngs_reads_ns", "ngs_reads_np", "ngs_reads_pa", "ngs_reads_pb1", "ngs_reads_pb2", "ngs_qc_sum")
+fludb <- fludb %>%
+  select(
+    key,
+    ngs_sekvens_resultat,
+    pasient_fylke_nr,
+    pasient_alder,
+    prove_tatt,
+    pasient_kjnn,
+    prove_innsender_id,
+    pasient_fylke_name,
+    pasient_status,
+    prove_kategori,
+    prove_material,
+    ngs_reads_ha,
+    ngs_reads_na,
+    ngs_reads_m,
+    ngs_reads_ns,
+    ngs_reads_np,
+    ngs_reads_pa,
+    ngs_reads_pb1,
+    ngs_reads_pb2,
+    ngs_qc_sum
+  )
 
 # Normalize county names before they are used in output fields
 fludb$pasient_fylke_name <- fix_mojibake_utf8(fludb$pasient_fylke_name)
@@ -81,40 +95,75 @@ fludb$pasient_fylke_name <- fix_mojibake_utf8(fludb$pasient_fylke_name)
 # Data cleaning and manipulation
 fludb <- fludb %>% 
   mutate(
-    Subtype = case_when(  # Creating Subtype column
+    Original_Key = as.character(key),
+    
+    Subtype = case_when(
       str_starts(ngs_sekvens_resultat, "A/H1N1") ~ "H1N1",
       str_starts(ngs_sekvens_resultat, "A/H3N2") ~ "H3N2",
       str_starts(ngs_sekvens_resultat, "B/Victoria") ~ "B",
       TRUE ~ ""
     ),
-    INFType = if_else(str_starts(ngs_sekvens_resultat, "A/"), "A", "B"),  # Creating INFType column
-    Lineage = case_when(  # Creating Lineage column
+    
+    INFType = case_when(
+      str_starts(ngs_sekvens_resultat, "A/") ~ "A",
+      str_starts(ngs_sekvens_resultat, "B/") ~ "B",
+      TRUE ~ ""
+    ),
+    
+    Lineage = case_when(
       str_starts(ngs_sekvens_resultat, "A/H1N1") ~ "pdm09",
       str_starts(ngs_sekvens_resultat, "B/Victoria") ~ "Victoria",
       TRUE ~ ""
     ),
-    Host_Gender = if_else(toupper(pasient_kjnn) %in% c("M", "F"), toupper(pasient_kjnn), NA_character_),  # Creating Host_Gender column
-    Year = year(as.Date(prove_tatt)),  # Extracting year from Sampledate
-    age = pasient_alder, 
-    Uniq_nr = str_sub(key, start = 5, end = 9),  # Extracting unique number
-    Isolate_Name = paste(INFType, "Norway", Uniq_nr, Year, sep = "/"),  # Creating Isolate_Name
-    Specimen_Source = case_when(  # Creating Specimen_Source column
-      str_starts(prove_material, "SEKRET") ~ "",
+    
+    Host_Gender = if_else(
+      toupper(pasient_kjnn) %in% c("M", "F"),
+      toupper(pasient_kjnn),
+      NA_character_
+    ),
+    
+    prove_tatt = as.Date(prove_tatt),
+    Year = year(prove_tatt),
+    age = pasient_alder,
+    
+    # Keep original key intact, use everything after the first 4 digits
+    Uniq_nr = if_else(
+      !is.na(Original_Key) & nchar(Original_Key) >= 5,
+      str_sub(Original_Key, start = 5),
+      Original_Key
+    ),
+    
+    Isolate_Name = paste(INFType, "Norway", Uniq_nr, Year, sep = "/"),
+    
+    Specimen_Source = case_when(
       str_starts(prove_material, "NAPHSEKR") ~ "nasopharyngeal swab",
+      str_starts(prove_material, "SEKRET") ~ "",
       TRUE ~ ""
     ),
-    Coverage = rowMeans(across(contains("reads"), ~ as.numeric(replace_na(.x, 0))), na.rm = TRUE)  # Calculating average coverage
+    
+    Coverage = rowMeans(
+      across(contains("reads"), ~ as.numeric(replace_na(.x, 0))),
+      na.rm = TRUE
+    )
   )
 
-
 # Merging with Lab_ID
-merged_df <- merge(fludb, Lab_ID, by.x = "prove_innsender_id", by.y = "Innsender nr", all.x = TRUE)
+merged_df <- merge(
+  fludb,
+  Lab_ID,
+  by.x = "prove_innsender_id",
+  by.y = "Innsender nr",
+  all.x = TRUE
+)
 
-# Replace NA and non-numeric values in GISAID_Nr column
-merged_df$GISAID_Nr <- ifelse(is.na(merged_df$GISAID_Nr) | is.na(merged_df$GISAID_Nr), GISAIDnr, merged_df$GISAID_Nr)
+# Replace missing GISAID_Nr values
+merged_df$GISAID_Nr <- ifelse(
+  is.na(merged_df$GISAID_Nr) | merged_df$GISAID_Nr == "",
+  GISAIDnr,
+  merged_df$GISAID_Nr
+)
 
-
-################### FASTA FILE :
+################### FASTA FILE / SUBMISSION TABLE:
 tmp <- merged_df %>%
   add_column(
     "Isolate_Id" = "",
@@ -127,25 +176,51 @@ tmp <- merged_df %>%
     "sub_province" = "",
     "Location_Additional_info" = "",
     "Host_Additional_info" = "",
-    "Seq_Id (HA)" = ifelse(merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "HA"],
-                           paste("HA", merged_df$key, sep = "|"), ""),
-    "Seq_Id (NA)" = ifelse(merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "NA"],
-                           paste("NA", merged_df$key, sep = "|"), ""),
-    "Seq_Id (PB1)" = ifelse(merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "PB1"],
-                            paste("PB1", merged_df$key, sep = "|"), ""),
-    "Seq_Id (PB2)" = ifelse(merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "PB2"],
-                            paste("PB2", merged_df$key, sep = "|"), ""),
-    "Seq_Id (PA)" = ifelse(merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "PA"],
-                           paste("PA", merged_df$key, sep = "|"), ""),
-    "Seq_Id (MP)" = ifelse(merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "MP"],
-                           paste("MP", merged_df$key, sep = "|"), ""),
-    "Seq_Id (NS)" = ifelse(merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "NS"],
-                           paste("NS", merged_df$key, sep = "|"), ""),
-    "Seq_Id (NP)" = ifelse(merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "NP"],
-                           paste("NP", merged_df$key, sep = "|"), ""),
+    
+    "Seq_Id (HA)" = ifelse(
+      merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "HA"],
+      paste("HA", merged_df$key, sep = "|"),
+      ""
+    ),
+    "Seq_Id (NA)" = ifelse(
+      merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "NA"],
+      paste("NA", merged_df$key, sep = "|"),
+      ""
+    ),
+    "Seq_Id (PB1)" = ifelse(
+      merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "PB1"],
+      paste("PB1", merged_df$key, sep = "|"),
+      ""
+    ),
+    "Seq_Id (PB2)" = ifelse(
+      merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "PB2"],
+      paste("PB2", merged_df$key, sep = "|"),
+      ""
+    ),
+    "Seq_Id (PA)" = ifelse(
+      merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "PA"],
+      paste("PA", merged_df$key, sep = "|"),
+      ""
+    ),
+    "Seq_Id (MP)" = ifelse(
+      merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "MP"],
+      paste("MP", merged_df$key, sep = "|"),
+      ""
+    ),
+    "Seq_Id (NS)" = ifelse(
+      merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "NS"],
+      paste("NS", merged_df$key, sep = "|"),
+      ""
+    ),
+    "Seq_Id (NP)" = ifelse(
+      merged_df$key %in% filtered_seq$key[filtered_seq$experiment == "NP"],
+      paste("NP", merged_df$key, sep = "|"),
+      ""
+    ),
     "Seq_Id (HE)" = "",
     "Seq_Id (P3)" = "",
     "Submitting_Sample_Id" = merged_df$key,
+    "Original_Key" = merged_df$Original_Key,
     "Originating_Lab_Id" = merged_df$GISAID_Nr,
     "Originating_Sample_Id" = "",
     "Collection_Month" = month(merged_df$prove_tatt),
@@ -167,17 +242,22 @@ tmp <- merged_df %>%
     "Health_Status" = "",
     "Note" = "",
     "provider_sample_id" = "",
-    "Sampling_Strategy" = ifelse(merged_df$prove_kategori == "P1_", 
-                                 "Sentinel surveillance (ARI)", 
-                                 ifelse(merged_df$pasient_status == "Inneliggende", 
-                                        "Non-sentinel surveillance (hospital)", 
-                                        ifelse(merged_df$prove_kategori == "P2_" & merged_df$pasient_status == "Poliklinisk", 
-                                               "Non-sentinel surveillance (outpatient)", 
-                                               ""))),
+    "Sampling_Strategy" = ifelse(
+      merged_df$prove_kategori == "P1_",
+      "Sentinel surveillance (ARI)",
+      ifelse(
+        merged_df$pasient_status == "Inneliggende",
+        "Non-sentinel surveillance (hospital)",
+        ifelse(
+          merged_df$prove_kategori == "P2_" & merged_df$pasient_status == "Poliklinisk",
+          "Non-sentinel surveillance (outpatient)",
+          ""
+        )
+      )
+    ),
     "Sequencing_Technology" = Sequencing_Technology,
     "Assembly_Method" = Assembly_Method,
     "Sequencing_Strategy" = Sequencing_Strategy
-    
   )
 
 # Define the desired column order
@@ -211,6 +291,7 @@ desired_order <- c(
   "Seq_Id (HE)",
   "Seq_Id (P3)",
   "Submitting_Sample_Id",
+  "Original_Key",
   "Authors",
   "Originating_Lab_Id",
   "Originating_Sample_Id",
@@ -236,80 +317,78 @@ desired_order <- c(
   "provider_sample_id"
 )
 
-
 submission <- tmp %>%
   select(all_of(desired_order))
 
-# Define the output file path and filename
+# Define output paths
 output_dir <- "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/10-GISAID"
+
 output_filename_excel <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".xlsx")
 output_path_excel <- file.path(output_dir, output_filename_excel)
 
-# Write the submission dataframe to an Excel file
-#write.xlsx(tmp, output_path_excel, rownames = FALSE)
-
-# Set the output file path and filename for CSV
-output_dir_csv <- "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/10-GISAID"
 output_filename_csv <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".csv")
-output_path_csv <- file.path(output_dir_csv, output_filename_csv)
+output_path_csv <- file.path(output_dir, output_filename_csv)
 
-# Write the submission dataframe to a CSV file
+output_filename_fasta <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".fasta")
+output_path_fasta <- file.path(output_dir, output_filename_fasta)
+
+# Optional Excel output
+# write.xlsx(submission, output_path_excel, rownames = FALSE)
+
+# Write submission CSV
 write.csv(submission, output_path_csv, row.names = FALSE, fileEncoding = "UTF-8")
 
-# Create the output filename for the FASTA file
-output_filename_fasta <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".fasta")
-output_path_fasta <- file.path(output_dir_csv, output_filename_fasta)
-
 # Create the FASTA file
-file_con <- file(output_path_fasta, open = "w") # Open the file in write mode
+file_con <- file(output_path_fasta, open = "w")
 
-# Loop through each row in filtered_seq to create the FASTA entries and write to file
-for (i in 1:nrow(filtered_seq)) {
+for (i in seq_len(nrow(filtered_seq))) {
   header <- paste(filtered_seq$experiment[i], filtered_seq$key[i], sep = "|")
   sequence <- filtered_seq$sequence[i]
-  
-  # Write the header and sequence to file
   cat(">", header, "\n", sequence, "\n", file = file_con, sep = "")
 }
 
-
-# Try to locate a source for `ngs_qc_sum` keyed by sample `key`
+# Try to locate a source for ngs_qc_sum keyed by sample key
 qc_source <- NULL
 if (exists("merged_df") && "ngs_qc_sum" %in% names(merged_df)) {
   qc_source <- merged_df %>% select(key, ngs_qc_sum)
 } else if (exists("fludb") && "ngs_qc_sum" %in% names(fludb)) {
   qc_source <- fludb %>% select(key, ngs_qc_sum)
 } else if ("ngs_qc_sum" %in% names(tmp)) {
-  # Fallback if you already carried it into `tmp` under some name
-  # (rare) — adjust if needed
   qc_source <- tmp %>%
     transmute(key = Submitting_Sample_Id, ngs_qc_sum = ngs_qc_sum)
 }
 
 if (!is.null(qc_source)) {
-  # Long-form: one row per gene:issue, keep only FS/MS
   qc_long <- qc_source %>%
     filter(!is.na(ngs_qc_sum), ngs_qc_sum != "") %>%
     mutate(Submitting_Sample_Id = key) %>%
     separate_rows(ngs_qc_sum, sep = "\\|") %>%
-    separate(ngs_qc_sum, into = c("gene", "issue"), sep = ":", fill = "right", extra = "merge") %>%
+    separate(
+      ngs_qc_sum,
+      into = c("gene", "issue"),
+      sep = ":",
+      fill = "right",
+      extra = "merge"
+    ) %>%
     filter(issue %in% c("FS", "MS")) %>%
-    mutate(target_col = dplyr::recode(gene,
-                                      "HA"  = "Seq_Id (HA)",
-                                      "NA"  = "Seq_Id (NA)",
-                                      "PB1" = "Seq_Id (PB1)",
-                                      "PB2" = "Seq_Id (PB2)",
-                                      "PA"  = "Seq_Id (PA)",
-                                      "M"   = "Seq_Id (MP)",  # handle M vs MP naming
-                                      "MP"  = "Seq_Id (MP)",
-                                      "NS"  = "Seq_Id (NS)",
-                                      "NP"  = "Seq_Id (NP)",
-                                      .default = NA_character_
-    )) %>%
+    mutate(
+      target_col = dplyr::recode(
+        gene,
+        "HA"  = "Seq_Id (HA)",
+        "NA"  = "Seq_Id (NA)",
+        "PB1" = "Seq_Id (PB1)",
+        "PB2" = "Seq_Id (PB2)",
+        "PA"  = "Seq_Id (PA)",
+        "M"   = "Seq_Id (MP)",
+        "MP"  = "Seq_Id (MP)",
+        "NS"  = "Seq_Id (NS)",
+        "NP"  = "Seq_Id (NP)",
+        .default = NA_character_
+      )
+    ) %>%
     filter(!is.na(target_col)) %>%
     distinct(Submitting_Sample_Id, target_col)
   
-  # Apply: blank the affected Seq_Id cells
   if (nrow(qc_long) > 0) {
     for (i in seq_len(nrow(qc_long))) {
       sid <- qc_long$Submitting_Sample_Id[i]
@@ -320,11 +399,11 @@ if (!is.null(qc_source)) {
     }
   }
   
-  # Re-write CSV with the QC-filtered values
+  # Re-write CSV with QC-filtered values
   write.csv(submission, output_path_csv, row.names = FALSE, fileEncoding = "UTF-8")
 } else {
   warning("ngs_qc_sum not found in current environment; skipped QC-based Seq_Id clearing.")
 }
 
-# Close the file connection
+# Close FASTA file connection
 close(file_con)
