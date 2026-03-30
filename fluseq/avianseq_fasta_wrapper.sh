@@ -1,5 +1,6 @@
-
 #!/usr/bin/env bash
+
+set -euo pipefail
 
 # Activate conda
 source ~/miniconda3/etc/profile.d/conda.sh
@@ -21,7 +22,8 @@ usage() {
     echo "  -s, --season      Specify the season directory of the fastq files on the N-drive (e.g., Ses2425)"
     echo "  -y, --year        Specify the year directory of the fastq files on the N-drive"
     echo "  -v, --validation  Specify validation flag (e.g., VER)"
-	echo "  -b, --source      Specify source (e.g., bn)"
+    echo "  -b, --source      Specify source (e.g., bn)"
+    echo "  -g, --branch      Specify pipeline branch/tag to use (default: master)"
     exit 1
 }
 
@@ -32,8 +34,9 @@ SEASON=""
 YEAR=""
 VALIDATION_FLAG=""
 SOURCE=""
+PIPELINE_BRANCH="master"
 
-while getopts "hr:a:s:y:v:b:" opt; do
+while getopts "hr:a:s:y:v:b:g:" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
@@ -42,9 +45,18 @@ while getopts "hr:a:s:y:v:b:" opt; do
         y) YEAR="$OPTARG" ;;
         v) VALIDATION_FLAG="$OPTARG" ;;
         b) SOURCE="$OPTARG" ;;
+        g) PIPELINE_BRANCH="$OPTARG" ;;
         ?) usage ;;
     esac
 done
+
+echo "Run: $RUN"
+echo "Agens: $AGENS"
+echo "Season: $SEASON"
+echo "Year: $YEAR"
+echo "Validation Flag: $VALIDATION_FLAG"
+echo "Source: $SOURCE"
+echo "Pipeline branch: $PIPELINE_BRANCH"
 
 # Make sure the latest version of the ngs_scripts repo is present locally
 
@@ -62,11 +74,10 @@ else
     git clone "$REPO_URL" "$REPO"
 fi
 
-cd $HOME
-
+cd "$HOME"
 
 # Sometimes the pipeline has been cloned locally. Remove it to avoid version conflicts
-rm -rf $HOME/fluseq
+rm -rf "$HOME/fluseq"
 
 # Export the access token for web monitoring with tower
 export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
@@ -151,41 +162,41 @@ lcd "$FLU_DATABASE"
 mget "$(basename "$GENOTYPE_H5_LITS")"
 EOF
 
+# FASTA CONTROL POINT
+cd "$SAMPLEDIR"
 
-#FASTA CONTROL POINT
-cd $SAMPLEDIR
-
-#Removes duplicated seqeunces and renames headers for downstream analysis
+# Removes duplicated sequences and renames headers for downstream analysis
 if [[ "$SOURCE" == "bn" ]]; then
   for f in *.fasta; do
     tr -d '\r' < "$f" | perl -pe 's/^>([^|]+)\|(.*)$/>$2|$1/' > "$f.tmp" && mv "$f.tmp" "$f"
   done
 fi
 
-python3 $HOME/ngs_scripts/fluseq/dedup_rename_fasta_avianseq.py *fasta
-cat *dedup*.fasta > $RUN.fasta
+python3 "$HOME/ngs_scripts/fluseq/dedup_rename_fasta_avianseq.py" *fasta
+cat *dedup*.fasta > "$RUN.fasta"
 
-    
 # Create a samplesheet by running the supplied Rscript in a docker container.
-#ADD CODE FOR HANDLING OF SAMPLESHEET
+# ADD CODE FOR HANDLING OF SAMPLESHEET
 
 ### Run the main pipeline ###
 
 # Activate the conda environment that holds Nextflow
-cd $HOME
+cd "$HOME"
+set +u
 conda activate NEXTFLOW
+set -u
 
 # Make sure the latest pipeline is available
-#nextflow pull folkehelseinstituttet/viralseq
+# nextflow pull folkehelseinstituttet/viralseq
 
 # Start the pipeline
 echo "Analysing consensus sequences"
-nextflow pull RasmusKoRiis/nf-core-fluseq
+nextflow pull RasmusKoRiis/nf-core-fluseq -r "$PIPELINE_BRANCH"
 nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
-  -r master \
+  -r "$PIPELINE_BRANCH" \
   -profile docker,server \
   --file avian-fasta \
-  --input $SAMPLESHEET \
+  --input "$SAMPLESHEET" \
   --genotype_database "$GENOTYPE_DATABASE" \
   --fasta "$SAMPLEDIR/$RUN.fasta" \
   --samplesDir "$SAMPLEDIR" \
@@ -195,14 +206,14 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   --mamalian_mutation_db "$MAMMALIAN_MUTATION_DATABASE" \
   --inhibtion_mutation_db "$INHIBTION_MUTATION_DATABASE" \
   --sequence_references "$SEQUENCE_REFERENCES" \
-  --nextclade_dataset  "$NEXTCLADE_DATASET" \
-  --reassortment_database  "$REASSORTMENT_DATABASE" \
+  --nextclade_dataset "$NEXTCLADE_DATASET" \
+  --reassortment_database "$REASSORTMENT_DATABASE" \
   --runid "$RUN" \
-  --release_version "v1.0.2" 
+  --release_version "v1.0.2"
 
 echo "Moving results to the N: drive"
-mkdir $HOME/out_fluseq
-mv $RUN/ out_fluseq/
+mkdir -p "$HOME/out_fluseq"
+mv "$RUN/" out_fluseq/
 
 if [ "$SKIP_RESULTS_MOVE" = false ]; then
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
@@ -220,8 +231,7 @@ cd ${SMB_DIR_ANALYSIS}
 mput *.csv
 EOF
 
-
 ## Clean up
-#nextflow clean -f
-#rm -rf $HOME/out
-#rm -rf $TMP_DIR
+# nextflow clean -f
+# rm -rf $HOME/out
+# rm -rf $TMP_DIR
