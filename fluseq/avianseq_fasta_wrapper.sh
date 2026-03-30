@@ -102,7 +102,7 @@ fi
 
 # Old data is moved to Arkiv
 current_year=$(date +"%Y")
-if [ "$YEAR" -eq "$current_year" ]; then
+if [ "$YEAR" -le "$current_year" ]; then
     SMB_INPUT="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/12-Export/${YEAR}"
 else
     echo "Error: Year cannot be larger than $current_year"
