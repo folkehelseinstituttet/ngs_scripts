@@ -19,6 +19,7 @@ usage() {
     echo "  -s <season>        Specify the season directory of the fastq files on the N-drive (e.g., Ses2425)"
     echo "  -y <year>          Specify the year directory of the fastq files on the N-drive"
     echo "  -v <validation>    Specify validation flag (e.g., VER)"
+    echo "  -b <branch>        Pipeline branch/tag to use (default: master)"
     exit 1
 }
 
@@ -30,9 +31,10 @@ YEAR=""
 PRIMER=""
 VALIDATION_FLAG=""
 SKIP_RESULTS_MOVE=false
+PIPELINE_BRANCH="master"
 
 # Parse options
-while getopts "hr:p:a:s:y:v:" opt; do
+while getopts "hr:p:a:s:y:v:b:" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
@@ -41,6 +43,7 @@ while getopts "hr:p:a:s:y:v:" opt; do
         s) SEASON="$OPTARG" ;;
         y) YEAR="$OPTARG" ;;
         v) VALIDATION_FLAG="$OPTARG" ;;
+        b) PIPELINE_BRANCH="$OPTARG" ;;
         ?) usage ;;
     esac
 done
@@ -58,6 +61,7 @@ echo "Agens: $AGENS"
 echo "Season: $SEASON"
 echo "Year: $YEAR"
 echo "Validation Flag: $VALIDATION_FLAG"
+echo "Pipeline branch: $PIPELINE_BRANCH"
 
 # Repo setup
 REPO="$HOME/ngs_scripts"
@@ -134,17 +138,16 @@ fi
 
 echo "Using FASTA: $FASTA"
 
-
 # Activate Nextflow env
 set +u
 conda activate NEXTFLOW
 set -u
 
 echo "Running SARS pipeline"
-nextflow pull RasmusKoRiis/nf-core-sars
+nextflow pull RasmusKoRiis/nf-core-sars -r "$PIPELINE_BRANCH"
 
 nextflow run RasmusKoRiis/nf-core-sars/main.nf \
-  -r master \
+  -r "$PIPELINE_BRANCH" \
   -profile docker,server \
   --fasta "$FASTA" \
   --outdir "$LOCAL_RUN_OUTDIR" \
