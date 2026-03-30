@@ -21,6 +21,7 @@ usage() {
     echo "  -s SEASON          Specify the season directory (e.g., Ses2526)"
     echo "  -y YEAR            Specify the year directory of the fasta export"
     echo "  -v VALIDATION      Specify validation flag (e.g., VER)"
+    echo "  -b BRANCH          Pipeline branch/tag to use (default: master)"
     exit 1
 }
 
@@ -29,8 +30,9 @@ AGENS=""
 SEASON=""
 YEAR=""
 VALIDATION_FLAG=""
+PIPELINE_BRANCH="master"
 
-while getopts "hr:a:s:y:v:" opt; do
+while getopts "hr:a:s:y:v:b:" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
@@ -38,6 +40,7 @@ while getopts "hr:a:s:y:v:" opt; do
         s) SEASON="$OPTARG" ;;
         y) YEAR="$OPTARG" ;;
         v) VALIDATION_FLAG="$OPTARG" ;;
+        b) PIPELINE_BRANCH="$OPTARG" ;;
         ?) usage ;;
     esac
 done
@@ -45,6 +48,13 @@ done
 [ -z "$RUN" ] && { echo "ERROR: -r RUN is required"; usage; }
 [ -z "$SEASON" ] && { echo "ERROR: -s SEASON is required"; usage; }
 [ -z "$YEAR" ] && { echo "ERROR: -y YEAR is required"; usage; }
+
+echo "Run: $RUN"
+echo "Agens: $AGENS"
+echo "Season: $SEASON"
+echo "Year: $YEAR"
+echo "Validation Flag: $VALIDATION_FLAG"
+echo "Pipeline branch: $PIPELINE_BRANCH"
 
 clean_field() {
     printf '%s' "$1" | sed 's/\r//g; s/^[[:space:]]*//; s/[[:space:]]*$//'
@@ -327,9 +337,9 @@ conda activate NEXTFLOW
 set -u
 
 echo "Analysing consensus sequences"
-nextflow pull RasmusKoRiis/nf-core-fluseq
+nextflow pull RasmusKoRiis/nf-core-fluseq -r "$PIPELINE_BRANCH"
 nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
-  -r master \
+  -r "$PIPELINE_BRANCH" \
   -profile docker,server \
   --file human-fasta \
   --input "$SAMPLESHEET" \
