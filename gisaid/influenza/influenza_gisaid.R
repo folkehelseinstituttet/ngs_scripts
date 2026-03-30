@@ -1,6 +1,10 @@
 # Capture command-line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
+if (length(args) < 1) {
+  stop("Missing required argument: SID (RunID).")
+}
+
 # Assign the arguments to variables
 SID <- args[1]  # RunID from argument
 
@@ -52,7 +56,7 @@ authors <- "Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; Dieseth 
 GISAIDnr <- 3869
 Sequencing_Technology <- "Oxford Nanopore"
 Assembly_Method <- "IRMA FLU-minion"
-Sequencing_Strategy <- "Targeted-amplification"
+Sequencing_Strategy <- "Targeted-amplification "
 
 # Read Lab_ID data
 Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Laboratory.xlsx")
@@ -122,22 +126,17 @@ fludb <- fludb %>%
       NA_character_
     ),
     
-    prove_tatt = as.Date(prove_tatt),
-    Year = year(prove_tatt),
+    Year = year(as.Date(prove_tatt)),
     age = pasient_alder,
     
-    # Keep original key intact, use everything after the first 4 digits
-    Uniq_nr = if_else(
-      !is.na(Original_Key) & nchar(Original_Key) >= 5,
-      str_sub(Original_Key, start = 5),
-      Original_Key
-    ),
+    # Key format is always XXXX + number, so remove first 4 chars
+    Uniq_nr = sub("^.{4}", "", Original_Key),
     
     Isolate_Name = paste(INFType, "Norway", Uniq_nr, Year, sep = "/"),
     
     Specimen_Source = case_when(
-      str_starts(prove_material, "NAPHSEKR") ~ "nasopharyngeal swab",
       str_starts(prove_material, "SEKRET") ~ "",
+      str_starts(prove_material, "NAPHSEKR") ~ "nasopharyngeal swab",
       TRUE ~ ""
     ),
     
@@ -156,14 +155,14 @@ merged_df <- merge(
   all.x = TRUE
 )
 
-# Replace missing GISAID_Nr values
+# Replace NA / blank values in GISAID_Nr column
 merged_df$GISAID_Nr <- ifelse(
   is.na(merged_df$GISAID_Nr) | merged_df$GISAID_Nr == "",
   GISAIDnr,
   merged_df$GISAID_Nr
 )
 
-################### FASTA FILE / SUBMISSION TABLE:
+################### FASTA FILE :
 tmp <- merged_df %>%
   add_column(
     "Isolate_Id" = "",
@@ -220,7 +219,6 @@ tmp <- merged_df %>%
     "Seq_Id (HE)" = "",
     "Seq_Id (P3)" = "",
     "Submitting_Sample_Id" = merged_df$key,
-    "Original_Key" = merged_df$Original_Key,
     "Originating_Lab_Id" = merged_df$GISAID_Nr,
     "Originating_Sample_Id" = "",
     "Collection_Month" = month(merged_df$prove_tatt),
@@ -291,7 +289,6 @@ desired_order <- c(
   "Seq_Id (HE)",
   "Seq_Id (P3)",
   "Submitting_Sample_Id",
-  "Original_Key",
   "Authors",
   "Originating_Lab_Id",
   "Originating_Sample_Id",
@@ -320,34 +317,38 @@ desired_order <- c(
 submission <- tmp %>%
   select(all_of(desired_order))
 
-# Define output paths
+# Define the output file path and filename
 output_dir <- "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/10-GISAID"
-
 output_filename_excel <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".xlsx")
 output_path_excel <- file.path(output_dir, output_filename_excel)
 
-output_filename_csv <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".csv")
-output_path_csv <- file.path(output_dir, output_filename_csv)
-
-output_filename_fasta <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".fasta")
-output_path_fasta <- file.path(output_dir, output_filename_fasta)
-
-# Optional Excel output
+# Write the submission dataframe to an Excel file
 # write.xlsx(submission, output_path_excel, rownames = FALSE)
 
-# Write submission CSV
+# Set the output file path and filename for CSV
+output_dir_csv <- "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/10-GISAID"
+output_filename_csv <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".csv")
+output_path_csv <- file.path(output_dir_csv, output_filename_csv)
+
+# Write the submission dataframe to a CSV file
 write.csv(submission, output_path_csv, row.names = FALSE, fileEncoding = "UTF-8")
+
+# Create the output filename for the FASTA file
+output_filename_fasta <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".fasta")
+output_path_fasta <- file.path(output_dir_csv, output_filename_fasta)
 
 # Create the FASTA file
 file_con <- file(output_path_fasta, open = "w")
 
+# Loop through each row in filtered_seq to create the FASTA entries and write to file
 for (i in seq_len(nrow(filtered_seq))) {
   header <- paste(filtered_seq$experiment[i], filtered_seq$key[i], sep = "|")
   sequence <- filtered_seq$sequence[i]
+  
   cat(">", header, "\n", sequence, "\n", file = file_con, sep = "")
 }
 
-# Try to locate a source for ngs_qc_sum keyed by sample key
+# Try to locate a source for `ngs_qc_sum` keyed by sample `key`
 qc_source <- NULL
 if (exists("merged_df") && "ngs_qc_sum" %in% names(merged_df)) {
   qc_source <- merged_df %>% select(key, ngs_qc_sum)
@@ -399,11 +400,11 @@ if (!is.null(qc_source)) {
     }
   }
   
-  # Re-write CSV with QC-filtered values
+  # Re-write CSV with the QC-filtered values
   write.csv(submission, output_path_csv, row.names = FALSE, fileEncoding = "UTF-8")
 } else {
   warning("ngs_qc_sum not found in current environment; skipped QC-based Seq_Id clearing.")
 }
 
-# Close FASTA file connection
+# Close the file connection
 close(file_con)
