@@ -55,7 +55,7 @@ trap 'ec=$?;
 SCRIPT_NAME=$(basename "$0")
 
 # DB aliases must match profile names in nextflow.config (profiles block).
-VALID_DB_ALIASES=("v3_2_4")
+VALID_DB_ALIASES=("v3_2_4", "HEV")
 
 usage() {
     echo "Usage: $SCRIPT_NAME [OPTIONS]"
