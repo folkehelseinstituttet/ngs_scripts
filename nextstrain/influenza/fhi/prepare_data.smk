@@ -1,6 +1,6 @@
 # profiles/niph/prepare_data.smk
 
-ruleorder: prepare_sequences > parse
+ruleorder: prepare_sequences > prepare_metadata
 
 # Produce per-segment metadata tables expected by upstream join_metadata:
 #   data/{lineage}/metadata_ha.tsv
