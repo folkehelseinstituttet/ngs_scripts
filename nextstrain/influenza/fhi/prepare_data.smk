@@ -1,18 +1,10 @@
 # profiles/niph/prepare_data.smk
 
-ruleorder: prepare_sequences > prepare_metadata
-
-# Produce per-segment metadata tables expected by upstream join_metadata:
-#   data/{lineage}/metadata_ha.tsv
-#   data/{lineage}/metadata_na.tsv
-#
-# Upstream will then build:
-#   metadata_joined.tsv -> metadata_with_gihsn.tsv -> metadata.tsv
 rule prepare_metadata:
     input:
         metadata="data/{lineage}/metadata.xls",
     output:
-        metadata="data/{lineage}/metadata_{segment}.tsv",
+        metadata="data/{lineage}/metadata.tsv",
     params:
         old_fields=",".join(config["metadata_fields"]),
         new_fields=",".join(config["renamed_metadata_fields"]),
