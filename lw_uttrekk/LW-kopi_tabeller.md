@@ -1,6 +1,6 @@
 Installere R-pakker:
 ```
-install.packages("odbc", reps = "file:///G:/R-server/cran/cran.uib.no")
+install.packages("odbc", repos = "file:///G:/R-server/cran/cran.uib.no")
 ```
 
 Dokumentasjon SharePoint: https://folkehelse.sharepoint.com/sites/1439/LabWare%20dokumentasjon/Datauttrekk.aspx
