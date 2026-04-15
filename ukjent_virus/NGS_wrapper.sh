@@ -279,7 +279,7 @@ set -u
 set_status "Activated NEXTFLOW conda environment"
 
 # 1. Set the version (switch back to 'main' once development is complete and merged)
-VERSION="main"
+VERSION="Assembly_v2"
 
 # 2. Tell Nextflow to refresh the code from GitHub
 nextflow pull alexanderhes/Ukjent_virus -r $VERSION || {
