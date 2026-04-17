@@ -29,17 +29,17 @@ fix_mojibake_utf8 <- function(x) {
   x <- as.character(x)
   needs_fix <- !is.na(x) & grepl("Ã|Â|â", x, useBytes = TRUE)
   out <- x
-
+  
   out[needs_fix] <- vapply(x[needs_fix], function(s) {
     codepoints <- utf8ToInt(s)
     if (length(codepoints) == 0L || any(codepoints > 255L)) return(s)
-
+    
     repaired <- tryCatch(rawToChar(as.raw(codepoints)), error = function(e) s)
     validated <- iconv(repaired, from = "UTF-8", to = "UTF-8", sub = "")
-
+    
     if (is.na(validated)) s else validated
   }, FUN.VALUE = character(1))
-
+  
   out
 }
 
@@ -48,16 +48,16 @@ fix_mojibake_utf8 <- function(x) {
 # Fallback: remove first 4 digits if possible
 extract_unique_number <- function(x) {
   x <- as.character(x)
-
+  
   out <- ifelse(
     str_detect(x, "[0-9]{6}$"),
     str_extract(x, "[0-9]{6}$"),
     NA_character_
   )
-
+  
   fallback_idx <- is.na(out) & !is.na(x) & str_detect(x, "^[0-9]{5,}$")
   out[fallback_idx] <- str_remove(x[fallback_idx], "^[0-9]{4}")
-
+  
   out
 }
 
@@ -137,9 +137,16 @@ lab_lookup_table <- tribble(
 
 # Proceed with data filtering and selection
 sarsdb <- sarsdb %>%
-  filter(ngs_run_id == SID) %>%
-  filter(is.na(gisaid_kommentar) | gisaid_kommentar == "") %>%
-  filter(nc_coverage >= 0.75)
+  mutate(
+    nc_coverage_num = suppressWarnings(as.numeric(as.character(nc_coverage)))
+  ) %>%
+  filter(
+    ngs_run_id == SID,
+    is.na(gisaid_kommentar) | gisaid_kommentar == "",
+    !is.na(nc_coverage_num),
+    is.finite(nc_coverage_num),
+    nc_coverage_num >= 0.75
+  )
 
 # Use join to add the labs and addresses
 sarsdb <- sarsdb %>%
