@@ -2,8 +2,8 @@
 args <- commandArgs(trailingOnly = TRUE)
 
 # Assign the arguments to variables
-SID <- "SAR026"
-submitter <- "RasmusKRiis"
+SID <- args[1]
+submitter <- args[2]
 
 source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
 source("N:/Virologi/Influensa/RARI/2526/BN SC2 25-26.R")
