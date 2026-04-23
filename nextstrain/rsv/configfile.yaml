@@ -4,7 +4,6 @@ genesforglycosylation: ["G", "F"]
 builds_to_run: ["genome"]
 resolutions_to_run: ["all-time"]
 
-# Always include all strains from Norway
 include:
   - "country == 'Norway'"
 
@@ -19,42 +18,44 @@ inputs:
     metadata: data/{a_or_b}/metadata.tsv.gz
     sequences: data/{a_or_b}/sequences.fasta.xz
 
-subtypes: ['a','b']
+subtypes: ['a', 'b']
 
 filter:
-  # Grouping by year and country ensures representative sampling for non-Norwegian sequences
   group_by: "year country"
 
-  # Minimum coverage thresholds
   min_coverage:
     genome: 0.3
     G: 0.3
     F: 0.3
 
-  # Minimum length thresholds
   min_length:
     genome: 10000
     G: 600
     F: 1200
 
-  # Date ranges for resolutions
   resolutions:
     all-time:
-      min_date: 1900
-      max_date: 2100
+      min_date: 1975-01-01
     6y:
-      min_date: 2018
-      max_date: 2025
-      background_min_date: 100Y
+      min_date: 6Y
+      background_min_date: 12Y
     3y:
-      min_date: 2022
-      max_date: 2025
-      background_min_date: 100Y
+      min_date: 3Y
+      background_min_date: 12Y
 
   subsample_max_sequences:
     genome: 3000
     G: 3000
     F: 3000
+
+  exclude_where:
+    recent:
+      - "qc.overallStatus=bad"
+    background:
+      - "qc.overallStatus=bad"
+      - "qc.overallStatus=mediocre"
+
+  missing_data_threshold: 1000
 
 files:
   color_schemes: "config/colors.tsv"
