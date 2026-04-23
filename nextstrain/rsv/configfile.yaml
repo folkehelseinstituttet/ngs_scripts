@@ -2,10 +2,12 @@ conda_environment: "workflow/envs/nextstrain.yaml"
 
 genesforglycosylation: ["G", "F"]
 
+# Keep genome-only for your build
 builds_to_run: ["genome"]
 resolutions_to_run: ["all-time"]
 
-# Always include all strains from Norway
+subtypes: ["a", "b"]
+
 include:
   - "country == 'Norway'"
 
@@ -20,10 +22,7 @@ inputs:
     metadata: "data/{a_or_b}/metadata.tsv.gz"
     sequences: "data/{a_or_b}/sequences.fasta.xz"
 
-subtypes: ["a", "b"]
-
 filter:
-  # Grouping by year and country ensures representative sampling for non-Norwegian sequences
   group_by: "year country"
 
   min_coverage:
@@ -52,25 +51,28 @@ filter:
     genome: 3000
     G: 3000
     F: 3000
-    F-antibody-escape: 3000
+    F-antibody-escape: 2000
 
   exclude_where:
-    recent:
-      - "qc.overallStatus=bad"
-    background:
-      - "qc.overallStatus=bad"
-      - "qc.overallStatus=mediocre"
+    recent: ["qc.overallStatus=bad"]
+    background: ["qc.overallStatus=bad", "qc.overallStatus=mediocre"]
 
   missing_data_threshold: 1000
 
 files:
   color_schemes: "config/colors.tsv"
   auspice_config: "config/auspice_config.json"
+  auspice_config_additional_colorings: "config/auspice_config_additional_colorings.json"
+  auspice_config_f_antibody_escape: "config/auspice_config_dms-defaults.json"
+  auspice_config_non-genome_builds: "config/auspice_config_non-genome.json"
 
 refine:
   coalescent: "opt"
   date_inference: "marginal"
   clock_filter_iqd: 4
+
+ancestral:
+  inference: "joint"
 
 cds:
   F: "F"
@@ -78,11 +80,17 @@ cds:
   genome: "F"
   F-antibody-escape: "F"
 
-ancestral:
-  inference: "joint"
-
 traits:
-  columns: ["country", "division", "location"]
+  columns: "country region"
+
+frequencies:
+  resolutions:
+    all-time:
+      min_date: 1975-01-01
+    6y:
+      min_date: 6Y
+    3y:
+      min_date: 3Y
 
 nextclade_attributes:
   a:
@@ -94,7 +102,6 @@ nextclade_attributes:
     reference_name: "hRSV/B/Australia/VIC-RCH056/2019"
     accession: "EPI_ISL_1653999"
 
-# configuration specific to the F deep mutational scanning antibody escape data
 f_dms_data: "dms-data/all_antibodies.csv"
 
 f_dms_antibodies:
@@ -107,8 +114,7 @@ dms_only_positive_escape: true
 
 enrich_antibody_escape:
   F-antibody-escape:
-    min_date: 6Y
-    max_date: 0D
-    max_group_size: 10
-    min_escape_sum: 1.0
-    max_escape_sum: 100.0
+    nseqs_per_antibody_scoretype: 500
+    group_by: [country, year]
+    max_identical_f_prot_muts: 2
+    max_identical_max_escape_mut: 6
