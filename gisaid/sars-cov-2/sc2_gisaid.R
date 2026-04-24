@@ -44,13 +44,16 @@ fix_mojibake_utf8 <- function(x) {
 }
 
 # Extract isolate number from key
-# Always remove the first 4 digits, e.g. 2526005006 -> 005006
+# Always remove the first 4 digits, e.g.
+# 252602879  -> 02879
+# 2526005006 -> 005006
 extract_unique_number <- function(x) {
   x <- as.character(x)
+  x <- stringr::str_trim(x)
 
   out <- ifelse(
-    !is.na(x) & str_detect(x, "^[0-9]{5,}$"),
-    str_remove(x, "^[0-9]{4}"),
+    !is.na(x) & stringr::str_detect(x, "^[0-9]{5,}$"),
+    stringr::str_sub(x, start = 5),
     NA_character_
   )
 
@@ -175,6 +178,7 @@ sarsdb <- sarsdb %>%
 sarsdb$pasient_fylke_name <- fix_mojibake_utf8(sarsdb$pasient_fylke_name)
 
 # Data cleaning and manipulation
+# Data cleaning and manipulation
 sarsdb <- sarsdb %>%
   mutate(
     Host_Gender = if_else(
@@ -185,10 +189,9 @@ sarsdb <- sarsdb %>%
     Year = year(as.Date(prove_tatt)),
     age = pasient_alder,
     Uniq_nr = extract_unique_number(key),
-    Isolate_Name = if_else(
-      !is.na(Uniq_nr) & !is.na(Year),
-      paste("hCoV-19", "Norway", Uniq_nr, Year, sep = "/"),
-      paste("hCoV-19", "Norway", as.character(key), Year, sep = "/")
+    Isolate_Name = dplyr::case_when(
+      !is.na(Uniq_nr) & !is.na(Year) ~ paste("hCoV-19", "Norway", Uniq_nr, Year, sep = "/"),
+      TRUE ~ paste("hCoV-19", "Norway", as.character(key), Year, sep = "/")
     ),
     Specimen_Source = case_when(
       str_starts(prove_material, "NAPHSEKR") ~ "nasopharyngeal swab",
