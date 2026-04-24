@@ -43,21 +43,17 @@ fix_mojibake_utf8 <- function(x) {
   out
 }
 
-# Extract robust isolate number from key
-# Preferred: last 6 digits
-# Fallback: remove first 4 digits if possible
+# Extract isolate number from key
+# Always remove the first 4 digits, e.g. 2526005006 -> 005006
 extract_unique_number <- function(x) {
   x <- as.character(x)
-  
+
   out <- ifelse(
-    str_detect(x, "[0-9]{6}$"),
-    str_extract(x, "[0-9]{6}$"),
+    !is.na(x) & str_detect(x, "^[0-9]{5,}$"),
+    str_remove(x, "^[0-9]{4}"),
     NA_character_
   )
-  
-  fallback_idx <- is.na(out) & !is.na(x) & str_detect(x, "^[0-9]{5,}$")
-  out[fallback_idx] <- str_remove(x[fallback_idx], "^[0-9]{4}")
-  
+
   out
 }
 
