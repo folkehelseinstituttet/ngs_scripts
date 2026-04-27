@@ -20,6 +20,12 @@ usage() {
     echo "  -y <year>          Specify the year directory of the fastq files on the N-drive (required)"
     echo "  -v <validation>    Specify validation flag (e.g., VER)"
     echo "  -b <branch>        Pipeline branch/tag to use (default: master)"
+    echo "  -o                 Run in offline mode using local cached pipeline/resources"
+    echo ""
+    echo "Offline environment overrides:"
+    echo "  PIPELINE_DIR                 Local pipeline checkout (default: \$HOME/.nextflow/assets/RasmusKoRiis/nf-core-sars)"
+    echo "  OFFLINE_NEXTCLADE_DATASET    Local Nextclade dataset directory"
+    echo "  OFFLINE_ARTIC_MODEL_DIR      Local ARTIC/Clair3 model directory"
     exit 1
 }
 
@@ -31,9 +37,11 @@ YEAR=""
 PRIMER=""
 VALIDATION_FLAG=""
 PIPELINE_BRANCH="master"
+OFFLINE_MODE=false
+PIPELINE_DIR="${PIPELINE_DIR:-$HOME/.nextflow/assets/RasmusKoRiis/nf-core-sars}"
 
 # Parse options
-while getopts "hr:p:a:s:y:v:b:" opt; do
+while getopts "hr:p:a:s:y:v:b:o" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
@@ -43,6 +51,7 @@ while getopts "hr:p:a:s:y:v:b:" opt; do
         y) YEAR="$OPTARG" ;;
         v) VALIDATION_FLAG="$OPTARG" ;;
         b) PIPELINE_BRANCH="$OPTARG" ;;
+        o) OFFLINE_MODE=true ;;
         ?) usage ;;
     esac
 done
@@ -60,6 +69,7 @@ echo "Season: ${SEASON:-}"
 echo "Year: $YEAR"
 echo "Validation Flag: ${VALIDATION_FLAG:-}"
 echo "Pipeline branch: ${PIPELINE_BRANCH}"
+echo "Offline mode: $OFFLINE_MODE"
 
 ################################################################################
 # Repo sync
@@ -67,18 +77,24 @@ echo "Pipeline branch: ${PIPELINE_BRANCH}"
 REPO="$HOME/ngs_scripts"
 REPO_URL="https://github.com/folkehelseinstituttet/ngs_scripts.git"
 
-if [ -d "$REPO" ]; then
-    echo "Directory 'ngs_scripts' exists. Pulling latest changes..."
-    cd "$REPO"
-    git pull
+if [ "$OFFLINE_MODE" = true ]; then
+    echo "Offline mode enabled: skipping ngs_scripts git sync."
 else
-    echo "Directory 'ngs_scripts' does not exist. Cloning repository..."
-    git clone "$REPO_URL" "$REPO"
+    if [ -d "$REPO" ]; then
+        echo "Directory 'ngs_scripts' exists. Pulling latest changes..."
+        cd "$REPO"
+        git pull
+    else
+        echo "Directory 'ngs_scripts' does not exist. Cloning repository..."
+        git clone "$REPO_URL" "$REPO"
+    fi
 fi
 cd "$HOME"
 
 # Sometimes the pipeline has been cloned locally. Remove it to avoid version conflicts
-rm -rf "$HOME/sarsseq"
+if [ "$OFFLINE_MODE" = false ]; then
+    rm -rf "$HOME/sarsseq"
+fi
 
 # Export the access token for web monitoring with tower
 export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
@@ -120,6 +136,19 @@ fi
 ################################################################################
 SARS_DATABASE="/mnt/tempdata/sars_db/assets"
 mkdir -p "$SARS_DATABASE"
+OFFLINE_BASE="${OFFLINE_BASE:-$SARS_DATABASE/offline}"
+OFFLINE_NEXTCLADE_DATASET="${OFFLINE_NEXTCLADE_DATASET:-$OFFLINE_BASE/nextclade/sars-cov-2-wuhan-hu-1-orfs}"
+OFFLINE_ARTIC_MODEL_DIR="${OFFLINE_ARTIC_MODEL_DIR:-$OFFLINE_BASE/artic_models}"
+
+REQUIRED_DOCKER_IMAGES=(
+    "quay.io/nf-core/ubuntu:20.04"
+    "quay.io/biocontainers/chopper:0.9.0--hdcf5f25_0"
+    "quay.io/artic/fieldbioinformatics:1.6.0"
+    "community.wave.seqera.io/library/artic:1.6.2--d4956cdc155b8612"
+    "docker.io/rasmuskriis/nextclade-python"
+    "docker.io/nextstrain/nextclade:latest"
+    "docker.io/rasmuskriis/blast_python_pandas:amd64"
+)
 
 download_db() {
     local remote_path="$1"
@@ -220,6 +249,72 @@ resolve_first_file() {
     done
 
     return 1
+}
+
+require_file() {
+    local path="$1"
+    local label="$2"
+    if [ ! -f "$path" ]; then
+        echo "ERROR: $label not found: $path"
+        exit 1
+    fi
+}
+
+require_dir() {
+    local path="$1"
+    local label="$2"
+    if [ ! -d "$path" ]; then
+        echo "ERROR: $label not found: $path"
+        exit 1
+    fi
+}
+
+require_nonempty_dir() {
+    local path="$1"
+    local label="$2"
+    require_dir "$path" "$label"
+    if [ "$(find "$path" -mindepth 1 -maxdepth 1 | wc -l)" -eq 0 ]; then
+        echo "ERROR: $label is empty: $path"
+        exit 1
+    fi
+}
+
+preflight_offline_mode() {
+    echo "Running offline preflight checks"
+
+    require_file "$PIPELINE_DIR/main.nf" "Local pipeline main.nf"
+    require_file "$SAMPLESHEET" "Samplesheet"
+    if [ -z "$SAMPLEDIR" ]; then
+        echo "ERROR: Sample FASTQ directory could not be resolved for offline mode."
+        exit 1
+    fi
+    require_dir "$SAMPLEDIR" "Sample FASTQ directory"
+    require_nonempty_dir "$OFFLINE_NEXTCLADE_DATASET" "Offline Nextclade dataset directory"
+    require_nonempty_dir "$OFFLINE_ARTIC_MODEL_DIR" "Offline ARTIC model directory"
+    require_file "$SARS_DATABASE/Spike_mAbs_inhibitors.csv" "Spike lookup table"
+    require_file "$SARS_DATABASE/RdRP_inhibitors.csv" "RdRP lookup table"
+    require_file "$SARS_DATABASE/3CLpro_inhibitors.csv" "3CLpro lookup table"
+
+    if ! find "$HOME/.nextflow/plugins" -maxdepth 4 -iname '*nf-schema*2.5.1*' 2>/dev/null | grep -q .; then
+        echo "ERROR: nf-schema@2.5.1 was not found in the local Nextflow plugin cache."
+        echo "Run the pipeline once online, or install/cache nf-schema@2.5.1 before offline use."
+        exit 1
+    fi
+
+    local missing_images=()
+    local image
+    for image in "${REQUIRED_DOCKER_IMAGES[@]}"; do
+        if ! docker image inspect "$image" >/dev/null 2>&1; then
+            missing_images+=("$image")
+        fi
+    done
+
+    if [ "${#missing_images[@]}" -gt 0 ]; then
+        echo "ERROR: Missing Docker images required for offline mode:"
+        printf '  - %s\n' "${missing_images[@]}"
+        echo "Pull these images while online before running with -o."
+        exit 1
+    fi
 }
 
 ################################################################################
@@ -325,6 +420,10 @@ echo "Using primer dir : $PRIMER_DIR"
 echo "Using primer bed : $BED_LOCAL"
 echo "Using reference  : $REF_LOCAL"
 
+if [ "$OFFLINE_MODE" = true ]; then
+    preflight_offline_mode
+fi
+
 ################################################################################
 # Run Nextflow pipeline
 ################################################################################
@@ -337,10 +436,28 @@ conda activate NEXTFLOW
 set -u
 
 echo "Map to references and create consensus sequences"
-nextflow pull RasmusKoRiis/nf-core-sars -r "$PIPELINE_BRANCH"
+NEXTFLOW_SOURCE="RasmusKoRiis/nf-core-sars/main.nf"
+NEXTFLOW_REV_ARGS=(-r "$PIPELINE_BRANCH")
+NEXTFLOW_OFFLINE_ARGS=()
 
-nextflow run RasmusKoRiis/nf-core-sars/main.nf \
-    -r "$PIPELINE_BRANCH" \
+if [ "$OFFLINE_MODE" = true ]; then
+    export NXF_OFFLINE=true
+    NEXTFLOW_SOURCE="$PIPELINE_DIR/main.nf"
+    NEXTFLOW_REV_ARGS=()
+    NEXTFLOW_OFFLINE_ARGS=(
+        --offline true
+        --igenomes_ignore true
+        --nextclade_dataset "$OFFLINE_NEXTCLADE_DATASET"
+        --artic_model_dir "$OFFLINE_ARTIC_MODEL_DIR"
+    )
+    echo "Offline mode enabled: skipping nextflow pull."
+    echo "Using local pipeline: $NEXTFLOW_SOURCE"
+else
+    nextflow pull RasmusKoRiis/nf-core-sars -r "$PIPELINE_BRANCH"
+fi
+
+nextflow run "$NEXTFLOW_SOURCE" \
+    "${NEXTFLOW_REV_ARGS[@]}" \
     -profile docker,server \
     --input "$SAMPLESHEET" \
     --samplesDir "$SAMPLEDIR" \
@@ -352,7 +469,8 @@ nextflow run RasmusKoRiis/nf-core-sars/main.nf \
     --spike "$SARS_DATABASE/Spike_mAbs_inhibitors.csv" \
     --rdrp "$SARS_DATABASE/RdRP_inhibitors.csv" \
     --clpro "$SARS_DATABASE/3CLpro_inhibitors.csv" \
-    --release_version "v1.0.0"
+    --release_version "v1.0.0" \
+    "${NEXTFLOW_OFFLINE_ARGS[@]}"
 
 ################################################################################
 # Move results locally into out_sarsseq
