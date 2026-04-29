@@ -2,7 +2,16 @@
 set -euo pipefail
 
 # Activate conda base functions
-source ~/miniconda3/etc/profile.d/conda.sh
+CONDA_PROFILE="${CONDA_PROFILE:-$HOME/miniconda3/etc/profile.d/conda.sh}"
+if [ -f "$CONDA_PROFILE" ]; then
+    source "$CONDA_PROFILE"
+elif command -v conda >/dev/null 2>&1; then
+    eval "$(conda shell.bash hook)"
+else
+    echo "ERROR: Could not initialize conda."
+    echo "Set CONDA_PROFILE=/path/to/conda.sh or make conda available in PATH."
+    exit 1
+fi
 
 # Maintained by: Rasmus Kopperud Riis (rasmuskopperud.riis@fhi.no)
 # Version: dev
@@ -28,12 +37,18 @@ usage() {
     echo "                     Use a local samplesheet instead of /mnt/tempdata/fastq/<RUN>.csv"
     echo "  --local-fasta <path-or-glob>"
     echo "                     Run the FASTA workflow on local FASTA input instead of the FASTQ workflow"
+    echo "  --outdir <dir>     Write this run's pipeline output to an explicit local directory"
     echo ""
     echo "Offline environment overrides:"
+    echo "  BASE_DIR                     Local base directory for temp/cache paths (default: /mnt/tempdata)"
+    echo "  TMP_DIR                      Local temporary FASTQ directory (default: BASE_DIR/fastq)"
+    echo "  SARS_DATABASE                Local DB/resource cache root (default: BASE_DIR/sars_db/assets)"
+    echo "  OFFLINE_OUTDIR_BASE          Default offline output base if --outdir is not provided"
     echo "  PIPELINE_DIR                 Local pipeline checkout (default: \$HOME/.nextflow/assets/RasmusKoRiis/nf-core-sars)"
     echo "  OFFLINE_NEXTCLADE_DATASET    Local Nextclade dataset directory"
     echo "  OFFLINE_ARTIC_MODEL_DIR      Local ARTIC/Clair3 model directory"
     echo "  PIPELINE_ASSETS_DIR          Local assets fallback (default: PIPELINE_DIR/assets, then wrapper assets)"
+    echo "  CONDA_PROFILE                Conda profile script if not \$HOME/miniconda3/etc/profile.d/conda.sh"
     exit 1
 }
 
@@ -50,6 +65,7 @@ PIPELINE_DIR="${PIPELINE_DIR:-$HOME/.nextflow/assets/RasmusKoRiis/nf-core-sars}"
 LOCAL_FASTQ_DIR="${LOCAL_FASTQ_DIR:-}"
 LOCAL_SAMPLESHEET="${LOCAL_SAMPLESHEET:-}"
 LOCAL_FASTA="${LOCAL_FASTA:-}"
+OUTPUT_DIR="${OUTPUT_DIR:-}"
 
 # Parse options
 while [ "$#" -gt 0 ]; do
@@ -66,6 +82,7 @@ while [ "$#" -gt 0 ]; do
         --local-fastq-dir) LOCAL_FASTQ_DIR="${2:?Missing value for $1}"; shift 2 ;;
         --local-samplesheet) LOCAL_SAMPLESHEET="${2:?Missing value for $1}"; shift 2 ;;
         --local-fasta) LOCAL_FASTA="${2:?Missing value for $1}"; shift 2 ;;
+        --outdir) OUTPUT_DIR="${2:?Missing value for $1}"; shift 2 ;;
         --) shift; break ;;
         *) echo "ERROR: Unknown option: $1"; usage ;;
     esac
@@ -99,6 +116,7 @@ echo "Workflow mode: $PIPELINE_FILE"
 echo "Local FASTQ dir: ${LOCAL_FASTQ_DIR:-}"
 echo "Local samplesheet: ${LOCAL_SAMPLESHEET:-}"
 echo "Local FASTA: ${LOCAL_FASTA:-}"
+echo "Output dir: ${OUTPUT_DIR:-}"
 
 ################################################################################
 # Repo sync
@@ -133,8 +151,8 @@ export TOWER_WORKSPACE_ID=150755685543204
 ################################################################################
 # Environment / SMB
 ################################################################################
-BASE_DIR="/mnt/tempdata"
-TMP_DIR="/mnt/tempdata/fastq"
+BASE_DIR="${BASE_DIR:-/mnt/tempdata}"
+TMP_DIR="${TMP_DIR:-$BASE_DIR/fastq}"
 SMB_AUTH="/home/ngs/.smbcreds"
 SMB_HOST="//pos1-fhi-svm01.fhi.no/styrt"
 
@@ -163,7 +181,7 @@ fi
 ################################################################################
 # Helper functions
 ################################################################################
-SARS_DATABASE="/mnt/tempdata/sars_db/assets"
+SARS_DATABASE="${SARS_DATABASE:-$BASE_DIR/sars_db/assets}"
 mkdir -p "$SARS_DATABASE"
 if [ -z "${PIPELINE_ASSETS_DIR:-}" ]; then
     if [ -d "$PIPELINE_DIR/assets" ]; then
@@ -398,8 +416,10 @@ preflight_offline_mode() {
     require_file "$RDRP_TABLE" "RdRP lookup table"
     require_file "$CLPRO_TABLE" "3CLpro lookup table"
 
-    if ! find "$HOME/.nextflow/plugins" -maxdepth 4 -iname '*nf-schema*2.5.1*' 2>/dev/null | grep -q .; then
+    local nextflow_plugin_dir="${NXF_HOME:-$HOME/.nextflow}/plugins"
+    if ! find "$nextflow_plugin_dir" -maxdepth 4 -iname '*nf-schema*2.5.1*' 2>/dev/null | grep -q .; then
         echo "ERROR: nf-schema@2.5.1 was not found in the local Nextflow plugin cache."
+        echo "Checked: $nextflow_plugin_dir"
         echo "Run the pipeline once online, or install/cache nf-schema@2.5.1 before offline use."
         exit 1
     fi
@@ -440,7 +460,13 @@ AMPLICON_DATABASE_SERVER="$SARS_DATABASE/depth_by_position.csv"
 ################################################################################
 # Prepare run dirs
 ################################################################################
-mkdir -p "$HOME/$RUN"
+if [ -z "$OUTPUT_DIR" ] && [ "$OFFLINE_MODE" = true ] && [ -n "${OFFLINE_OUTDIR_BASE:-}" ]; then
+    OUTPUT_DIR="$OFFLINE_OUTDIR_BASE/$RUN"
+fi
+
+NEXTFLOW_OUTDIR="${OUTPUT_DIR:-$HOME/$RUN}"
+
+mkdir -p "$NEXTFLOW_OUTDIR"
 mkdir -p "$TMP_DIR"
 CLEAN_TMP=true
 if [ "$PIPELINE_FILE" = "fasta-workflow" ] || [ -n "$LOCAL_FASTQ_DIR" ]; then
@@ -503,9 +529,13 @@ echo "3CLpro lookup table      : $CLPRO_TABLE"
 ################################################################################
 # Update DB cache from storage (download)
 ################################################################################
-echo "Updating DB cache from storage"
-download_db "$PRIMERDB"   "$SARS_DATABASE"
-download_db "$AMPLICONDB" "$SARS_DATABASE"
+if [ "$OFFLINE_MODE" = true ]; then
+    echo "Offline mode enabled: skipping DB cache download from storage."
+else
+    echo "Updating DB cache from storage"
+    download_db "$PRIMERDB"   "$SARS_DATABASE"
+    download_db "$AMPLICONDB" "$SARS_DATABASE"
+fi
 
 ################################################################################
 # TODO: Create samplesheet
@@ -616,7 +646,7 @@ nextflow run "$NEXTFLOW_SOURCE" \
     "${NEXTFLOW_REV_ARGS[@]}" \
     -profile docker,server \
     "${NEXTFLOW_INPUT_ARGS[@]}" \
-    --outdir "$HOME/$RUN" \
+    --outdir "$NEXTFLOW_OUTDIR" \
     --runid "$RUN" \
     --spike "$SPIKE_TABLE" \
     --rdrp "$RDRP_TABLE" \
@@ -627,24 +657,33 @@ nextflow run "$NEXTFLOW_SOURCE" \
 ################################################################################
 # Move results locally into out_sarsseq
 ################################################################################
-echo "Staging results locally in $HOME/out_sarsseq"
-mkdir -p "$HOME/out_sarsseq"
+if [ -n "$OUTPUT_DIR" ]; then
+    RUN_OUT="$OUTPUT_DIR"
+    echo "Results written to explicit output directory: $RUN_OUT"
+else
+    echo "Staging results locally in $HOME/out_sarsseq"
+    mkdir -p "$HOME/out_sarsseq"
 
-# Your pipeline writes to $HOME/$RUN as outdir. Keep your existing behavior:
-# Move the run dir into out_sarsseq.
-# If it already exists, fail loudly to avoid mixing runs.
-if [ -e "$HOME/out_sarsseq/$RUN" ]; then
-    echo "ERROR: $HOME/out_sarsseq/$RUN already exists. Remove it or choose a different run id."
-    exit 1
+    # Your pipeline writes to $HOME/$RUN as outdir. Keep your existing behavior:
+    # Move the run dir into out_sarsseq.
+    # If it already exists, fail loudly to avoid mixing runs.
+    if [ -e "$HOME/out_sarsseq/$RUN" ]; then
+        echo "ERROR: $HOME/out_sarsseq/$RUN already exists. Remove it or choose a different run id."
+        exit 1
+    fi
+
+    mv "$HOME/$RUN" "$HOME/out_sarsseq/"
+    RUN_OUT="$HOME/out_sarsseq/$RUN"
 fi
-
-mv "$HOME/$RUN" "$HOME/out_sarsseq/"
-
-RUN_OUT="$HOME/out_sarsseq/$RUN"
 
 ################################################################################
 # Merge per-run primer+amplicon outputs into cached DBs, then upload back to storage
 ################################################################################
+if [ "$OFFLINE_MODE" = true ]; then
+    echo "Offline mode enabled: skipping dashboard DB merge/upload and N-drive result upload."
+    echo "Done. Results are in: $RUN_OUT"
+    exit 0
+fi
 
 # --- Primer mismatches: merge per-run CSVs -> append into master -> upload ---
 primer_files=()
