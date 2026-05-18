@@ -31,7 +31,7 @@ That directory should contain three directories (H1, H3 and VIC) which each shou
 
 ### Build Nextstrain-tree (VM)
 
-Using PowerShell, log on the server following the description in 702-VIN-AR-032-document. 
+Using PowerShell, log on the server. 
 After a sucessful log-in write the command under in the terminal window.
 ```
 cd $HOME
