@@ -1,0 +1,9 @@
+name: viral-phylo-iqtree-treetime
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - iqtree
+  - treetime
+  - mafft
