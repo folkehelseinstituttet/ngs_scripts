@@ -1,7 +1,7 @@
 # Shared report helpers for Influenza and SARS-CoV-2 analyses.
 
 # -------------------------
-# FHI color palettes
+# FHI color palette
 # -------------------------
 kvalitativ_a <- c("#ec7c73", "#40436d", "#61d2b2", "#a93c38", "#f9dc8c", "#7176c9", "#e0f0f7", "#09181f")
 kvalitativ_b <- c("#65a9c5", "#2a6a82", "#f0af5e", "#fee9e6", "#179463", "#c8e1ec")
