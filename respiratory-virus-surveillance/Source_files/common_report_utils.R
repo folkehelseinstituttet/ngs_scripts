@@ -1,7 +1,7 @@
 # Shared report helpers for Influenza and SARS-CoV-2 analyses.
 
 # -------------------------
-# FHI color palette
+# FHI color palettes
 # -------------------------
 kvalitativ_a <- c("#ec7c73", "#40436d", "#61d2b2", "#a93c38", "#f9dc8c", "#7176c9", "#e0f0f7", "#09181f")
 kvalitativ_b <- c("#65a9c5", "#2a6a82", "#f0af5e", "#fee9e6", "#179463", "#c8e1ec")
@@ -408,7 +408,7 @@ plot_metadata_sc2_tessy_style <- function(df, x_var, fill_var, title_txt, palett
   if (is.null(d)) return(NULL)
   d <- d %>% dplyr::group_by(xv) %>% dplyr::mutate(percent = 100 * n / sum(n), x_n = sum(n)) %>% dplyr::ungroup()
   order_df <- d %>% dplyr::distinct(xv, x_n) %>% dplyr::arrange(dplyr::desc(x_n), xv)
-  d <- d %>% dplyr::mutate(xlab = factor(paste0(xv, "\n(n=", x_n, ")"), levels = paste0(order_df$xv, "\n(n=", order_df$x_n, ")")))
+  d <- d %>% dplyr::mutate(xlab = factor(paste0(xv, " (n=", x_n, ")"), levels = paste0(order_df$xv, " (n=", order_df$x_n, ")")))
   if (mode == "pct") {
     ggplot2::ggplot(d, ggplot2::aes(x = xlab, y = percent, fill = fv)) +
       ggplot2::geom_col() +
@@ -475,7 +475,7 @@ build_group_distribution_plots <- function(
     dplyr::group_by(group_plot) %>%
     dplyr::summarise(group_n = sum(n), .groups = "drop") %>%
     dplyr::arrange(dplyr::desc(group_n), group_plot) %>%
-    dplyr::mutate(group_label = paste0(group_plot, "\n(n=", scales::comma(group_n), ")"))
+    dplyr::mutate(group_label = paste0(group_plot, " (n=", scales::comma(group_n), ")"))
 
   grouped_df <- grouped_df %>%
     dplyr::left_join(x_labels_df, by = "group_plot") %>%
@@ -489,7 +489,7 @@ build_group_distribution_plots <- function(
     ggplot2::coord_cartesian(ylim = c(0, 100)) +
     ggplot2::scale_fill_manual(values = fhi_discrete_palette(dplyr::n_distinct(grouped_df$color_plot), palette_base)) +
     ggplot2::labs(
-      title = paste0(title_base, " (%)"),
+      title = NULL,
       x = paste0(x_label, " (n)"),
       y = "Andel (%)",
       fill = color_label
@@ -501,7 +501,7 @@ build_group_distribution_plots <- function(
     ggplot2::geom_col(position = "stack") +
     ggplot2::scale_fill_manual(values = fhi_discrete_palette(dplyr::n_distinct(grouped_df$color_plot), palette_base)) +
     ggplot2::labs(
-      title = paste0(title_base, " (antall)"),
+      title = NULL,
       x = paste0(x_label, " (n)"),
       y = "Antall (n)",
       fill = color_label
@@ -510,6 +510,65 @@ build_group_distribution_plots <- function(
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 
   list(percent_plot = p_pct, count_plot = p_count)
+}
+
+# Two-season pie comparison helper:
+# left = previous season, right = current season.
+build_two_season_pie_compare <- function(
+  df,
+  season_col = "season",
+  category_col,
+  previous_label,
+  current_label,
+  category_label = "Kategori",
+  palette_base = kvalitativ_comb
+) {
+  if (is.null(df) || nrow(df) == 0) return(NULL)
+  if (!all(c(season_col, category_col) %in% names(df))) return(NULL)
+
+  build_one <- function(dat, season_lbl) {
+    d <- dat %>%
+      dplyr::filter(.data[[season_col]] == season_lbl) %>%
+      dplyr::mutate(cat = as.character(.data[[category_col]])) %>%
+      dplyr::mutate(cat = ifelse(is.na(cat) | trimws(cat) == "", "Ukjent", cat)) %>%
+      dplyr::count(cat, name = "n")
+    if (nrow(d) == 0) return(NULL)
+    total_n <- sum(d$n, na.rm = TRUE)
+    d <- d %>% dplyr::mutate(label_txt = paste0("N=", scales::comma(n)))
+
+    ggplot2::ggplot(d, ggplot2::aes(x = "", y = n, fill = cat)) +
+      ggplot2::geom_col(width = 1) +
+      ggplot2::geom_text(
+        ggplot2::aes(label = label_txt),
+        position = ggplot2::position_stack(vjust = 0.5),
+        size = 3
+      ) +
+      ggplot2::coord_polar(theta = "y") +
+      ggplot2::scale_fill_manual(values = fhi_discrete_palette(dplyr::n_distinct(d$cat), palette_base)) +
+      ggplot2::labs(
+        title = paste0(season_lbl, " (N=", scales::comma(total_n), ")"),
+        fill = category_label
+      ) +
+      ggplot2::theme_void()
+  }
+
+  p_prev <- build_one(df, previous_label)
+  p_curr <- build_one(df, current_label)
+  if (is.null(p_prev) || is.null(p_curr)) return(NULL)
+
+  (p_prev | p_curr) + patchwork::plot_layout(ncol = 2, guides = "collect") &
+    ggplot2::theme(legend.position = "right")
+}
+
+# Standardized geojson path resolver used by INF/SC2/RSV map blocks.
+resolve_norway_geojson_path <- function() {
+  candidates <- c(
+    "N:/Virologi/Influensa/2526/WGS_Analyse/Scripts/Mapping/Norway_shapefile/Basisdata_0000_Norge_4258_Fylker_GeoJSON.geojson",
+    "N:/Virologi/Influensa/2526/WGS_Analyse/Backup/Scripts/Mapping/Norway_shapefile/Basisdata_0000_Norge_4258_Fylker_GeoJSON.geojson"
+  )
+  hit <- candidates[file.exists(candidates)]
+  if (length(hit) == 0) return(NA_character_)
+  hit[1]
 }
 
 # Numeric outlier scan (IQR-based), including numeric columns and

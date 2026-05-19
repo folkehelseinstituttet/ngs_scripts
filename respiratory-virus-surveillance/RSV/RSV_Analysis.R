@@ -36,11 +36,11 @@ library(openxlsx)
 
 invisible(timed_step(
   'Source common report utilities',
-  source('N:/Virologi/Influensa/2526/WGS_Analyse/INF_Github/Scripts/common_report_utils.R')
+  source('Source_files/common_report_utils.R')
 ))
 invisible(timed_step(
   'Source shared patient/prove plot helpers',
-  source('N:/Virologi/Influensa/2526/WGS_Analyse/Scripts/shared_patient_prove_plots.R')
+  source('Source_files/shared_patient_prove_plots.R')
 ))
 
 Sys.setlocale('LC_TIME', 'nb_NO.utf8')
@@ -620,7 +620,6 @@ if (nrow(ct_long_season) > 0) {
 
 # SC2-guided harmonized patient/prove panels for RSV
 if (all(c('prove_tatt', 'ngs_sekvens_resultat', 'ngs_clade') %in% names(rsvdb))) {
-  sc2_guided_window <- run_quality_window_bounds(Sys.Date(), min_months = 6L)
   rsv_dims <- c(
     'pasient_fylke_name' = 'Fylke',
     'pasient_landsdel' = 'Landsdel',
@@ -632,11 +631,10 @@ if (all(c('prove_tatt', 'ngs_sekvens_resultat', 'ngs_clade') %in% names(rsvdb)))
 
   export_graph_f <- add_section_slide(
     export_graph_f,
-    'Patient Related Analysis',
-    'SC2-guided structure for RSV (split by A/B, colored by clade)'
+    'Population Under Surveillance'
   )
 
-  norway_geojson_path <- 'N:/Virologi/Influensa/2526/WGS_Analyse/Scripts/Mapping/Norway_shapefile/Basisdata_0000_Norge_4258_Fylker_GeoJSON.geojson'
+  norway_geojson_path <- resolve_norway_geojson_path()
   rsv_prev <- rsvdb %>% filter(season == previous_season_label)
   rsv_curr <- rsvdb %>% filter(season == current_season_label)
 
@@ -682,10 +680,41 @@ if (all(c('prove_tatt', 'ngs_sekvens_resultat', 'ngs_clade') %in% names(rsvdb)))
     }
   }
 
+  if (all(c('pasient_kjnn', 'season') %in% names(rsvdb))) {
+    p_kjnn <- build_two_season_pie_compare(
+      rsvdb,
+      season_col = 'season',
+      category_col = 'pasient_kjnn',
+      previous_label = previous_season_label,
+      current_label = current_season_label,
+      category_label = 'Kjønn',
+      palette_base = kvalitativ_comb
+    )
+    if (!is.null(p_kjnn)) {
+      export_graph_f <- save_plot_to_ppt(export_graph_f, p_kjnn, title = 'Kjønn: sesongsammenligning')
+    }
+  }
+
+  if (all(c('pasient_aldersgruppe', 'season') %in% names(rsvdb))) {
+    p_alder <- build_two_season_pie_compare(
+      rsvdb,
+      season_col = 'season',
+      category_col = 'pasient_aldersgruppe',
+      previous_label = previous_season_label,
+      current_label = current_season_label,
+      category_label = 'Aldersgruppe',
+      palette_base = kvalitativ_comb
+    )
+    if (!is.null(p_alder)) {
+      export_graph_f <- save_plot_to_ppt(export_graph_f, p_alder, title = 'Aldersgruppe: sesongsammenligning')
+    }
+  }
+
   for (subtype_name in sort(unique(as.character(rsvdb$ngs_sekvens_resultat)))) {
     if (is.na(subtype_name) || trimws(subtype_name) == '' || subtype_name == 'Ukjent') next
     rsv_sub <- rsvdb %>%
       filter(
+        season == current_season_label,
         ngs_sekvens_resultat == subtype_name,
         !is.na(ngs_clade),
         trimws(as.character(ngs_clade)) != ''
@@ -698,19 +727,99 @@ if (all(c('prove_tatt', 'ngs_sekvens_resultat', 'ngs_clade') %in% names(rsvdb)))
         rsv_sub,
         x_col = dim_col,
         color_col = 'ngs_clade',
-        date_col = 'prove_tatt',
-        start_date = sc2_guided_window$start,
-        end_date = sc2_guided_window$end,
         x_label = dim_label,
         color_label = 'Clade',
-        title_prefix = paste0(subtype_name, ' clade by ', dim_label, ' - current season/last 6 months'),
+        title_prefix = paste0(subtype_name, ' clade by ', dim_label, ' - current season'),
         palette_base = kvalitativ_comb
       )
       if (is.null(p_pair)) next
-      export_graph_f <- save_plot_to_ppt(export_graph_f, p_pair$percent_plot, title = paste0(subtype_name, ' by ', dim_label, ' (%) - current season/last 6 months'))
-      export_graph_f <- save_plot_to_ppt(export_graph_f, p_pair$count_plot, title = paste0(subtype_name, ' by ', dim_label, ' (count) - current season/last 6 months'))
+      export_graph_f <- save_plot_to_ppt(export_graph_f, p_pair$percent_plot, title = paste0(subtype_name, ' by ', dim_label, ' (%) - current season'))
+      export_graph_f <- save_plot_to_ppt(export_graph_f, p_pair$count_plot, title = paste0(subtype_name, ' by ', dim_label, ' (count) - current season'))
     }
   }
+}
+
+# ------------------------------------------------------------------------------
+# Frameshift/Insertion/Deletion trends (INF blueprint adapted for RSV)
+# ------------------------------------------------------------------------------
+export_graph_f <- add_section_slide(
+  export_graph_f,
+  'Seksjon: Frameshift, insersjoner og delesjoner',
+  'Kombinert varmekart facettert per mutasjonstype og RSVA/RSVB'
+)
+
+rsv_indel_date_col <- intersect(c('prove_tatt', 'sample_date', 'Sampledate'), names(rsvdb))[1]
+rsv_indel_cols <- names(rsvdb)[grepl('(frameshift|insertion|deletion)', names(rsvdb), ignore.case = TRUE)]
+
+if (!is.na(rsv_indel_date_col) && length(rsv_indel_cols) > 0) {
+  rsv_indel_df <- rsvdb %>%
+    mutate(
+      indel_plot_date = as.Date(.data[[rsv_indel_date_col]]),
+      indel_month = floor_date(indel_plot_date, 'month'),
+      subtype_group = case_when(
+        grepl('A', toupper(as.character(ngs_sekvens_resultat))) ~ 'RSVA',
+        grepl('B', toupper(as.character(ngs_sekvens_resultat))) ~ 'RSVB',
+        TRUE ~ 'Ukjent'
+      )
+    ) %>%
+    filter(!is.na(indel_month), subtype_group %in% c('RSVA', 'RSVB'))
+
+  rsv_long <- rsv_indel_df %>%
+    pivot_longer(cols = all_of(rsv_indel_cols), names_to = 'mutation_col', values_to = 'mutation_raw') %>%
+    filter(!is.na(mutation_raw), trimws(as.character(mutation_raw)) != '') %>%
+    separate_rows(mutation_raw, sep = ';|,') %>%
+    mutate(
+      mutation_raw = trimws(as.character(mutation_raw)),
+      mutation_type = case_when(
+        grepl('frameshift', mutation_col, ignore.case = TRUE) ~ 'Frameshift',
+        grepl('insertion', mutation_col, ignore.case = TRUE) ~ 'Insertion',
+        grepl('deletion', mutation_col, ignore.case = TRUE) ~ 'Deletion',
+        TRUE ~ 'Other'
+      ),
+      mutation_gene = sub('^(nc_[^_]+)_.*$', '\\1', mutation_col),
+      mutation_label = paste0(mutation_gene, ': ', mutation_raw)
+    ) %>%
+    filter(
+      mutation_raw != '',
+      !tolower(mutation_raw) %in% c('na', 'n/a', 'none', 'no mutations', 'ikke_satt')
+    )
+
+  rsv_month_totals <- rsv_long %>%
+    distinct(indel_month, subtype_group, .keep_all = TRUE) %>%
+    count(indel_month, subtype_group, name = 'total')
+
+  rsv_mut_counts <- rsv_long %>%
+    group_by(indel_month, subtype_group, mutation_type, mutation_label) %>%
+    summarise(n = n(), .groups = 'drop') %>%
+    left_join(rsv_month_totals, by = c('indel_month', 'subtype_group')) %>%
+    mutate(percent = 100 * n / total)
+
+  if (nrow(rsv_mut_counts) > 0) {
+    rsv_indel_heatmap <- ggplot(rsv_mut_counts, aes(x = indel_month, y = mutation_label, fill = percent)) +
+      geom_tile(color = 'white') +
+      facet_grid(mutation_type ~ subtype_group, scales = 'free_y', space = 'free_y') +
+      scale_fill_gradientn(colors = kvantitativ_b1, labels = percent_format(scale = 1)) +
+      scale_x_date(labels = format_month_label, breaks = scales::date_breaks('1 month')) +
+      labs(
+        title = 'Frameshift/Insertion/Deletion andel over tid for RSV',
+        subtitle = 'Facettert per mutasjonstype og subtypegruppe (RSVA/RSVB)',
+        x = '',
+        y = 'Mutasjonssteder',
+        fill = 'Prosent'
+      ) +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+    export_graph_f <- save_plot_to_ppt(
+      export_graph_f,
+      rsv_indel_heatmap,
+      title = 'RSV indel/frameshift trender (facettert)'
+    )
+  } else {
+    message('Skipping RSV indel facetted plot: no plottable mutation rows.')
+  }
+} else {
+  message('Skipping RSV indel analysis: missing date column or no frameshift/insertion/deletion columns found.')
 }
 
 current_week <- week(Sys.Date())

@@ -21,7 +21,7 @@ Sys.setlocale(category = "LC_ALL", locale = "nno_NO.UTF-8")
 # Source database connection script
 sql_address_local <- Sys.getenv(
   "INF_SQL_ADDRESS_FILE",
-  unset = "N:/Virologi/Influensa/2526/WGS_Analyse/Scripts/SQL_address.R"
+  unset = "N:/Virologi/Influensa/2526/WGS_Analyse/Source_files/SQL_address.R"
 )
 if (!file.exists(sql_address_local)) {
   stop("Local SQL address file not found. Set INF_SQL_ADDRESS_FILE to your local SQL_address.R path.")

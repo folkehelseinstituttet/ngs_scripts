@@ -54,8 +54,8 @@ required_packages <- c(
   "ggrepel", "tools", "rvg"
 )
 invisible(load_required_libraries(required_packages))
-invisible(timed_step("Source common report utilities", source(file.path(bundle_scripts_dir, "common_report_utils.R"))))
-invisible(timed_step("Source shared patient/prove plot helpers", source("Scripts/shared_patient_prove_plots.R")))
+invisible(timed_step("Source common report utilities", source("Source_files/common_report_utils.R")))
+invisible(timed_step("Source shared patient/prove plot helpers", source("Source_files/shared_patient_prove_plots.R")))
 
 Sys.setlocale("LC_TIME", "nb_NO.utf8")
 export_graph_f <- read_pptx()
@@ -71,7 +71,7 @@ fhi_text_mid <- kvantitativ_b1[ceiling(length(kvantitativ_b1) / 2)]
 # Functions
 # ==============================================================================
 
-# Shared helpers are sourced from Scripts/common_report_utils.R.
+# Shared helpers are sourced from Source_files/common_report_utils.R.
 
 # ==============================================================================
 # fludb preprocessing
@@ -119,6 +119,16 @@ clean_project_code <- function(x) {
   x_chr <- ifelse(grepl("^P[0-9]+", x_chr), sub("^(P[0-9]+).*$", "\\1", x_chr), NA_character_)
   x_chr
 }
+clean_pasient_status <- function(x) {
+  x_chr <- toupper(trimws(as.character(x)))
+  x_chr <- gsub("\\s+", "", x_chr)
+  x_chr <- sub("_ST$", "", x_chr) # Drop hospitalization suffix for status grouping.
+  x_chr <- gsub(":+$", "", x_chr) # Drop trailing punctuation (e.g., P11: -> P11).
+  x_chr <- ifelse(grepl("^P[0-9]+", x_chr), sub("^(P[0-9]+).*$", "\\1", x_chr), x_chr)
+  x_chr <- sub("_+$", "", x_chr) # Normalize trailing underscores (e.g., P1_ -> P1).
+  x_chr <- ifelse(is.na(x) | x_chr == "" | x_chr == "IKKE_SATT", "Ukjent", x_chr)
+  x_chr
+}
 
 fludb <- fludb %>%
   mutate(
@@ -136,11 +146,7 @@ fludb <- fludb %>%
       pasient_alder >= 60 ~ "60+",
       TRUE ~ "Ukjent"
     ),
-    pasient_status = ifelse(
-      is.na(pasient_status) | pasient_status == "IKKE_SATT",
-      "Ukjent",
-      pasient_status
-    ),
+    pasient_status = clean_pasient_status(pasient_status),
     prove_kategori = as.character(prove_kategori),
     prove_kategori_group = classify_prove_kategori_group(prove_kategori),
     prove_project_clean = ifelse(prove_kategori_group == "Non-Sentinel", clean_project_code(prove_kategori), NA_character_)
@@ -184,15 +190,39 @@ if ("pasient_fylke_name" %in% names(fludb)) {
   fludb$pasient_landsdel_from_fylke <- derive_landsdel_from_fylke(fludb$pasient_fylke_name)
 }
 
-# Load subclade signature definitions mapped to dataset fields.
-signature_map_candidates <- c(
-  file.path(bundle_scripts_dir, "..", "Results", "Influenza_HA_signature_mutations_dataset_map.csv"),
-  file.path("Results", "Influenza_HA_signature_mutations_dataset_map.csv")
-)
-signature_map_path <- signature_map_candidates[file.exists(signature_map_candidates)][1]
+# Rebuild subclade signature map on each run; if rebuild fails, use repo fallback.
+signature_script_path <- file.path("Source_files", "Subclade_mutations_INF.ps1")
+signature_map_results_path <- file.path("Results", "Subclade_mutations_INF.csv")
+signature_map_fallback_path <- file.path("Source_files", "Subclade_mutations_INF.csv")
 
-if (length(signature_map_path) == 0 || is.na(signature_map_path)) {
-  stop("Missing signature map CSV: Results/Influenza_HA_signature_mutations_dataset_map.csv")
+if (file.exists(signature_script_path)) {
+  timed_step("Rebuild Subclade_mutations_INF.csv", {
+    script_call <- tryCatch(
+      system2(
+        "powershell",
+        c(
+          "-ExecutionPolicy", "Bypass",
+          "-File", signature_script_path,
+          "-OutCsv", signature_map_results_path
+        ),
+        stdout = TRUE,
+        stderr = TRUE
+      ),
+      error = function(e) e
+    )
+    if (inherits(script_call, "error")) {
+      warning("Subclade_mutations_INF rebuild failed: ", conditionMessage(script_call))
+    }
+  })
+}
+
+if (file.exists(signature_map_results_path)) {
+  signature_map_path <- signature_map_results_path
+} else if (file.exists(signature_map_fallback_path)) {
+  warning("Using fallback signature CSV from Source_files/Subclade_mutations_INF.csv")
+  signature_map_path <- signature_map_fallback_path
+} else {
+  stop("Missing signature CSV. Expected Results/Subclade_mutations_INF.csv or Source_files/Subclade_mutations_INF.csv")
 }
 
 ha_signature_map <- read.csv(signature_map_path, stringsAsFactors = FALSE, check.names = FALSE)
@@ -641,6 +671,13 @@ export_graph_f <- add_section_slide(
 # Calculate Sample category and pasient status tables
 prove_cat <- fludb %>%
   filter(tessy_reportable_variable != "") %>%
+  mutate(
+    prove_kategori = ifelse(
+      is.na(clean_project_code(prove_kategori)),
+      "Ukjent",
+      clean_project_code(prove_kategori)
+    )
+  ) %>%
   group_by(pasient_status, prove_kategori) %>%
   count(name = "n") %>%
   pivot_wider(names_from = prove_kategori, values_from = n)
@@ -711,6 +748,40 @@ prove_cat_m_plot <- prove_cat_m_long %>%
   )
 
 export_graph_f <- save_plot_to_ppt(export_graph_f, prove_cat_m_plot)
+
+# Add heatmap companion for "Prøvekategori per måned etter pasientstatus".
+prove_cat_m_heat <- prove_cat_m_long %>%
+  mutate(month_date = parse_month_label(as.character(month_year))) %>%
+  group_by(month_date, prove_kategori) %>%
+  mutate(percentage = 100 * n / sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x = month_date, y = pasient_status, fill = percentage)) +
+  geom_tile(color = "white", linewidth = 0.2) +
+  geom_text(aes(label = sprintf("%.0f", percentage)), size = 2.6, color = fhi_text_dark) +
+  facet_wrap(~prove_kategori, scales = "free_y") +
+  scale_fill_gradientn(
+    colors = kvantitativ_b1,
+    labels = scales::percent_format(scale = 1)
+  ) +
+  scale_x_date(labels = format_month_label, date_breaks = "1 month") +
+  labs(
+    title = "Prøvekategori per måned etter pasientstatus (varmekart)",
+    x = month_axis_label_nb,
+    y = "Pasientstatus",
+    fill = "Andel (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+
+export_graph_f <- save_plot_to_ppt(
+  export_graph_f,
+  prove_cat_m_heat,
+  title = "Prøvekategori per måned etter pasientstatus (heatmap)"
+)
 
 # ==============================================================================
 # Influenza frequency dataset from fludb
@@ -3007,7 +3078,25 @@ for (current_subtype in ha_mutation_subtype_order) {
 start_date <- (as.Date(Sys.Date()) - 60)
 end_date <- as.Date(Sys.Date())
 
-domainmutcp_base <- HA_mut_l %>%
+# Build default epitope-plot source from mut_ha1_1 with subclade-defining
+# mutations removed (mut_ha1_without_subclade_signature).
+HA_mut_l_fallback <- fludb %>%
+  mutate(
+    ha_mutations = as.character(mut_ha1_without_subclade_signature)
+  ) %>%
+  filter(ha_mutations != "") %>%
+  mutate(ha_mutations = str_split(ha_mutations, ";|,", simplify = FALSE)) %>%
+  unnest(ha_mutations) %>%
+  mutate(
+    ha_mutations = trimws(ha_mutations),
+    Number = as.integer(gsub("\\D", "", ha_mutations)),
+    Sampledate = as.Date(prove_tatt, format = "%Y %b %d")
+  ) %>%
+  filter(!str_detect(ha_mutations, "X"), !is.na(ha_mutations), ha_mutations != "NA")
+
+ha_lollipop_source <- assign_epitope(HA_mut_l_fallback)
+
+domainmutcp_base <- ha_lollipop_source %>%
   mutate(Sampledate = as.Date(Sampledate)) %>%
   filter(!is.na(Sampledate)) %>%
   group_by(
@@ -3124,6 +3213,15 @@ create_epitope_lollipop_plot <- function(df, subtype_label, subtitle_label, face
     mutate(y_layout = row_number()) %>%
     ungroup()
 
+  epitope_levels <- sort(unique(df_plot$epitope_label))
+  epitope_palette <- setNames(
+    fhi_discrete_palette(length(epitope_levels), kvalitativ_b),
+    epitope_levels
+  )
+  if ("Ukjent" %in% names(epitope_palette)) {
+    epitope_palette["Ukjent"] <- "#000000"
+  }
+
   base_plot <- ggplot(df_plot, aes(x = Number, y = y_layout, color = epitope_label)) +
     geom_segment(aes(xend = Number, y = 0, yend = y_layout), linewidth = 0.5, alpha = 0.45) +
     geom_point(aes(size = n), alpha = 0.9) +
@@ -3139,7 +3237,7 @@ create_epitope_lollipop_plot <- function(df, subtype_label, subtitle_label, face
       min.segment.length = 0,
       show.legend = FALSE
     ) +
-    scale_color_manual(values = kvalitativ_b) +
+    scale_color_manual(values = epitope_palette) +
     scale_size_continuous(name = "Antall (n)") +
     labs(
       title = paste("Lollipop: epitop-posisjoner i HA-proteinet (", subtype_label, ")", sep = ""),
@@ -3180,7 +3278,7 @@ for (subtype_name in c("A/H1N1", "A/H3N2", "B/Victoria")) {
 }
 
 # Dot-plot style summaries (SC2-inspired): mutation load by subclade over tid.
-mutation_dot_df <- HA_mut_l %>%
+mutation_dot_df <- ha_lollipop_source %>%
   mutate(
     Sampledate = as.Date(Sampledate),
     month_date = floor_date(Sampledate, "month"),
@@ -3217,7 +3315,7 @@ for (subtype_name in c("A/H1N1", "A/H3N2", "B/Victoria")) {
 }
 
 # Dot-plot for epitope mutations over tid per subtype.
-epitope_dot_df <- HA_mut_l %>%
+epitope_dot_df <- ha_lollipop_source %>%
   mutate(
     Sampledate = as.Date(Sampledate),
     month_date = floor_date(Sampledate, "month"),
@@ -3692,37 +3790,6 @@ for (mutation in mutation_columns) {
 }
 
 # ==============================================================================
-# Ct, PCR, and NGS comparison dataset from fludb
-# ==============================================================================
-
-export_graph_f <- add_section_slide(
-  export_graph_f,
-  "Seksjon: Ct, PCR og NGS",
-  "Sammenligning av infeksjonsresultat og sekvenseringsresultat"
-)
-
-# Grouping and counting data by month, sequencing result, and infection result
-seqqc <- fludb %>%
-  group_by(month_year, ngs_sekvens_resultat, tessy_reportable_variable) %>%
-  count() %>%
-  ungroup()
-
-# Create bar chart of sequencing results by month
-seqqc_chart <- ggplot(
-  seqqc,
-  aes(x = month_year, y = n, fill = ngs_sekvens_resultat)
-) +
-  geom_bar(stat = "identity", position = "stack") +
-  facet_wrap(~tessy_reportable_variable, ncol = 1) +
-  labs(x = "Måned", y = axis_count_label, fill = "Sek_HA") +
-  theme_bw()
-
-
-# Display bar chart
-
-export_graph_f <- save_plot_to_ppt(export_graph_f, seqqc_chart)
-
-# ==============================================================================
 # Export
 # ==============================================================================
 
@@ -3757,11 +3824,7 @@ file_path_resultshare <- file.path(
 
 export_graph_f <- add_section_slide(
   export_graph_f,
-  "Seksjon: Pasientmetadata",
-  paste0(
-    "Metadataoppsett. Sesong nå: ", current_season_label,
-    " | Forrige: ", previous_season_label
-  )
+  "Population Under Surveillance"
 )
 
 add_meta_plot <- function(plot_obj, plot_title) {
@@ -3769,7 +3832,7 @@ add_meta_plot <- function(plot_obj, plot_title) {
   export_graph_f <<- save_plot_to_ppt(export_graph_f, plot_obj, title = plot_title)
 }
 
-norway_geojson_path <- "N:/Virologi/Influensa/2526/WGS_Analyse/Scripts/Mapping/Norway_shapefile/Basisdata_0000_Norge_4258_Fylker_GeoJSON.geojson"
+norway_geojson_path <- resolve_norway_geojson_path()
 flu_prev <- fludb %>% filter(season == previous_season_label)
 flu_curr <- fludb %>% filter(season == current_season_label)
 
@@ -3788,8 +3851,8 @@ p_fylke_curr <- build_fylke_map_plot_shared(
 if (!is.null(p_fylke_curr) && !is.null(p_fylke_prev)) {
   n_curr_map <- nrow(flu_curr)
   n_prev_map <- nrow(flu_prev)
-  p_fylke_pair <- (p_fylke_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(n_curr_map), ")"))) |
-    (p_fylke_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(n_prev_map), ")")))
+  p_fylke_pair <- (p_fylke_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(n_prev_map), ")"))) |
+    (p_fylke_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(n_curr_map), ")")))
   add_meta_plot(p_fylke_pair, "Map: Fylke fordeling - left current, right previous")
 }
 
@@ -3810,8 +3873,8 @@ p_landsdel_curr <- build_landsdel_map_plot_shared(
 if (!is.null(p_landsdel_curr) && !is.null(p_landsdel_prev)) {
   n_curr_map <- nrow(flu_curr)
   n_prev_map <- nrow(flu_prev)
-  p_landsdel_pair <- (p_landsdel_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(n_curr_map), ")"))) |
-    (p_landsdel_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(n_prev_map), ")")))
+  p_landsdel_pair <- (p_landsdel_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(n_prev_map), ")"))) |
+    (p_landsdel_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(n_curr_map), ")")))
   add_meta_plot(p_landsdel_pair, "Map: Landsdel fordeling - left current, right previous")
 }
 
@@ -3884,75 +3947,35 @@ if (all(c("pasient_kjnn", "season", "prove_tatt") %in% names(fludb))) {
   }
 }
 
-# Fixed metadata set (no permutations)
-metadata_vars <- c(
-  "pasient_aldersgruppe",
-  "pasient_status",
-  "pasient_landsdel_from_fylke",
-  "pasient_kjnn",
-  "prove_kategori_group"
-)
-metadata_vars <- metadata_vars[metadata_vars %in% names(fludb)]
-fill_var <- if ("nc_ha_subclade" %in% names(fludb)) "nc_ha_subclade" else NULL
-virus_col <- if ("ngs_sekvens_resultat" %in% names(fludb)) "ngs_sekvens_resultat" else NULL
-virus_map <- c("A/H1N1" = "H1N1", "A/H3N2" = "H3N2", "B/Victoria" = "BVIC")
-
-if (!is.null(fill_var) && !is.null(virus_col)) {
-  # Requested explicit Pasient landsdel by NGS distribution in metadata section.
-  if ("pasient_landsdel_from_fylke" %in% names(fludb)) {
-    p_landsdel_ngs <- plot_metadata_flu_combined(
-      fludb,
-      x_var = "pasient_landsdel_from_fylke",
-      fill_var = "ngs_sekvens_resultat",
-      title_txt = "Fordeling Pasient Landsdel NGS",
-      palette_base = kvalitativ_comb
-    )
-    add_meta_plot(p_landsdel_ngs, "Fordeling Pasient Landsdel NGS")
-  }
-
-  for (virus_key in names(virus_map)) {
-    virus_label <- virus_map[[virus_key]]
-    flu_v <- fludb %>%
-      filter(
-        .data[[virus_col]] == virus_key,
-        !is.na(.data[[fill_var]]),
-        trimws(as.character(.data[[fill_var]])) != ""
+# Aldersgruppe: season comparison in same side-by-side format as Kjønn.
+if (all(c("pasient_aldersgruppe", "season") %in% names(fludb))) {
+  alder_compare <- fludb %>%
+    mutate(
+      pasient_aldersgruppe = ifelse(
+        is.na(pasient_aldersgruppe) | trimws(as.character(pasient_aldersgruppe)) == "",
+        "Ukjent",
+        as.character(pasient_aldersgruppe)
       )
-    if (nrow(flu_v) == 0) next
+    ) %>%
+    filter(season %in% c(current_season_label, previous_season_label))
 
-    for (x_var in metadata_vars) {
-      # Drop the gender combined panels (previously M008/M013/M018 selections).
-      if (x_var == "pasient_kjnn") next
-
-      # Custom request for H3N2 metadata panel (M010): x=subclade, fill=aldersgruppe.
-      if (virus_label == "H3N2" && x_var == "pasient_aldersgruppe") {
-        p_h3_age_subclade <- plot_metadata_flu_combined(
-          flu_v,
-          x_var = fill_var,
-          fill_var = "pasient_aldersgruppe",
-          title_txt = paste0(virus_label, ": nc_ha_subclade vs pasient_aldersgruppe"),
-          palette_base = kvalitativ_comb
-        )
-        add_meta_plot(
-          p_h3_age_subclade,
-          paste0(virus_label, ": nc_ha_subclade vs pasient_aldersgruppe")
-        )
-        next
-      }
-
-      p_flu_comb <- plot_metadata_flu_combined(
-        flu_v, x_var, fill_var,
-        title_txt = paste0(virus_label, ": ", x_var, " vs subclade"),
-        palette_base = kvalitativ_comb
-      )
-      add_meta_plot(p_flu_comb, paste0(virus_label, ": ", x_var, " vs subclade"))
-    }
-  }
+  p_alder_pies <- build_two_season_pie_compare(
+    alder_compare,
+    season_col = "season",
+    category_col = "pasient_aldersgruppe",
+    previous_label = previous_season_label,
+    current_label = current_season_label,
+    category_label = "Aldersgruppe",
+    palette_base = kvalitativ_comb
+  )
+  add_meta_plot(p_alder_pies, "Aldersgruppe: sesongsammenligning")
 }
 
 # SC2-guided harmonized patient/prove panels for FLU
-if (!is.null(fill_var) && !is.null(virus_col) && "prove_tatt" %in% names(fludb)) {
-  sc2_guided_window <- run_quality_window_bounds(Sys.Date(), min_months = 6L)
+tessy_color_col <- intersect(c("tessy_reportable_variable", "Tessy", "tessy"), names(fludb))[1]
+virus_col <- if ("ngs_sekvens_resultat" %in% names(fludb)) "ngs_sekvens_resultat" else NULL
+virus_map <- c("A/H1N1" = "H1N1", "A/H3N2" = "H3N2", "B/Victoria" = "BVIC")
+if (!is.na(tessy_color_col) && !is.null(virus_col) && "prove_tatt" %in% names(fludb)) {
   flu_dims <- c(
     "pasient_fylke_name" = "Fylke",
     "pasient_landsdel_from_fylke" = "Landsdel",
@@ -3964,37 +3987,74 @@ if (!is.null(fill_var) && !is.null(virus_col) && "prove_tatt" %in% names(fludb))
 
   export_graph_f <- add_section_slide(
     export_graph_f,
-    "Patient Related Analysis",
-    "SC2-guided structure for FLU (split by virus, colored by subclade)"
+    "Patient Related Analysis"
   )
+  norway_geojson_path <- resolve_norway_geojson_path()
 
   for (virus_key in names(virus_map)) {
     virus_label <- virus_map[[virus_key]]
     flu_v <- fludb %>%
       filter(
+        season == current_season_label,
         .data[[virus_col]] == virus_key,
-        !is.na(.data[[fill_var]]),
-        trimws(as.character(.data[[fill_var]])) != ""
+        !is.na(.data[[tessy_color_col]]),
+        trimws(as.character(.data[[tessy_color_col]])) != ""
       )
     if (nrow(flu_v) == 0) next
+
+    # Add maps per type (fylke + landsdel) in this shared section.
+    if ("pasient_fylke_name" %in% names(flu_v)) {
+      p_fylke <- build_fylke_map_plot_shared(
+        flu_v,
+        fylke_col = "pasient_fylke_name",
+        shape_path = norway_geojson_path,
+        fill_palette = kvantitativ_b2
+      )
+      if (!is.null(p_fylke)) {
+        export_graph_f <- save_plot_to_ppt(
+          export_graph_f,
+          p_fylke,
+          title = paste0(virus_label, " - Fylke fordeling")
+        )
+      }
+    }
+    if (all(c("pasient_fylke_name", "pasient_landsdel_from_fylke") %in% names(flu_v))) {
+      p_landsdel <- build_landsdel_map_plot_shared(
+        flu_v,
+        fylke_col = "pasient_fylke_name",
+        landsdel_col = "pasient_landsdel_from_fylke",
+        shape_path = norway_geojson_path,
+        palette_base = kvalitativ_comb
+      )
+      if (!is.null(p_landsdel)) {
+        export_graph_f <- save_plot_to_ppt(
+          export_graph_f,
+          p_landsdel,
+          title = paste0(virus_label, " - Landsdel fordeling")
+        )
+      }
+    }
 
     for (dim_col in names(flu_dims)) {
       dim_label <- flu_dims[[dim_col]]
       p_pair <- build_group_distribution_plots(
         flu_v,
         x_col = dim_col,
-        color_col = fill_var,
-        date_col = "prove_tatt",
-        start_date = sc2_guided_window$start,
-        end_date = sc2_guided_window$end,
+        color_col = tessy_color_col,
         x_label = dim_label,
-        color_label = "Subclade",
-        title_prefix = paste0(virus_label, " subclade by ", dim_label, " - current season/last 6 months"),
+        color_label = "Tessy",
+        title_prefix = paste0(virus_label, " Tessy by ", dim_label, " - current season"),
         palette_base = kvalitativ_comb
       )
       if (is.null(p_pair)) next
-      export_graph_f <- save_plot_to_ppt(export_graph_f, p_pair$percent_plot, title = paste0(virus_label, " by ", dim_label, " (%) - current season/last 6 months"))
-      export_graph_f <- save_plot_to_ppt(export_graph_f, p_pair$count_plot, title = paste0(virus_label, " by ", dim_label, " (count) - current season/last 6 months"))
+      p_combined <- (p_pair$count_plot | p_pair$percent_plot) +
+        patchwork::plot_layout(guides = "collect") &
+        theme(legend.position = "bottom")
+      export_graph_f <- save_plot_to_ppt(
+        export_graph_f,
+        p_combined,
+        title = paste0(virus_label, " by ", dim_label, " (count + %)")
+      )
     }
   }
 }

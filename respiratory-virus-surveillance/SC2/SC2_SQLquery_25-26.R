@@ -3,7 +3,7 @@
 
 sql_address_local <- Sys.getenv(
   "SC2_SQL_ADDRESS_FILE",
-  unset = "N:/Virologi/Influensa/2526/WGS_Analyse/Scripts/SQL_address.R"
+  unset = "N:/Virologi/Influensa/2526/WGS_Analyse/Source_files/SQL_address.R"
 )
 if (!file.exists(sql_address_local)) {
   stop("Local SQL address file not found. Set SC2_SQL_ADDRESS_FILE to your local SQL_address.R path.")

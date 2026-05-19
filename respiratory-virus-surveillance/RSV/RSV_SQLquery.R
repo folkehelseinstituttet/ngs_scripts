@@ -1,6 +1,6 @@
 # RSV SQL query
 
-source(file = "N:/Virologi/Influensa/2526/WGS_Analyse/Scripts/SQL_address.R")
+source(file = "N:/Virologi/Influensa/2526/WGS_Analyse/Source_files/SQL_address.R")
 
 # Load required packages used by the query pipeline.
 library(dplyr)

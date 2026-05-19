@@ -119,8 +119,8 @@ utils::globalVariables(c(
 options(datatable.week = "legacy")
 
 # Execute shared report utilities (includes FHI palettes).
-timed_step("Source common report utilities", source(file.path(bundle_scripts_dir, "common_report_utils.R")))
-timed_step("Source shared patient/prove plot helpers", source("Scripts/shared_patient_prove_plots.R"))
+timed_step("Source common report utilities", source("Source_files/common_report_utils.R"))
+timed_step("Source shared patient/prove plot helpers", source("Source_files/shared_patient_prove_plots.R"))
 if (!exists("fhi_discrete_palette", mode = "function")) {
   fhi_discrete_palette <- function(n, palette_name = NULL) {
     base_palette <- if (exists("kvalitativ_comb", inherits = TRUE)) {
@@ -273,9 +273,10 @@ build_tessy_group_plots <- function(df, x_col, x_label, export_graph_in) {
   }
 
   plot_df <- df %>%
+    mutate(season_plot = season_label_from_date(plot_date_window)) %>%
     filter(
       !is.na(plot_date_window),
-      plot_date_window >= data_window_start,
+      season_plot == current_season_label,
       !is.na(Tessy_plot),
       trimws(Tessy_plot) != "",
       !is.na(.data[[x_col]]),
@@ -298,7 +299,7 @@ build_tessy_group_plots <- function(df, x_col, x_label, export_graph_in) {
     group_by(group_plot) %>%
     summarise(group_n = sum(n), .groups = "drop") %>%
     arrange(desc(group_n), group_plot) %>%
-    mutate(group_label = paste0(group_plot, "\n(n=", group_n, ")"))
+    mutate(group_label = paste0(group_plot, " (n=", group_n, ")"))
 
   grouped_df <- grouped_df %>%
     left_join(x_labels_df, by = "group_plot") %>%
@@ -310,7 +311,7 @@ build_tessy_group_plots <- function(df, x_col, x_label, export_graph_in) {
     coord_cartesian(ylim = c(0, 100)) +
     scale_fill_manual(values = fhi_discrete_palette(n_distinct(grouped_df$Tessy_plot), sc2_palette)) +
     labs(
-      title = paste0("Tessy distribution by ", x_label, " (%) - current season / last 6 months"),
+      title = paste0("Tessy distribution by ", x_label, " (%) - current season"),
       x = paste0(x_label, " (n)"),
       y = "Percent (%)",
       fill = "Tessy"
@@ -322,7 +323,7 @@ build_tessy_group_plots <- function(df, x_col, x_label, export_graph_in) {
     geom_col(position = "stack") +
     scale_fill_manual(values = fhi_discrete_palette(n_distinct(grouped_df$Tessy_plot), sc2_palette)) +
     labs(
-      title = paste0("Tessy distribution by ", x_label, " (counts) - current season / last 6 months"),
+      title = paste0("Tessy distribution by ", x_label, " (counts) - current season"),
       x = paste0(x_label, " (n)"),
       y = "Count",
       fill = "Tessy"
@@ -330,8 +331,8 @@ build_tessy_group_plots <- function(df, x_col, x_label, export_graph_in) {
     theme_minimal(base_size = 12) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-  export_graph_out <- export_to_ppt(export_graph_in, p_pct, paste0("Tessy by ", x_label, " (%) - current season/last 6 months"))
-  export_graph_out <- export_to_ppt(export_graph_out, p_count, paste0("Tessy by ", x_label, " (count) - current season/last 6 months"))
+  export_graph_out <- export_to_ppt(export_graph_in, p_pct, paste0("Tessy by ", x_label, " (%) - current season"))
+  export_graph_out <- export_to_ppt(export_graph_out, p_count, paste0("Tessy by ", x_label, " (count) - current season"))
   export_graph_out
 }
 
@@ -781,77 +782,104 @@ timed_step("Source SC2_Spike_mut_freq.R", source(file.path(bundle_scripts_dir, "
 export_graph <- add_section_slide(
   export_graph,
   "Frameshift/Insertion/Deletion",
-  "Separate section for indel and frameshift trends"
+  "Mutation trends split by type, then gene (facetted by Tessy)"
 )
 
 sc2_indel_source <- if (exists("SC2db_v")) SC2db_v else SC2db
 sc2_indel_date_col <- intersect(c("prove_tatt", "PROVE_TATT", "sample_date", "Sampledate"), names(sc2_indel_source))[1]
 sc2_indel_cols <- names(sc2_indel_source)[grepl("(frameshift|insertion|deletion)", names(sc2_indel_source), ignore.case = TRUE)]
+sc2_tessy_col <- intersect(c("Tessy", "tessy"), names(sc2_indel_source))[1]
 
-if (!is.na(sc2_indel_date_col) && length(sc2_indel_cols) > 0) {
+if (!is.na(sc2_indel_date_col) && length(sc2_indel_cols) > 0 && !is.na(sc2_tessy_col)) {
   sc2_indel_df <- sc2_indel_source %>%
     mutate(
       indel_plot_date = as.Date(.data[[sc2_indel_date_col]]),
-      indel_month = floor_date(indel_plot_date, "month")
+      indel_month = floor_date(indel_plot_date, "month"),
+      Tessy_group = as.character(.data[[sc2_tessy_col]])
     ) %>%
-    filter(!is.na(indel_month))
+    filter(!is.na(indel_month), !is.na(Tessy_group), trimws(Tessy_group) != "", Tessy_group != "Ukjent")
 
-  sc2_month_totals <- sc2_indel_df %>%
-    group_by(indel_month) %>%
-    summarise(total = n(), .groups = "drop")
+  sc2_indel_df <- sc2_indel_df %>%
+    mutate(Tessy_group = trimws(as.character(Tessy_group)))
 
-  sc2_extract_numeric <- function(x) {
-    suppressWarnings(as.numeric(stringr::str_extract(x, "\\d+")))
-  }
-
-  for (mutation_col in sc2_indel_cols) {
-    col_df <- sc2_indel_df %>%
-      select(indel_month, all_of(mutation_col)) %>%
-      rename(mutation_raw = all_of(mutation_col)) %>%
-      filter(!is.na(mutation_raw), trimws(as.character(mutation_raw)) != "") %>%
-      separate_rows(mutation_raw, sep = ";|,") %>%
-      mutate(mutation_raw = trimws(as.character(mutation_raw))) %>%
-      filter(
-        mutation_raw != "",
-        !tolower(mutation_raw) %in% c("na", "n/a", "none", "no mutations", "ikke_satt")
-      )
-
-    if (nrow(col_df) == 0) {
-      next
-    }
-
-    mut_counts <- col_df %>%
-      group_by(indel_month, mutation_raw) %>%
-      summarise(n = n(), .groups = "drop") %>%
-      left_join(sc2_month_totals, by = "indel_month") %>%
-      mutate(
-        percent = (n / total) * 100,
-        mutation_numeric = sc2_extract_numeric(mutation_raw)
-      ) %>%
-      arrange(mutation_numeric, mutation_raw)
-
-    indel_heatmap <- ggplot(mut_counts, aes(x = indel_month, y = mutation_raw, fill = percent)) +
-      geom_tile(color = "white") +
-      scale_fill_gradientn(colors = kvantitativ_b1, labels = scales::percent_format(scale = 1)) +
-      scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") +
-      labs(
-        title = paste0(gsub("_", " ", mutation_col), " percentages over time"),
-        x = "",
-        y = "Mutation sites",
-        fill = "Percentage"
-      ) +
-      theme_minimal(base_size = 12) +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-    print(indel_heatmap)
-    export_graph <- export_to_ppt(
-      export_graph,
-      indel_heatmap,
-      paste0(gsub("_", " ", mutation_col), " (%) by month")
+  sc2_long <- sc2_indel_df %>%
+    pivot_longer(cols = all_of(sc2_indel_cols), names_to = "mutation_col", values_to = "mutation_raw") %>%
+    filter(!is.na(mutation_raw), trimws(as.character(mutation_raw)) != "") %>%
+    separate_rows(mutation_raw, sep = ";|,") %>%
+    mutate(
+      mutation_raw = trimws(as.character(mutation_raw)),
+      mutation_type = case_when(
+        grepl("frameshift", mutation_col, ignore.case = TRUE) ~ "Frameshift",
+        grepl("insertion", mutation_col, ignore.case = TRUE) ~ "Insertion",
+        grepl("deletion", mutation_col, ignore.case = TRUE) ~ "Deletion",
+        TRUE ~ "Other"
+      ),
+      mutation_gene = sub("^(nc_[^_]+)_.*$", "\\1", mutation_col)
+    ) %>%
+    filter(
+      mutation_raw != "",
+      !tolower(mutation_raw) %in% c("na", "n/a", "none", "no mutations", "ikke_satt")
     )
+
+  # Correct denominator: number of samples per month/Tessy in source data.
+  sc2_month_totals <- sc2_indel_df %>%
+    distinct(indel_month, Tessy_group, .keep_all = TRUE) %>%
+    count(indel_month, Tessy_group, name = "total")
+
+  mut_counts <- sc2_long %>%
+    group_by(indel_month, Tessy_group, mutation_type, mutation_gene, mutation_raw) %>%
+    summarise(n = n(), .groups = "drop") %>%
+    left_join(sc2_month_totals, by = c("indel_month", "Tessy_group")) %>%
+    mutate(percent = (n / total) * 100)
+
+  if (nrow(mut_counts) > 0) {
+    mutation_type_order <- c("Frameshift", "Deletion", "Insertion")
+    for (m_type in mutation_type_order) {
+      type_df <- mut_counts %>%
+        filter(mutation_type == m_type)
+      if (nrow(type_df) == 0) next
+
+      gene_order <- type_df %>%
+        count(mutation_gene, wt = n, name = "total_n") %>%
+        arrange(desc(total_n), mutation_gene) %>%
+        pull(mutation_gene)
+
+      for (gene_name in gene_order) {
+        gene_df <- type_df %>%
+          filter(mutation_gene == gene_name) %>%
+          mutate(
+            mutation_raw = as.character(mutation_raw),
+            mutation_raw = factor(mutation_raw, levels = rev(unique(mutation_raw[order(percent, na.last = TRUE)])))
+          )
+        if (nrow(gene_df) == 0) next
+
+        indel_heatmap <- ggplot(gene_df, aes(x = indel_month, y = mutation_raw, fill = percent)) +
+          geom_tile(color = "white") +
+          facet_wrap(~Tessy_group, scales = "free_y", ncol = 3) +
+          scale_fill_gradientn(colors = kvantitativ_b1, labels = scales::percent_format(scale = 1)) +
+          scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") +
+          labs(
+            title = paste0("SC2 ", m_type, " - ", gene_name, " over tid"),
+            subtitle = "Facetted by Tessy",
+            x = "",
+            y = "Mutasjon",
+            fill = "Andel"
+          ) +
+          theme_minimal(base_size = 11) +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+        export_graph <- export_to_ppt(
+          export_graph,
+          indel_heatmap,
+          paste0("SC2 ", m_type, " - ", gene_name, " by Tessy")
+        )
+      }
+    }
+  } else {
+    message("Skipping SC2 indel split plots: no plottable mutation rows.")
   }
 } else {
-  message("Skipping SC2 indel analysis: missing date column or no frameshift/insertion/deletion columns found.")
+  message("Skipping SC2 indel analysis: missing date/Tessy column or no frameshift/insertion/deletion columns found.")
 }
 
 # ============================================================================
@@ -1175,7 +1203,7 @@ if (FALSE) {
 # ============================================================================
 # PATIENT/TESSY DISTRIBUTION BY REGION AND AGE
 # ============================================================================
-export_graph <- add_section_slide(export_graph, "Patient Related Analysis", "Age, geography and patient-side Tessy patterns")
+export_graph <- add_section_slide(export_graph, "Population Under Surveillance")
 
 patient_source_df <- if (exists("SC2db_v")) SC2db_v else SC2db
 patient_tessy_col <- intersect(c("Tessy", "tessy"), names(patient_source_df))[1]
@@ -1192,12 +1220,13 @@ build_tessy_group_plots <- function(df, x_col, x_label, export_graph_in) {
   plot_df <- df %>%
     mutate(
       plot_date = as.Date(.data[[patient_date_col]]),
+      season_plot = season_label_from_date(plot_date),
       Tessy_plot = as.character(.data[[patient_tessy_col]]),
       group_plot = as.character(.data[[x_col]])
     ) %>%
     filter(
       !is.na(plot_date),
-      plot_date >= data_window_start,
+      season_plot == current_season_label,
       !is.na(Tessy_plot), trimws(Tessy_plot) != "",
       !is.na(group_plot), trimws(group_plot) != "",
       group_plot != "IKKE_SATT"
@@ -1217,7 +1246,7 @@ build_tessy_group_plots <- function(df, x_col, x_label, export_graph_in) {
     group_by(group_plot) %>%
     summarise(group_n = sum(n), .groups = "drop") %>%
     arrange(desc(group_n), group_plot) %>%
-    mutate(group_label = paste0(group_plot, "\n(n=", group_n, ")"))
+    mutate(group_label = paste0(group_plot, " (n=", group_n, ")"))
 
   grouped_df <- grouped_df %>%
     left_join(x_labels_df, by = "group_plot") %>%
@@ -1228,19 +1257,19 @@ build_tessy_group_plots <- function(df, x_col, x_label, export_graph_in) {
     scale_y_continuous(labels = scales::percent_format(scale = 1)) +
     coord_cartesian(ylim = c(0, 100)) +
     scale_fill_manual(values = fhi_discrete_palette(n_distinct(grouped_df$Tessy_plot), sc2_palette)) +
-    labs(title = paste0("Tessy distribution by ", x_label, " (%) - current season / last 6 months"), x = paste0(x_label, " (n)"), y = "Percent (%)", fill = "Tessy") +
+    labs(title = paste0("Tessy distribution by ", x_label, " (%) - current season"), x = paste0(x_label, " (n)"), y = "Percent (%)", fill = "Tessy") +
     theme_minimal(base_size = 12) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
   p_count <- ggplot(grouped_df, aes(x = group_label, y = n, fill = Tessy_plot)) +
     geom_col(position = "stack") +
     scale_fill_manual(values = fhi_discrete_palette(n_distinct(grouped_df$Tessy_plot), sc2_palette)) +
-    labs(title = paste0("Tessy distribution by ", x_label, " (counts) - current season / last 6 months"), x = paste0(x_label, " (n)"), y = "Count", fill = "Tessy") +
+    labs(title = paste0("Tessy distribution by ", x_label, " (counts) - current season"), x = paste0(x_label, " (n)"), y = "Count", fill = "Tessy") +
     theme_minimal(base_size = 12) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-  export_graph_out <- export_to_ppt(export_graph_in, p_pct, paste0("Tessy by ", x_label, " (%) - current season/last 6 months"))
-  export_graph_out <- export_to_ppt(export_graph_out, p_count, paste0("Tessy by ", x_label, " (count) - current season/last 6 months"))
+  export_graph_out <- export_to_ppt(export_graph_in, p_pct, paste0("Tessy by ", x_label, " (%) - current season"))
+  export_graph_out <- export_to_ppt(export_graph_out, p_count, paste0("Tessy by ", x_label, " (count) - current season"))
   export_graph_out
 }
 
@@ -1272,7 +1301,7 @@ if (!is.na(patient_tessy_col)) {
       pasient_vaks_2uipt_plot = if ("pasient_vaks_2uipt" %in% names(.)) ifelse(is.na(pasient_vaks_2uipt) | trimws(as.character(pasient_vaks_2uipt)) == "", "Ukjent", as.character(pasient_vaks_2uipt)) else "Ukjent"
     )
 
-  norway_geojson_path <- "N:/Virologi/Influensa/2526/WGS_Analyse/Scripts/Mapping/Norway_shapefile/Basisdata_0000_Norge_4258_Fylker_GeoJSON.geojson"
+  norway_geojson_path <- resolve_norway_geojson_path()
   sc2_prev <- patient_df %>% dplyr::filter(season == previous_season_label)
   sc2_curr <- patient_df %>% dplyr::filter(season == current_season_label)
   if (!is.na(patient_fylke_col)) {
@@ -1313,6 +1342,36 @@ if (!is.na(patient_tessy_col)) {
       p_landsdel_pair <- (p_landsdel_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(nrow(sc2_curr)), ")"))) |
         (p_landsdel_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(nrow(sc2_prev)), ")")))
       export_graph <- export_to_ppt(export_graph, p_landsdel_pair, "Map: Landsdel fordeling - left current, right previous")
+    }
+  }
+
+  if (all(c("pasient_kjnn", "season") %in% names(patient_df))) {
+    p_kjonn <- build_two_season_pie_compare(
+      patient_df,
+      season_col = "season",
+      category_col = "pasient_kjnn",
+      previous_label = previous_season_label,
+      current_label = current_season_label,
+      category_label = "Kjønn",
+      palette_base = sc2_palette
+    )
+    if (!is.null(p_kjonn)) {
+      export_graph <- export_to_ppt(export_graph, p_kjonn, "Kjønn: sesongsammenligning")
+    }
+  }
+
+  if ("pasient_aldersgruppe_sc2" %in% names(patient_df)) {
+    p_alder <- build_two_season_pie_compare(
+      patient_df,
+      season_col = "season",
+      category_col = "pasient_aldersgruppe_sc2",
+      previous_label = previous_season_label,
+      current_label = current_season_label,
+      category_label = "Aldersgruppe",
+      palette_base = sc2_palette
+    )
+    if (!is.null(p_alder)) {
+      export_graph <- export_to_ppt(export_graph, p_alder, "Aldersgruppe: sesongsammenligning")
     }
   }
 
