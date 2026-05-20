@@ -3881,15 +3881,13 @@ if (!is.null(p_landsdel_curr) && !is.null(p_landsdel_prev)) {
 # Kjønn: current season vs previous season, pie side-by-side + monthly comparison
 if (all(c("pasient_kjnn", "season", "prove_tatt") %in% names(fludb))) {
   kjonn_compare <- fludb %>%
-    mutate(
-      pasient_kjnn = ifelse(is.na(pasient_kjnn) | trimws(as.character(pasient_kjnn)) == "", "Ukjent", as.character(pasient_kjnn))
-    ) %>%
+    normalize_sex_column(candidate_cols = c("pasient_kjnn", "pasient_kjonn")) %>%
     filter(season %in% c(current_season_label, previous_season_label))
 
   pie_builder <- function(dat, season_lbl) {
     d <- dat %>%
       filter(season == season_lbl) %>%
-      count(pasient_kjnn, name = "n")
+      count(pasient_kjonn_std, name = "n")
     if (nrow(d) == 0) return(NULL)
     season_n <- sum(d$n, na.rm = TRUE)
     d <- d %>%
@@ -3897,7 +3895,7 @@ if (all(c("pasient_kjnn", "season", "prove_tatt") %in% names(fludb))) {
         pct = ifelse(season_n > 0, 100 * n / season_n, 0),
         label_txt = paste0("N=", scales::comma(n))
       )
-    ggplot(d, aes(x = "", y = n, fill = pasient_kjnn)) +
+    ggplot(d, aes(x = "", y = n, fill = pasient_kjonn_std)) +
       geom_col(width = 1) +
       geom_text(
         aes(label = label_txt),
@@ -3905,7 +3903,7 @@ if (all(c("pasient_kjnn", "season", "prove_tatt") %in% names(fludb))) {
         size = 3
       ) +
       coord_polar(theta = "y") +
-      scale_fill_manual(values = fhi_discrete_palette(dplyr::n_distinct(d$pasient_kjnn), kvalitativ_comb)) +
+      scale_fill_manual(values = fhi_discrete_palette(dplyr::n_distinct(d$pasient_kjonn_std), kvalitativ_comb)) +
       labs(title = paste0(season_lbl, " (N=", scales::comma(season_n), ")"), fill = "Kjønn") +
       theme_void()
   }
@@ -3933,13 +3931,13 @@ if (all(c("pasient_kjnn", "season", "prove_tatt") %in% names(fludb))) {
       month_in_season = ((month_num - 9) %% 12) + 1L,
       month_lbl = factor(month_levels_season[month_in_season], levels = month_levels_season)
     ) %>%
-    count(season, month_lbl, pasient_kjnn, name = "n")
+    count(season, month_lbl, pasient_kjonn_std, name = "n")
 
   if (nrow(kjonn_month) > 0) {
-    p_kj_month <- ggplot(kjonn_month, aes(x = month_lbl, y = n, fill = pasient_kjnn)) +
+    p_kj_month <- ggplot(kjonn_month, aes(x = month_lbl, y = n, fill = pasient_kjonn_std)) +
       geom_col(position = "stack") +
       facet_wrap(~season, ncol = 1) +
-      scale_fill_manual(values = fhi_discrete_palette(dplyr::n_distinct(kjonn_month$pasient_kjnn), kvalitativ_comb)) +
+      scale_fill_manual(values = fhi_discrete_palette(dplyr::n_distinct(kjonn_month$pasient_kjonn_std), kvalitativ_comb)) +
       labs(title = "Kjønn per måned: nåværende vs forrige sesong", x = "Måned i sesong", y = "Antall (n)", fill = "Kjønn") +
       theme_minimal() +
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -3972,10 +3970,10 @@ if (all(c("pasient_aldersgruppe", "season") %in% names(fludb))) {
 }
 
 # SC2-guided harmonized patient/prove panels for FLU
-tessy_color_col <- intersect(c("tessy_reportable_variable", "Tessy", "tessy"), names(fludb))[1]
+subclade_color_col <- intersect(c("nc_ha_subclade", "NC_HA_Subclade"), names(fludb))[1]
 virus_col <- if ("ngs_sekvens_resultat" %in% names(fludb)) "ngs_sekvens_resultat" else NULL
 virus_map <- c("A/H1N1" = "H1N1", "A/H3N2" = "H3N2", "B/Victoria" = "BVIC")
-if (!is.na(tessy_color_col) && !is.null(virus_col) && "prove_tatt" %in% names(fludb)) {
+if (!is.na(subclade_color_col) && !is.null(virus_col) && "prove_tatt" %in% names(fludb)) {
   flu_dims <- c(
     "pasient_fylke_name" = "Fylke",
     "pasient_landsdel_from_fylke" = "Landsdel",
@@ -3997,8 +3995,8 @@ if (!is.na(tessy_color_col) && !is.null(virus_col) && "prove_tatt" %in% names(fl
       filter(
         season == current_season_label,
         .data[[virus_col]] == virus_key,
-        !is.na(.data[[tessy_color_col]]),
-        trimws(as.character(.data[[tessy_color_col]])) != ""
+        !is.na(.data[[subclade_color_col]]),
+        trimws(as.character(.data[[subclade_color_col]])) != ""
       )
     if (nrow(flu_v) == 0) next
 
@@ -4040,10 +4038,10 @@ if (!is.na(tessy_color_col) && !is.null(virus_col) && "prove_tatt" %in% names(fl
       p_pair <- build_group_distribution_plots(
         flu_v,
         x_col = dim_col,
-        color_col = tessy_color_col,
+        color_col = subclade_color_col,
         x_label = dim_label,
-        color_label = "Tessy",
-        title_prefix = paste0(virus_label, " Tessy by ", dim_label, " - current season"),
+        color_label = "Subclade",
+        title_prefix = paste0(virus_label, " Subclade by ", dim_label, " - current season"),
         palette_base = kvalitativ_comb
       )
       if (is.null(p_pair)) next

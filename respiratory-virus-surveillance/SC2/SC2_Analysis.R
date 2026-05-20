@@ -218,7 +218,7 @@ export_graph <- add_section_slide(export_graph, "Data Quality Checks", "Data int
 
 timed_step("Source SC2_SQLquery_BNCOVID19.R", source(file.path(bundle_scripts_dir, "SC2_SQLquery_BNCOVID19.R")))
 timed_step("Source SC2_SQLquery_25-26.R", source(file.path(bundle_scripts_dir, "SC2_SQLquery_25-26.R")))
-timed_step("Source SC2_Classificaiton.R", source(file.path(bundle_scripts_dir, "SC2_Classificaiton.R")))
+timed_step("Source SC2_Classification.R", source(file.path(bundle_scripts_dir, "SC2_Classification.R")))
 
 # Harmonized sample-category classification:
 # P1/P1_* or 1* -> Sentinel; everything else -> Non-Sentinel.
@@ -373,33 +373,6 @@ if (!is.na(eda_tessy_col)) {
   # NOTE: Patient status / sample category / vaccination Tessy plots are created
   # in the dedicated patient section later in the report.
 
-  # Coverage by Tessy and origin contribution over time.
-  if (!is.na(eda_cov_col)) {
-    coverage_df <- eda_df %>%
-      mutate(
-        coverage_value = suppressWarnings(as.numeric(as.character(.data[[eda_cov_col]])))
-      ) %>%
-      filter(!is.na(coverage_value), !is.na(Tessy_plot), trimws(Tessy_plot) != "")
-
-    if (nrow(coverage_df) > 0) {
-      coverage_df <- coverage_df %>%
-        mutate(
-          coverage_value_norm = ifelse(coverage_value > 1.5, coverage_value / 100, coverage_value)
-        )
-
-      p_coverage_tessy <- ggplot(coverage_df, aes(x = reorder(Tessy_plot, coverage_value_norm, median, na.rm = TRUE), y = coverage_value_norm)) +
-        geom_boxplot(fill = fhi_discrete_palette(1, sc2_palette)[1], alpha = 0.35, outlier.alpha = 0.3) +
-        coord_flip() +
-        labs(
-          title = "Coverage breadth by Tessy classification",
-          x = "Tessy",
-          y = "Coverage (normalized 0-1)"
-        ) +
-        theme_minimal(base_size = 12)
-      export_graph <- export_to_ppt(export_graph, p_coverage_tessy, "Coverage by Tessy")
-    }
-  }
-
   column_profile <- data.frame(
     column_name = names(eda_df),
     class = vapply(eda_df, function(x) paste(class(x), collapse = ","), character(1)),
@@ -484,15 +457,42 @@ if (!is.na(eda_tessy_col)) {
   export_graph <- export_to_ppt(export_graph, qc_summary, "SC2 data quality summary")
   export_graph <- export_to_ppt(export_graph, head(column_profile, 30), "SC2 SC2db_v: highest missingness columns")
 
-  # Numeric outlier scan (IQR-based) for all numeric columns.
-  numeric_cols <- names(eda_df)[vapply(eda_df, is.numeric, logical(1))]
-  if (length(numeric_cols) > 0) {
-    outlier_scan <- lapply(numeric_cols, function(col_name) {
-      x <- eda_df[[col_name]]
-      x <- x[!is.na(x)]
-      if (length(x) < 10) {
-        return(NULL)
+  # Numeric outlier scan (IQR-based):
+  # include numeric-like columns (comma/dot aware), exclude ID/code fields.
+  parse_numeric_locale <- function(v) {
+    x <- as.character(v)
+    x <- trimws(x)
+    x[x == "" | toupper(x) %in% c("NA", "NAN")] <- NA_character_
+    x <- gsub(",", ".", x, fixed = TRUE)
+    suppressWarnings(as.numeric(x))
+  }
+  is_id_or_code_col <- function(nm) {
+    nm_l <- tolower(nm)
+    grepl("(key|lwid|lw_id|sekv.*id|sample.*id|run.*id|(^|_)id($|_))", nm_l) ||
+      nm_l %in% c("week", "year", "isoweek", "isoyear", "prove_uke", "prove_sesong", "prove_kategori", "pasient_fylke_nr", "pasient_no")
+  }
+
+  all_cols <- names(eda_df)
+  candidate_cols <- all_cols[!vapply(all_cols, is_id_or_code_col, logical(1))]
+  if (length(candidate_cols) > 0) {
+    parsed_map <- lapply(candidate_cols, function(col_name) {
+      raw <- eda_df[[col_name]]
+      if (is.numeric(raw)) {
+        x <- as.numeric(raw)
+      } else {
+        x <- parse_numeric_locale(raw)
       }
+      non_missing_raw <- sum(!is.na(raw) & trimws(as.character(raw)) != "")
+      parse_rate <- if (non_missing_raw > 0) sum(!is.na(x)) / non_missing_raw else 0
+      list(col = col_name, x = x, parse_rate = parse_rate)
+    })
+    names(parsed_map) <- candidate_cols
+    numeric_cols <- names(parsed_map)[vapply(parsed_map, function(z) z$parse_rate >= 0.8, logical(1))]
+
+    outlier_scan <- lapply(numeric_cols, function(col_name) {
+      x <- parsed_map[[col_name]]$x
+      x <- x[!is.na(x) & is.finite(x)]
+      if (length(x) < 10) return(NULL)
       q1 <- as.numeric(quantile(x, 0.25, na.rm = TRUE))
       q3 <- as.numeric(quantile(x, 0.75, na.rm = TRUE))
       iqr <- q3 - q1
@@ -516,7 +516,21 @@ if (!is.na(eda_tessy_col)) {
 
     if (nrow(outlier_scan) > 0) {
       export_graph <- export_to_ppt(export_graph, head(outlier_scan, 30), "SC2 numeric outlier scan (IQR)")
+    } else {
+      outlier_msg <- data.frame(
+        note = "No numeric columns with >=10 non-missing values after exclusions (week/year removed).",
+        numeric_columns_found = length(numeric_cols),
+        stringsAsFactors = FALSE
+      )
+      export_graph <- export_to_ppt(export_graph, outlier_msg, "SC2 numeric outlier scan (IQR)")
     }
+  } else {
+    outlier_msg <- data.frame(
+      note = "No numeric columns found for outlier scan after exclusions (week/year removed).",
+      numeric_columns_found = 0L,
+      stringsAsFactors = FALSE
+    )
+    export_graph <- export_to_ppt(export_graph, outlier_msg, "SC2 numeric outlier scan (IQR)")
   }
 }
 
@@ -822,9 +836,20 @@ if (!is.na(sc2_indel_date_col) && length(sc2_indel_cols) > 0 && !is.na(sc2_tessy
     )
 
   # Correct denominator: number of samples per month/Tessy in source data.
-  sc2_month_totals <- sc2_indel_df %>%
-    distinct(indel_month, Tessy_group, .keep_all = TRUE) %>%
-    count(indel_month, Tessy_group, name = "total")
+  # Use unique sample keys when available; otherwise fall back to row count.
+  if ("key" %in% names(sc2_indel_df)) {
+    sc2_month_totals <- sc2_indel_df %>%
+      mutate(sample_key = as.character(key)) %>%
+      mutate(sample_key = ifelse(is.na(sample_key) | trimws(sample_key) == "", NA_character_, sample_key)) %>%
+      group_by(indel_month, Tessy_group) %>%
+      summarise(
+        total = ifelse(sum(!is.na(sample_key)) > 0, dplyr::n_distinct(sample_key, na.rm = TRUE), dplyr::n()),
+        .groups = "drop"
+      )
+  } else {
+    sc2_month_totals <- sc2_indel_df %>%
+      count(indel_month, Tessy_group, name = "total")
+  }
 
   mut_counts <- sc2_long %>%
     group_by(indel_month, Tessy_group, mutation_type, mutation_gene, mutation_raw) %>%
@@ -1088,14 +1113,7 @@ build_age_tessy_plot <- function(month_window, sentinel_only = FALSE) {
     mutate(
       pasient_alder_num = suppressWarnings(as.numeric(trimws(as.character(.data[[age_col]])))),
       age_group_raw = as.character(pasient_alder_num),
-      pasient_aldersgruppe = case_when(
-        pasient_alder_num >= 0 & pasient_alder_num <= 4 ~ "0-4",
-        pasient_alder_num >= 5 & pasient_alder_num <= 14 ~ "5-14",
-        pasient_alder_num >= 15 & pasient_alder_num <= 24 ~ "15-24",
-        pasient_alder_num >= 25 & pasient_alder_num <= 59 ~ "25-59",
-        pasient_alder_num >= 60 ~ "60+",
-        TRUE ~ "Ukjent"
-      ),
+      pasient_aldersgruppe = as.character(age_to_group_standard(pasient_alder_num)),
       age_group_plot = case_when(
         pasient_aldersgruppe %in% c("0-4", "5-14", "15-24", "25-59", "60+") ~ pasient_aldersgruppe,
         TRUE ~ NA_character_
@@ -1279,18 +1297,12 @@ if (!is.na(patient_tessy_col)) {
     patient_df <- patient_df %>%
       mutate(
         age_value_pd = suppressWarnings(as.numeric(trimws(as.character(.data[[patient_age_col]])))),
-        pasient_aldersgruppe_sc2 = case_when(
-          age_value_pd >= 0 & age_value_pd <= 4 ~ "0-4",
-          age_value_pd >= 5 & age_value_pd <= 14 ~ "5-14",
-          age_value_pd >= 15 & age_value_pd <= 24 ~ "15-24",
-          age_value_pd >= 25 & age_value_pd <= 59 ~ "25-59",
-          age_value_pd >= 60 ~ "60+",
-          TRUE ~ "Ukjent"
-        )
+        pasient_aldersgruppe_sc2 = as.character(age_to_group_standard(age_value_pd))
       )
   } else {
     patient_df$pasient_aldersgruppe_sc2 <- NA_character_
   }
+  patient_df <- normalize_sex_column(patient_df, candidate_cols = c("pasient_kjnn", "pasient_kjonn"))
 
   # Move these dimensions to the patient section as requested.
   patient_df <- patient_df %>%
@@ -1345,11 +1357,11 @@ if (!is.na(patient_tessy_col)) {
     }
   }
 
-  if (all(c("pasient_kjnn", "season") %in% names(patient_df))) {
+  if (all(c("pasient_kjonn_std", "season") %in% names(patient_df))) {
     p_kjonn <- build_two_season_pie_compare(
       patient_df,
       season_col = "season",
-      category_col = "pasient_kjnn",
+      category_col = "pasient_kjonn_std",
       previous_label = previous_season_label,
       current_label = current_season_label,
       category_label = "Kjønn",

@@ -36,6 +36,64 @@ divergerende_6_1_6 <- c(
 )
 sc2_palette <- kvalitativ_comb
 
+# -------------------------
+# Shared patient normalization helpers
+# -------------------------
+# Canonical labels used across pathogens.
+sex_levels_standard <- c("Female", "Male", "Ukjent")
+age_group_levels_standard <- c("0-4", "5-14", "15-24", "25-59", "60+", "Ukjent")
+
+# Dictionary for observed sex values across FLU/RSV/SC2 SQL outputs.
+sex_value_dictionary <- c(
+  "F" = "Female",
+  "f" = "Female",
+  "K" = "Female",
+  "k" = "Female",
+  "M" = "Male",
+  "m" = "Male",
+  "U" = "Ukjent",
+  "u" = "Ukjent",
+  "N" = "Ukjent",
+  "0" = "Ukjent"
+)
+
+normalize_sex_value <- function(x) {
+  x_chr <- as.character(x)
+  x_chr <- trimws(x_chr)
+  x_chr[is.na(x_chr)] <- ""
+  x_chr[x_chr == ""] <- "U"
+  mapped <- unname(sex_value_dictionary[x_chr])
+  mapped[is.na(mapped)] <- "Ukjent"
+  factor(mapped, levels = sex_levels_standard)
+}
+
+normalize_sex_column <- function(df, candidate_cols = c("pasient_kjnn", "pasient_kjonn")) {
+  if (is.null(df) || nrow(df) == 0) {
+    df$pasient_kjonn_std <- factor(character(0), levels = sex_levels_standard)
+    return(df)
+  }
+  hit <- candidate_cols[candidate_cols %in% names(df)]
+  if (length(hit) == 0) {
+    df$pasient_kjonn_std <- factor(rep("Ukjent", nrow(df)), levels = sex_levels_standard)
+    return(df)
+  }
+  df$pasient_kjonn_std <- normalize_sex_value(df[[hit[1]]])
+  df
+}
+
+age_to_group_standard <- function(age_vec) {
+  age_num <- suppressWarnings(as.numeric(trimws(as.character(age_vec))))
+  out <- dplyr::case_when(
+    !is.na(age_num) & age_num >= 0 & age_num <= 4 ~ "0-4",
+    !is.na(age_num) & age_num >= 5 & age_num <= 14 ~ "5-14",
+    !is.na(age_num) & age_num >= 15 & age_num <= 24 ~ "15-24",
+    !is.na(age_num) & age_num >= 25 & age_num <= 59 ~ "25-59",
+    !is.na(age_num) & age_num >= 60 ~ "60+",
+    TRUE ~ "Ukjent"
+  )
+  factor(out, levels = age_group_levels_standard)
+}
+
 # Structured palette map (tone-based) + flattened lookup.
 palette <- list(
   B1 = c(

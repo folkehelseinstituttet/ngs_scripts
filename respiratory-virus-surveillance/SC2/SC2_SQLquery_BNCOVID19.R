@@ -96,7 +96,14 @@ Totalvariants  <- merged_df %>%
       sekv_oppsett_sanger, 
       sekv_oppsett_swift
     )
-  )%>%
+  ) %>%
+  {
+    if ("ngs_report" %in% names(.)) {
+      filter(., is.na(ngs_report) | trimws(ngs_report) == "")
+    } else {
+      .
+    }
+  } %>%
   select(
     c(
       "prove_kategori" = "p",
@@ -140,7 +147,7 @@ Totalvariants  <- merged_df %>%
       "year", 
       "wy", 
       "my")
-    )%>%
+  ) %>%
   filter(nc_coverage != "")  %>%
   filter(prove_tatt != "")
 

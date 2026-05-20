@@ -282,6 +282,7 @@ for (slide_index in 1:num_slides) {
       scale_fill_manual(values = domain_fill) +
       scale_color_manual(values = domain_fill) +
       scale_size_continuous(range = c(1.6, 6.5)) +
+      guides(fill = "none") +
       labs(
         title = paste0("Spike mutation positions - Tessy: ", as.character(tessy_name)),
         subtitle = "Full Spike protein | all labels shown",

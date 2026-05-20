@@ -5,6 +5,7 @@ source(file = "N:/Virologi/Influensa/2526/WGS_Analyse/Source_files/SQL_address.R
 # Load required packages used by the query pipeline.
 library(dplyr)
 library(tidyr)
+library(stringr)
 library(janitor)
 library(lubridate)
 library(dbplyr)
@@ -94,6 +95,14 @@ filtered_entrytable <- entrytable %>% select(-all_of(duplicated_cols), KEY)
 # Merge and normalize column names.
 rsvdb <- left_join(filtered_entrytable, entryfld, by = "KEY") %>%
   clean_names() %>%
+  filter(is.na(ngs_report) | trimws(ngs_report) == "") %>%
+  filter(
+    !str_detect(
+      coalesce(prove_kategori, ""),
+      regex("^\\s*(?:3|P3(?:_.*)?)\\s*$", ignore_case = TRUE)
+    )
+  ) %>%
+  filter(!str_detect(coalesce(prove_kategori, ""), regex("ref", ignore_case = TRUE))) %>%
   select(-any_of(c(
     "levelid", "prkey", "endtcreated", "endtmodif",
     "objactionid", "objlck", "objowner", "objshared"

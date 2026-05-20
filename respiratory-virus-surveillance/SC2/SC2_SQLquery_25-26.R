@@ -65,6 +65,14 @@ merged_df <- left_join(filtered_entrytable, entryfld, by = "KEY") %>%
 
 # Further processing, including merging S columns and adding time variables
 SC2db  <- merged_df %>%
+  filter(is.na(ngs_report) | trimws(ngs_report) == "") %>%
+  filter(
+    !str_detect(
+      coalesce(prove_kategori, ""),
+      regex("^\\s*(?:3|P3(?:_.*)?)\\s*$", ignore_case = TRUE)
+    )
+  ) %>%
+  filter(!str_detect(coalesce(prove_kategori, ""), regex("ref", ignore_case = TRUE))) %>%
   mutate(
     mut_s_1 = na_if(mut_s_1, "NA"),
     mut_s_2 = na_if(mut_s_2, "NA"),
@@ -96,7 +104,14 @@ keys_in_SC2db <- SC2db_v$key
 
 # Filter Totalvariants_v to exclude keys already in SC2db_v
 Totalvariants_v_filtered <- Totalvariants_v %>%
-  filter(!key %in% keys_in_SC2db)
+  filter(!key %in% keys_in_SC2db) %>%
+  filter(
+    !str_detect(
+      coalesce(prove_kategori, ""),
+      regex("^\\s*(?:3|P3(?:_.*)?)\\s*$", ignore_case = TRUE)
+    )
+  ) %>%
+  filter(!str_detect(coalesce(prove_kategori, ""), regex("ref", ignore_case = TRUE)))
 
 # Combine the filtered Totalvariants_v with SC2db_v
 SC2db_v <- bind_rows(SC2db_v, Totalvariants_v_filtered)

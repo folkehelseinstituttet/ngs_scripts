@@ -108,10 +108,16 @@ merged_df$Prove_Tatt <- as.Date(merged_df$Prove_Tatt, format = "%Y-%m-%d")
 # ---------------------------------------------------------------
 
 fludb <- merged_df %>%
-  filter(NGS_Report == "") %>%
-  filter(Prove_Kategori != "3") %>%
-  filter(!str_detect(Prove_Kategori, regex("ref", ignore_case = TRUE))) %>%
-  filter(Tessy_Reportable_Variable != "")
+  filter(is.na(NGS_Report) | trimws(NGS_Report) == "") %>%
+  filter(
+    !str_detect(
+      coalesce(Prove_Kategori, ""),
+      regex("^\\s*(?:3|P3(?:_.*)?)\\s*$", ignore_case = TRUE)
+    )
+  ) %>%
+  filter(!str_detect(coalesce(Prove_Kategori, ""), regex("ref", ignore_case = TRUE))) %>%
+  filter(trimws(coalesce(Tessy_Reportable_Variable, "")) != "") %>%
+  filter(!str_detect(coalesce(Tessy_Reportable_Variable, ""), regex("ref", ignore_case = TRUE)))
 
 # Keep fludb values/column names untouched; normalize downstream only where needed.
 fludb <- as.data.frame(fludb)
