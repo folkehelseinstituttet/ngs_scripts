@@ -627,6 +627,7 @@ NEXTFLOW_OFFLINE_ARGS=()
 NEXTFLOW_WORK_ARGS=()
 NEXTFLOW_INPUT_ARGS=(
     --file "$PIPELINE_FILE"
+    --igenomes_ignore
 )
 
 if [ "$PIPELINE_FILE" = "fasta-workflow" ]; then
