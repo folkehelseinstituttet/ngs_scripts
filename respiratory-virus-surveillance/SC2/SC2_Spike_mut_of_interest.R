@@ -10,7 +10,7 @@ mutfr <- SC2db_v %>%
     Substitution = gsub(";", ",", Spike_mut),  # Replace semicolons with commas
     month = format(Sampledate, "%Y-%m"),      # Extract Year-Month
     Tessy_group = as.character(Tessy),
-    Tessy_group = ifelse(is.na(Tessy_group) | trimws(Tessy_group) == "", "Unknown", Tessy_group)
+    Tessy_group = ifelse(is.na(Tessy_group) | trimws(Tessy_group) == "", "Ukjent", Tessy_group)
   ) %>%
   filter(Substitution != "") %>%
   group_by(month, Tessy_group, Substitution) %>%
@@ -31,11 +31,11 @@ mutfr_monthly <- mutfr %>%
 grnmutfr <- ggplot(mutfr_monthly, aes(x = date, y = n_mut, color = Tessy_group, size = n)) +
   geom_point(alpha = 0.85, position = position_jitter(width = 2, height = 0.08, seed = 2526)) +
   labs(
-    title = "Dot Plot of Mutations by Type and Month-Year",
-    x = "Month-Year",
+    title = "Punktplott av mutasjoner per type og måned-år",
+    x = "Måned-år",
     y = "Number of Mutations",
     color = "Tessy",
-    size = "Count"
+    size = "Antall (n)"
   ) +
   scale_x_date(
     date_labels = "%b-%Y",
@@ -111,16 +111,16 @@ hmapmut <- ggplot(melt(heatmap_data, id.vars = "YearMonth"), aes(x = YearMonth, 
   scale_fill_gradientn(colours = kvantitativ_r1) +
   scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +
   labs(
-    title = "Heatmap of Mutation Combinations Per Month (Last 6 Months)",
-    x = "Month-Year",
+    title = "Varmekart av mutasjonskombinasjoner per måned (siste 6 måneder)",
+    x = "Måned-år",
     y = "Mutations or Combinations",
-    fill = "Percentage"
+    fill = "Andel (%)"
   ) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 print(hmapmut)
 
-export_graph <- save_plot(hmapmut, "Heatmap of Mutation Combinations Per Month (Last 6 Months)", export_graph)
+export_graph <- save_plot(hmapmut, "Varmekart av mutasjonskombinasjoner per måned (siste 6 måneder)", export_graph)
 
 # Pangolin nomenclature per mutation combination
 countspango <- countspango %>%
@@ -142,7 +142,7 @@ for (combination in unique_combinations) {
     geom_bar(aes(y = Count), stat = "identity") +
     labs(
       title = paste("Pangolin Nomenclature per Combination of Spike Mutations for", combination),
-      x = "Month-Year", 
+      x = "Måned-år", 
       y = "Antall sekvenser (n)", 
       fill = "Pangolin Nomenklature"
     ) +
@@ -171,7 +171,7 @@ for (combination in unique_combinations) {
     geom_col(aes(y = Percent)) +
     labs(
       title = paste("Andel av Pangolin Nomenclature per Combination of Spike Mutations for", combination),
-      x = "Month-Year", 
+      x = "Måned-år", 
       y = "Andel av alle SARS-CoV-2 sekvenser (%)", 
       fill = "Pangolin Nomenklature"
     ) +

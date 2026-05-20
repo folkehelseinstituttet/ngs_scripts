@@ -473,14 +473,14 @@ plot_metadata_sc2_tessy_style <- function(df, x_var, fill_var, title_txt, palett
       ggplot2::scale_y_continuous(labels = scales::percent_format(scale = 1)) +
       ggplot2::coord_cartesian(ylim = c(0, 100)) +
       ggplot2::scale_fill_manual(values = fhi_discrete_palette(dplyr::n_distinct(d$fv), palette_base)) +
-      ggplot2::labs(title = title_txt, x = x_var, y = "Percent (%)", fill = fill_var) +
+      ggplot2::labs(title = title_txt, x = x_var, y = "Andel (%)", fill = fill_var) +
       ggplot2::theme_minimal() +
       ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
   } else {
     ggplot2::ggplot(d, ggplot2::aes(x = xlab, y = n, fill = fv)) +
       ggplot2::geom_col() +
       ggplot2::scale_fill_manual(values = fhi_discrete_palette(dplyr::n_distinct(d$fv), palette_base)) +
-      ggplot2::labs(title = title_txt, x = x_var, y = "Count", fill = fill_var) +
+      ggplot2::labs(title = title_txt, x = x_var, y = "Antall (n)", fill = fill_var) +
       ggplot2::theme_minimal() +
       ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
   }

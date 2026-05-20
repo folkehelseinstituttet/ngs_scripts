@@ -191,7 +191,7 @@ for (slide_index in 1:num_slides) {
   domainmutcp <- Linmut %>%
     mutate(
       Tessy_group = as.character(Tessy),
-      Tessy_group = ifelse(is.na(Tessy_group) | trimws(Tessy_group) == "", "Unknown", Tessy_group)
+      Tessy_group = ifelse(is.na(Tessy_group) | trimws(Tessy_group) == "", "Ukjent", Tessy_group)
     ) %>%
     group_by(Tessy_group, Substitution, Number, Domain) %>%
     summarise(n = n(), .groups = "drop")
@@ -290,7 +290,7 @@ for (slide_index in 1:num_slides) {
         y = NULL,
         color = "Spike domain",
         fill = "Spike domain",
-        size = "Count (n)"
+        size = "Antall (n)"
       ) +
       theme_minimal(base_size = 11) +
       theme(

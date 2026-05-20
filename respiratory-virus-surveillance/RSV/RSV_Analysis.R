@@ -367,7 +367,7 @@ if (all(c('prove_tatt', 'subtype_group', 'subclade_plot') %in% names(rsvdb))) {
         color_col = 'subclade_plot',
         x_label = dim_label,
         color_label = 'Subclade',
-        title_prefix = paste0(subtype_id, ' subclade by ', dim_label, ' - current season'),
+        title_prefix = paste0(subtype_id, ' subklade per ', dim_label, ' - gjeldende sesong'),
         palette_base = kvalitativ_comb
       )
       if (is.null(p_pair)) next
@@ -377,7 +377,7 @@ if (all(c('prove_tatt', 'subtype_group', 'subclade_plot') %in% names(rsvdb))) {
       export_graph_f <- save_plot_to_ppt(
         export_graph_f,
         p_combined,
-        title = paste0(subtype_id, ' by ', dim_label, ' (count + %) - current season')
+        title = paste0(subtype_id, ' per ', dim_label, ' (antall + andel) - gjeldende sesong')
       )
     }
   }
