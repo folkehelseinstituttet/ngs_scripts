@@ -57,6 +57,9 @@ SCRIPT_NAME=$(basename "$0")
 # DB aliases must match profile names in nextflow.config (profiles block).
 VALID_DB_ALIASES=("v3_2_4" "HEV")
 
+# Host aliases must match host_<alias> profile names in nextflow.config.
+VALID_HOST_ALIASES=("human" "moose")
+
 usage() {
     echo "Usage: $SCRIPT_NAME [OPTIONS]"
     echo "Options:"
@@ -66,6 +69,8 @@ usage() {
     echo "  -y, --year        Specify the year (e.g. 2026)"
     echo "  -d, --db          EsViritu database alias (default: v3_2_4)"
     echo "                    Available: ${VALID_DB_ALIASES[*]}"
+    echo "  -H, --host        Host reference alias (default: human)"
+    echo "                    Available: ${VALID_HOST_ALIASES[*]}"
     echo "      --resume      Resume a previous Nextflow run (passes -resume to nextflow)"
     exit 1
 }
@@ -75,6 +80,7 @@ RUN=""
 AGENS=""
 YEAR=""
 DB="v3_2_4"
+HOST="human"
 RESUME=false
 
 # Pre-scan for --resume and --db (getopts only handles short options)
@@ -89,6 +95,10 @@ while [[ $# -gt 0 ]]; do
             DB="$2"
             shift 2
             ;;
+        --host)
+            HOST="$2"
+            shift 2
+            ;;
         *)
             filtered_args+=("$1")
             shift
@@ -97,13 +107,14 @@ while [[ $# -gt 0 ]]; do
 done
 set -- "${filtered_args[@]}"
 
-while getopts "hr:a:y:d:" opt; do
+while getopts "hr:a:y:d:H:" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
         y) YEAR="$OPTARG" ;;
         d) DB="$OPTARG" ;;
+        H) HOST="$OPTARG" ;;
         ?) usage ;;
     esac
 done
@@ -121,6 +132,14 @@ if [[ ! " ${VALID_DB_ALIASES[*]} " =~ " ${DB} " ]]; then
     exit 1
 fi
 
+# Validate HOST alias against known profiles
+if [[ ! " ${VALID_HOST_ALIASES[*]} " =~ " ${HOST} " ]]; then
+    echo "Error: Unknown host alias '${HOST}'."
+    echo "Available aliases: ${VALID_HOST_ALIASES[*]}"
+    echo "Add a corresponding 'host_${HOST}' profile block to nextflow.config to register a new alias."
+    exit 1
+fi
+
 # Now that arguments are parsed, set a run-specific status file and initialize it.
 if [ -n "${RUN:-}" ]; then
     STATUS_FILE="$HOME/esv_${RUN}_status.txt"
@@ -128,7 +147,7 @@ else
     STATUS_FILE="$HOME/esv_unknown_status.txt"
 fi
 printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" > "$STATUS_FILE"
-set_status "Started wrapper. RUN=$RUN AGENS=$AGENS YEAR=$YEAR DB=$DB RESUME=$RESUME"
+set_status "Started wrapper. RUN=$RUN AGENS=$AGENS YEAR=$YEAR DB=$DB HOST=$HOST RESUME=$RESUME"
 
 # Set working directory
 cd $HOME
@@ -299,16 +318,17 @@ docker build -t esviritu_pipeline:latest "${PIPELINE_ASSETS}/docker/" || {
 set_status "Docker image built successfully"
 
 # 4. Run it directly from the GitHub handle
-# host_index is resolved from the 'server' profile in nextflow.config.
+# host_index is resolved from the 'host_<alias>' profile selected via -H.
 # esviritu_db is resolved from the 'db_<alias>' profile selected via -d.
 RESUME_FLAG=""
 $RESUME && RESUME_FLAG="-resume"
 
 set_status "Using database profile: db_${DB}"
+set_status "Using host profile: host_${HOST}"
 
 nextflow run alexanderhes/Ukjent_virus -r $VERSION \
     $RESUME_FLAG \
-    -profile "server,db_${DB}" \
+    -profile "server,host_${HOST},db_${DB}" \
     --validate \
     --samplesheet "$FINAL_SAMPLESHEET" \
     --outdir "$TMP_RES" || {
