@@ -38,12 +38,15 @@ usage() {
     echo "  --local-fasta <path-or-glob>"
     echo "                     Run the FASTA workflow on local FASTA input instead of the FASTQ workflow"
     echo "  --outdir <dir>     Write this run's pipeline output to an explicit local directory"
+    echo "  --workdir <dir>    Write this run's Nextflow work directory to an explicit local directory"
     echo ""
     echo "Offline environment overrides:"
     echo "  BASE_DIR                     Local base directory for temp/cache paths (default: /mnt/tempdata)"
     echo "  TMP_DIR                      Local temporary FASTQ directory (default: BASE_DIR/fastq)"
     echo "  SARS_DATABASE                Local DB/resource cache root (default: BASE_DIR/sars_db/assets)"
     echo "  OFFLINE_OUTDIR_BASE          Default offline output base if --outdir is not provided"
+    echo "  OFFLINE_WORKDIR_BASE         Default offline work base if --workdir is not provided"
+    echo "  NEXTFLOW_WORKDIR             Explicit Nextflow work directory, same as --workdir"
     echo "  PIPELINE_DIR                 Local pipeline checkout (default: \$HOME/.nextflow/assets/RasmusKoRiis/nf-core-sars)"
     echo "  OFFLINE_NEXTCLADE_DATASET    Local Nextclade dataset directory"
     echo "  OFFLINE_ARTIC_MODEL_DIR      Local ARTIC/Clair3 model directory"
@@ -66,6 +69,7 @@ LOCAL_FASTQ_DIR="${LOCAL_FASTQ_DIR:-}"
 LOCAL_SAMPLESHEET="${LOCAL_SAMPLESHEET:-}"
 LOCAL_FASTA="${LOCAL_FASTA:-}"
 OUTPUT_DIR="${OUTPUT_DIR:-}"
+NEXTFLOW_WORKDIR="${NEXTFLOW_WORKDIR:-${WORK_DIR:-}}"
 
 # Parse options
 while [ "$#" -gt 0 ]; do
@@ -83,6 +87,7 @@ while [ "$#" -gt 0 ]; do
         --local-samplesheet) LOCAL_SAMPLESHEET="${2:?Missing value for $1}"; shift 2 ;;
         --local-fasta) LOCAL_FASTA="${2:?Missing value for $1}"; shift 2 ;;
         --outdir) OUTPUT_DIR="${2:?Missing value for $1}"; shift 2 ;;
+        --workdir|--work-dir) NEXTFLOW_WORKDIR="${2:?Missing value for $1}"; shift 2 ;;
         --) shift; break ;;
         *) echo "ERROR: Unknown option: $1"; usage ;;
     esac
@@ -117,6 +122,7 @@ echo "Local FASTQ dir: ${LOCAL_FASTQ_DIR:-}"
 echo "Local samplesheet: ${LOCAL_SAMPLESHEET:-}"
 echo "Local FASTA: ${LOCAL_FASTA:-}"
 echo "Output dir: ${OUTPUT_DIR:-}"
+echo "Nextflow work dir: ${NEXTFLOW_WORKDIR:-}"
 
 ################################################################################
 # Repo sync
@@ -144,9 +150,9 @@ if [ "$OFFLINE_MODE" = false ]; then
 fi
 
 # Export the access token for web monitoring with tower
-export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
+#export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
 # Add workspace ID for Virus_NGS
-export TOWER_WORKSPACE_ID=150755685543204
+#export TOWER_WORKSPACE_ID=150755685543204
 
 ################################################################################
 # Environment / SMB
@@ -466,7 +472,17 @@ fi
 
 NEXTFLOW_OUTDIR="${OUTPUT_DIR:-$HOME/$RUN}"
 
+if [ -z "$NEXTFLOW_WORKDIR" ] && [ "$OFFLINE_MODE" = true ] && [ -n "${OFFLINE_WORKDIR_BASE:-}" ]; then
+    NEXTFLOW_WORKDIR="$OFFLINE_WORKDIR_BASE/$RUN"
+fi
+
+echo "Resolved output dir: $NEXTFLOW_OUTDIR"
+echo "Resolved work dir: ${NEXTFLOW_WORKDIR:-Nextflow default}"
+
 mkdir -p "$NEXTFLOW_OUTDIR"
+if [ -n "$NEXTFLOW_WORKDIR" ]; then
+    mkdir -p "$NEXTFLOW_WORKDIR"
+fi
 mkdir -p "$TMP_DIR"
 CLEAN_TMP=true
 if [ "$PIPELINE_FILE" = "fasta-workflow" ] || [ -n "$LOCAL_FASTQ_DIR" ]; then
@@ -608,6 +624,7 @@ echo "Map to references and create consensus sequences"
 NEXTFLOW_SOURCE="RasmusKoRiis/nf-core-sars/main.nf"
 NEXTFLOW_REV_ARGS=(-r "$PIPELINE_BRANCH")
 NEXTFLOW_OFFLINE_ARGS=()
+NEXTFLOW_WORK_ARGS=()
 NEXTFLOW_INPUT_ARGS=(
     --file "$PIPELINE_FILE"
 )
@@ -642,8 +659,13 @@ else
     nextflow pull RasmusKoRiis/nf-core-sars -r "$PIPELINE_BRANCH"
 fi
 
+if [ -n "$NEXTFLOW_WORKDIR" ]; then
+    NEXTFLOW_WORK_ARGS=(-work-dir "$NEXTFLOW_WORKDIR")
+fi
+
 nextflow run "$NEXTFLOW_SOURCE" \
     "${NEXTFLOW_REV_ARGS[@]}" \
+    "${NEXTFLOW_WORK_ARGS[@]}" \
     -profile docker,server \
     "${NEXTFLOW_INPUT_ARGS[@]}" \
     --outdir "$NEXTFLOW_OUTDIR" \
