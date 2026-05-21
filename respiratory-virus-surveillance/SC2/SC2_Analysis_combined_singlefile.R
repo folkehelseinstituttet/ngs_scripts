@@ -2658,8 +2658,16 @@ if (!is.na(patient_tessy_col)) {
       fill_palette = kvantitativ_b2
     )
     if (!is.null(p_fylke_curr) && !is.null(p_fylke_prev)) {
-      p_fylke_pair <- (p_fylke_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(nrow(sc2_prev)), ")"))) |
-        (p_fylke_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(nrow(sc2_curr)), ")")))
+      p_fylke_pair <- build_two_season_map_compare_shared(
+        sc2_prev,
+        sc2_curr,
+        previous_label = previous_season_label,
+        current_label = current_season_label,
+        map_builder = build_fylke_map_plot_shared,
+        fylke_col = patient_fylke_col,
+        shape_path = norway_geojson_path,
+        fill_palette = kvantitativ_b2
+      )
       export_graph <- export_to_ppt(export_graph, p_fylke_pair, "Map: Fylke fordeling - left previous, right current")
     }
   }
@@ -2679,8 +2687,17 @@ if (!is.na(patient_tessy_col)) {
       palette_base = kvalitativ_comb
     )
     if (!is.null(p_landsdel_curr) && !is.null(p_landsdel_prev)) {
-      p_landsdel_pair <- (p_landsdel_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(nrow(sc2_prev)), ")"))) |
-        (p_landsdel_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(nrow(sc2_curr)), ")")))
+      p_landsdel_pair <- build_two_season_map_compare_shared(
+        sc2_prev,
+        sc2_curr,
+        previous_label = previous_season_label,
+        current_label = current_season_label,
+        map_builder = build_landsdel_map_plot_shared,
+        fylke_col = patient_fylke_col,
+        landsdel_col = patient_landsdel_col,
+        shape_path = norway_geojson_path,
+        palette_base = kvalitativ_comb
+      )
       export_graph <- export_to_ppt(export_graph, p_landsdel_pair, "Map: Landsdel fordeling - left previous, right current")
     }
   }

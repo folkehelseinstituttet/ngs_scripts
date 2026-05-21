@@ -484,47 +484,33 @@ if (!is.na(cov_col)) {
   }
 }
 
-# Run quality issues by virus (H1/H3/BVIC), colored by NC_quality (RSV-style)
-quality_col_flu <- intersect(c("NC_quality", "nc_quality", "nc_qc_overall_status"), names(fludb))[1]
-if (!is.na(cov_col) && !is.na(quality_col_flu) && all(c("ngs_run_id", "ngs_sekvens_resultat") %in% names(fludb))) {
-  run_qc_window <- run_quality_window_bounds(Sys.Date(), min_months = 6L)
-  fludb_run_qc <- fludb %>%
-    mutate(prove_tatt = as.Date(prove_tatt)) %>%
-    filter(!is.na(prove_tatt), prove_tatt >= run_qc_window$start, prove_tatt <= run_qc_window$end)
-
+# Run quality issues by virus (SC2-style standardized pass/fail)
+run_quality_map_flu <- resolve_run_quality_mapping("INF", fludb)
+if (!is.na(run_quality_map_flu$cov_col) && !is.na(run_quality_map_flu$run_col) && !is.na(run_quality_map_flu$date_col)) {
   export_graph_f <- add_section_slide(
     export_graph_f,
     "Seksjon: Run quality issues",
-    paste0(
-      "Per virus (H1/H3/BVIC), farge etter NC_quality. Datovindu: ",
-      format(run_qc_window$start, "%Y-%m-%d"), " til ", format(run_qc_window$end, "%Y-%m-%d")
-    )
-  )
-  run_qc_flu <- prepare_run_qc_df(
-    fludb_run_qc,
-    run_col = "ngs_run_id",
-    cov_col = cov_col,
-    qc_col = quality_col_flu,
-    virus_col = "ngs_sekvens_resultat",
-    color_col = quality_col_flu
+    "Siste 12 relevante runs, farge etter standardisert passed/not passed"
   )
 
-  if (!is.null(run_qc_flu) && nrow(run_qc_flu) > 0) {
-    virus_map_qc <- c("A/H1N1" = "H1N1", "A/H3N2" = "H3N2", "B/Victoria" = "BVIC")
-    for (virus_name in names(virus_map_qc)) {
-      virus_label <- virus_map_qc[[virus_name]]
-      rv <- run_qc_flu %>% filter(virus_group == virus_name)
+  run_quality_flu <- prepare_run_quality_dataset(fludb, run_quality_map_flu, today = Sys.Date(), max_runs = 12L, max_age_days = 365L)
+  if (!is.null(run_quality_flu) && nrow(run_quality_flu) > 0) {
+    for (virus_name in c("H1N1", "H3N2", "BVIC")) {
+      rv <- run_quality_flu %>% dplyr::filter(run_quality_group == virus_name)
       if (nrow(rv) == 0) next
 
-      run_cov_summary_v <- run_qc_summary_table(rv)
+      run_cov_summary_v <- run_quality_summary_table(rv)
       if (!is.null(run_cov_summary_v) && nrow(run_cov_summary_v) > 0) {
-        export_graph_f <- save_table_to_ppt(export_graph_f, run_cov_summary_v, paste("Coverage QC by NGS run -", virus_label))
+        export_graph_f <- save_table_to_ppt(export_graph_f, run_cov_summary_v, paste("Run quality summary -", virus_name))
       }
 
-      p_run_qc_v <- plot_run_qc_by_run_colorgroup(rv, paste("Run quality issues -", virus_label), color_label = "NC_quality")
-      if (!is.null(p_run_qc_v)) export_graph_f <- save_plot_to_ppt(export_graph_f, p_run_qc_v)
+      p_run_pct_v <- plot_run_quality_stacked(rv, y_var = "percent", title_txt = paste("Run quality andel -", virus_name), fill_label = "Status")
+      if (!is.null(p_run_pct_v)) export_graph_f <- save_plot_to_ppt(export_graph_f, p_run_pct_v)
 
-      p_run_cov_v <- plot_run_cov_by_run_colorgroup(rv, paste("Coverage per run -", virus_label), color_label = "NC_quality")
+      p_run_n_v <- plot_run_quality_stacked(rv, y_var = "n", title_txt = paste("Run quality antall -", virus_name), fill_label = "Status")
+      if (!is.null(p_run_n_v)) export_graph_f <- save_plot_to_ppt(export_graph_f, p_run_n_v)
+
+      p_run_cov_v <- plot_run_quality_coverage_box(rv, title_txt = paste("Coverage per run -", virus_name), color_label = "Tessy")
       if (!is.null(p_run_cov_v)) export_graph_f <- save_plot_to_ppt(export_graph_f, p_run_cov_v)
     }
   }
@@ -3818,10 +3804,16 @@ p_fylke_curr <- build_fylke_map_plot_shared(
   fill_palette = kvantitativ_b2
 )
 if (!is.null(p_fylke_curr) && !is.null(p_fylke_prev)) {
-  n_curr_map <- nrow(flu_curr)
-  n_prev_map <- nrow(flu_prev)
-  p_fylke_pair <- (p_fylke_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(n_prev_map), ")"))) |
-    (p_fylke_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(n_curr_map), ")")))
+  p_fylke_pair <- build_two_season_map_compare_shared(
+    flu_prev,
+    flu_curr,
+    previous_label = previous_season_label,
+    current_label = current_season_label,
+    map_builder = build_fylke_map_plot_shared,
+    fylke_col = "pasient_fylke_name",
+    shape_path = norway_geojson_path,
+    fill_palette = kvantitativ_b2
+  )
   add_meta_plot(p_fylke_pair, "Map: Fylke fordeling - left previous, right current")
 }
 
@@ -3840,10 +3832,17 @@ p_landsdel_curr <- build_landsdel_map_plot_shared(
   palette_base = kvalitativ_comb
 )
 if (!is.null(p_landsdel_curr) && !is.null(p_landsdel_prev)) {
-  n_curr_map <- nrow(flu_curr)
-  n_prev_map <- nrow(flu_prev)
-  p_landsdel_pair <- (p_landsdel_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(n_prev_map), ")"))) |
-    (p_landsdel_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(n_curr_map), ")")))
+  p_landsdel_pair <- build_two_season_map_compare_shared(
+    flu_prev,
+    flu_curr,
+    previous_label = previous_season_label,
+    current_label = current_season_label,
+    map_builder = build_landsdel_map_plot_shared,
+    fylke_col = "pasient_fylke_name",
+    landsdel_col = "pasient_landsdel_from_fylke",
+    shape_path = norway_geojson_path,
+    palette_base = kvalitativ_comb
+  )
   add_meta_plot(p_landsdel_pair, "Map: Landsdel fordeling - left previous, right current")
 }
 

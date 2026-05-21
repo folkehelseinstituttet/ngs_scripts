@@ -141,42 +141,35 @@ excel_export_sheets[['data_issues']] <- qc_summary
 export_graph_f <- add_section_slide(
   export_graph_f,
   'Seksjon: Run quality issues',
-  'Dekning og QC per NGS run id (farge = NC quality)'
+  'Siste 12 relevante runs, farge etter standardisert passed/not passed'
 )
 
-run_qc_window <- run_quality_window_bounds(Sys.Date(), min_months = 6L)
-run_qc_df <- rsvdb %>%
-  filter(!is.na(prove_tatt), prove_tatt >= run_qc_window$start, prove_tatt <= run_qc_window$end) %>%
-  prepare_run_qc_df(
-    run_col = 'ngs_run_id',
-    cov_col = 'ngs_coverage',
-    qc_col = 'nc_qc_overall_status',
-    virus_col = 'subtype_group',
-    color_col = 'nc_qc_overall_status'
-  )
+run_quality_map_rsv <- resolve_run_quality_mapping("RSV", rsvdb)
+run_quality_rsv <- prepare_run_quality_dataset(rsvdb, run_quality_map_rsv, today = Sys.Date(), max_runs = 12L, max_age_days = 365L)
 
-run_cov_summary <- run_qc_summary_table(run_qc_df)
-if (nrow(run_cov_summary) > 0) {
-  export_graph_f <- save_table_to_ppt(
-    export_graph_f,
-    run_cov_summary,
-    paste0('Coverage QC by NGS run - window ', format(run_qc_window$start, '%Y-%m-%d'), ' to ', format(run_qc_window$end, '%Y-%m-%d'))
-  )
-}
+if (!is.null(run_quality_rsv) && nrow(run_quality_rsv) > 0) {
+  for (v in c('RSVA', 'RSVB')) {
+    rv <- run_quality_rsv %>% dplyr::filter(run_quality_group == v)
+    if (nrow(rv) == 0) next
 
-if (!is.null(run_qc_df) && nrow(run_qc_df) > 0) {
-  for (v in sort(unique(run_qc_df$virus_group))) {
-    if (is.na(v) || trimws(v) == '' || v == 'Ukjent') next
-    rv <- run_qc_df %>% filter(virus_group == v)
-    p_run_qc <- plot_run_qc_by_run_colorgroup(rv, paste('RSV run quality issues -', v), color_label = 'NC quality')
-    if (!is.null(p_run_qc)) export_graph_f <- save_plot_to_ppt(export_graph_f, p_run_qc)
-    p_run_cov <- plot_run_cov_by_run_colorgroup(rv, paste('RSV coverage per run -', v), color_label = 'NC quality')
+    run_cov_summary <- run_quality_summary_table(rv)
+    if (!is.null(run_cov_summary) && nrow(run_cov_summary) > 0) {
+      export_graph_f <- save_table_to_ppt(export_graph_f, run_cov_summary, paste('Run quality summary -', v))
+    }
+
+    p_run_pct <- plot_run_quality_stacked(rv, y_var = 'percent', title_txt = paste('RSV run quality andel -', v), fill_label = 'Status')
+    if (!is.null(p_run_pct)) export_graph_f <- save_plot_to_ppt(export_graph_f, p_run_pct)
+
+    p_run_n <- plot_run_quality_stacked(rv, y_var = 'n', title_txt = paste('RSV run quality antall -', v), fill_label = 'Status')
+    if (!is.null(p_run_n)) export_graph_f <- save_plot_to_ppt(export_graph_f, p_run_n)
+
+    p_run_cov <- plot_run_quality_coverage_box(rv, title_txt = paste('RSV coverage per run -', v), color_label = 'Tessy')
     if (!is.null(p_run_cov)) export_graph_f <- save_plot_to_ppt(export_graph_f, p_run_cov)
   }
 }
 
-excel_export_sheets[['run_coverage_summary']] <- run_cov_summary
-excel_export_sheets[['run_qc_counts']] <- if (is.null(run_qc_df)) data.frame() else run_qc_df %>% count(run_id, virus_group, color_group, name = 'n')
+excel_export_sheets[['run_coverage_summary']] <- if (is.null(run_quality_rsv)) data.frame() else run_quality_summary_table(run_quality_rsv)
+excel_export_sheets[['run_qc_counts']] <- if (is.null(run_quality_rsv)) data.frame() else run_quality_rsv %>% count(run_id, run_quality_group, run_quality_status, name = 'n')
 
 # ------------------------------------------------------------------------------
 # Current season monthly: RSV A/B and subtype-specific subclades
@@ -288,8 +281,16 @@ if (all(c('pasient_fylke_name', 'pasient_landsdel', 'season') %in% names(rsvdb))
     fill_palette = kvantitativ_b2
   )
   if (!is.null(p_fylke_curr) && !is.null(p_fylke_prev)) {
-    p_fylke_pair <- (p_fylke_prev + labs(subtitle = paste0(previous_season_label, ' (m=', scales::comma(nrow(rsv_prev)), ')'))) |
-      (p_fylke_curr + labs(subtitle = paste0(current_season_label, ' (m=', scales::comma(nrow(rsv_curr_map)), ')')))
+    p_fylke_pair <- build_two_season_map_compare_shared(
+      rsv_prev,
+      rsv_curr_map,
+      previous_label = previous_season_label,
+      current_label = current_season_label,
+      map_builder = build_fylke_map_plot_shared,
+      fylke_col = 'pasient_fylke_name',
+      shape_path = norway_geojson_path,
+      fill_palette = kvantitativ_b2
+    )
     export_graph_f <- save_plot_to_ppt(export_graph_f, p_fylke_pair, title = 'Map: Fylke fordeling - left previous, right current')
   }
 
@@ -308,8 +309,17 @@ if (all(c('pasient_fylke_name', 'pasient_landsdel', 'season') %in% names(rsvdb))
     palette_base = kvalitativ_comb
   )
   if (!is.null(p_landsdel_curr) && !is.null(p_landsdel_prev)) {
-    p_landsdel_pair <- (p_landsdel_prev + labs(subtitle = paste0(previous_season_label, ' (m=', scales::comma(nrow(rsv_prev)), ')'))) |
-      (p_landsdel_curr + labs(subtitle = paste0(current_season_label, ' (m=', scales::comma(nrow(rsv_curr_map)), ')')))
+    p_landsdel_pair <- build_two_season_map_compare_shared(
+      rsv_prev,
+      rsv_curr_map,
+      previous_label = previous_season_label,
+      current_label = current_season_label,
+      map_builder = build_landsdel_map_plot_shared,
+      fylke_col = 'pasient_fylke_name',
+      landsdel_col = 'pasient_landsdel',
+      shape_path = norway_geojson_path,
+      palette_base = kvalitativ_comb
+    )
     export_graph_f <- save_plot_to_ppt(export_graph_f, p_landsdel_pair, title = 'Map: Landsdel fordeling - left previous, right current')
   }
 }

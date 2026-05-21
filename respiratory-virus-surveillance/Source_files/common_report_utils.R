@@ -43,6 +43,16 @@ season_label_from_date <- function(x) {
   season_label_from_start_year(season_start_year_from_date(x))
 }
 
+format_season_compare_label <- function(season_label, n_value) {
+  season_chr <- as.character(season_label)
+  season_fmt <- stringr::str_replace(
+    season_chr,
+    "^Season([0-9]{2})_([0-9]{2})$",
+    "Sesong \\1\\2"
+  )
+  paste0(season_fmt, " (n=", scales::comma(as.integer(n_value)), ")")
+}
+
 season_window_bounds <- function(start_year) {
   sy <- as.integer(start_year)
   list(
@@ -1071,6 +1081,27 @@ build_landsdel_map_plot_shared <- function(
     ggplot2::theme_void()
 }
 
+build_two_season_map_compare_shared <- function(
+  prev_df,
+  curr_df,
+  previous_label,
+  current_label,
+  map_builder,
+  subtitle_count_prev = NULL,
+  subtitle_count_curr = NULL,
+  ...
+) {
+  p_prev <- map_builder(prev_df, ...)
+  p_curr <- map_builder(curr_df, ...)
+  if (is.null(p_prev) || is.null(p_curr)) return(NULL)
+
+  if (is.null(subtitle_count_prev)) subtitle_count_prev <- nrow(prev_df)
+  if (is.null(subtitle_count_curr)) subtitle_count_curr <- nrow(curr_df)
+
+  (p_prev + ggplot2::labs(subtitle = format_season_compare_label(previous_label, subtitle_count_prev))) |
+    (p_curr + ggplot2::labs(subtitle = format_season_compare_label(current_label, subtitle_count_curr)))
+}
+
 ## Numeric outlier scan (IQR-based), including numeric columns and
 ## numeric-like QC fields (e.g., PCR/CT/age/WL/ID/coverage-like names).
 numeric_outlier_scan_table <- function(
@@ -1172,6 +1203,243 @@ prepare_run_qc_df <- function(df, run_col, cov_col, qc_col = NULL, virus_col = N
     dplyr::filter(run_id != "Ukjent")
   if (nrow(d) == 0) return(NULL)
   d
+}
+
+resolve_run_quality_mapping <- function(pathogen, df) {
+  pathogen_key <- toupper(trimws(as.character(pathogen)))
+  if (pathogen_key == "SC2") {
+    list(
+      pathogen = "SC2",
+      dataset_label = "SC2",
+      date_col = intersect(c("prove_tatt", "PROVE_TATT", "sample_date", "Sampledate"), names(df))[1],
+      run_col = intersect(c("ngs_run_id", "sekv_oppsett_run_artic", "sekv_oppsett_nano", "sekv_oppsett_sanger", "sekv_oppsett_swift"), names(df))[1],
+      cov_col = intersect(c("nc_coverage", "coverage_breadth_artic", "coverage_breadth_swift", "coverage_breadth_eksterne", "coverage_breadth_nano"), names(df))[1],
+      qc_col = intersect(c("NC_quality", "nc_quality", "nc_qc_overall_status"), names(df))[1],
+      group_col = intersect(c("Tessy", "tessy"), names(df))[1],
+      group_label = "Tessy",
+      tessy_col = intersect(c("Tessy", "tessy"), names(df))[1]
+    )
+  } else if (pathogen_key == "INF") {
+    list(
+      pathogen = "INF",
+      dataset_label = "Influenza",
+      date_col = intersect(c("prove_tatt", "PROVE_TATT", "sample_date", "Sampledate"), names(df))[1],
+      run_col = intersect(c("ngs_run_id"), names(df))[1],
+      cov_col = intersect(c("nc_coverage", "coverage_breadth_artic", "coverage_breadth_swift", "coverage_breadth_eksterne", "coverage_breadth_nano"), names(df))[1],
+      qc_col = intersect(c("NC_quality", "nc_quality", "nc_qc_overall_status"), names(df))[1],
+      group_col = intersect(c("ngs_sekvens_resultat"), names(df))[1],
+      group_label = "Virus",
+      group_display_map = c("A/H1N1" = "H1N1", "A/H3N2" = "H3N2", "B/Victoria" = "BVIC"),
+      tessy_col = intersect(c("tessy_reportable_variable", "Tessy", "tessy"), names(df))[1]
+    )
+  } else if (pathogen_key == "RSV") {
+    list(
+      pathogen = "RSV",
+      dataset_label = "RSV",
+      date_col = intersect(c("prove_tatt", "PROVE_TATT", "sample_date", "Sampledate"), names(df))[1],
+      run_col = intersect(c("ngs_run_id"), names(df))[1],
+      cov_col = intersect(c("ngs_coverage", "nc_coverage"), names(df))[1],
+      qc_col = intersect(c("nc_qc_overall_status", "NC_quality", "nc_quality"), names(df))[1],
+      group_col = intersect(c("subtype_group", "ngs_sekvens_resultat"), names(df))[1],
+      group_label = "Virus",
+      group_display_map = c("RSVA" = "RSVA", "RSVB" = "RSVB"),
+      tessy_col = intersect(c("Tessy", "tessy"), names(df))[1]
+    )
+  } else {
+    list(
+      pathogen = pathogen_key,
+      dataset_label = pathogen_key,
+      date_col = intersect(c("prove_tatt", "PROVE_TATT", "sample_date", "Sampledate"), names(df))[1],
+      run_col = intersect(c("ngs_run_id"), names(df))[1],
+      cov_col = intersect(c("nc_coverage", "ngs_coverage", "coverage_breadth_artic", "coverage_breadth_swift", "coverage_breadth_eksterne", "coverage_breadth_nano"), names(df))[1],
+      qc_col = intersect(c("NC_quality", "nc_quality", "nc_qc_overall_status"), names(df))[1],
+      group_col = NA_character_,
+      group_label = "Group",
+      tessy_col = intersect(c("Tessy", "tessy"), names(df))[1]
+    )
+  }
+}
+
+classify_run_quality_status <- function(pathogen, qc_raw, cov_raw, cov_norm, spike_raw = NULL) {
+  pathogen_key <- toupper(trimws(as.character(pathogen)))
+  qc_chr <- trimws(as.character(qc_raw))
+  qc_chr[is.na(qc_chr)] <- ""
+  qc_low <- tolower(qc_chr)
+  cov_raw_chr <- trimws(as.character(cov_raw))
+  cov_raw_chr[is.na(cov_raw_chr)] <- ""
+  spike_chr <- trimws(as.character(spike_raw))
+  spike_chr[is.na(spike_chr)] <- ""
+
+  if (pathogen_key == "SC2") {
+    spike_ok <- spike_chr != ""
+    include_by_coverage <- cov_raw_chr == "NA" | (!is.na(cov_norm) & cov_norm >= 0.7)
+    pass_flag <- include_by_coverage & spike_ok
+    reason <- ifelse(
+      pass_flag,
+      "Passed",
+      ifelse(!include_by_coverage, "Coverage_below_threshold", "Missing_spike_mut")
+    )
+  } else {
+    qc_pass <- grepl("pass|passed|ok|good|include|included|approved|high", qc_low)
+    qc_fail <- grepl("fail|failed|poor|bad|reject|rejected|exclude|excluded|low", qc_low)
+    cov_pass <- !is.na(cov_norm) & cov_norm >= 0.7
+    pass_flag <- ifelse(qc_fail, FALSE, ifelse(qc_pass, TRUE, cov_pass))
+    reason <- ifelse(
+      pass_flag,
+      ifelse(qc_pass, "Passed_qc", "Passed_coverage"),
+      ifelse(qc_fail, "Failed_qc", "Failed_coverage_or_missing")
+    )
+  }
+
+  data.frame(
+    run_quality_pass = pass_flag,
+    run_quality_status = ifelse(pass_flag, "Passed", "Not passed"),
+    run_quality_reason = reason,
+    stringsAsFactors = FALSE
+  )
+}
+
+prepare_run_quality_dataset <- function(
+  df,
+  mapping,
+  today = Sys.Date(),
+  max_runs = 12L,
+  max_age_days = 365L
+) {
+  required_cols <- c(mapping$date_col, mapping$run_col, mapping$cov_col)
+  if (any(is.na(required_cols)) || !all(required_cols %in% names(df))) return(NULL)
+
+  d <- df %>%
+    dplyr::mutate(
+      run_id = as.character(.data[[mapping$run_col]]),
+      plot_date = as.Date(.data[[mapping$date_col]]),
+      cov_raw = as.character(.data[[mapping$cov_col]]),
+      cov_num = suppressWarnings(as.numeric(cov_raw)),
+      run_quality_coverage_norm = ifelse(!is.na(cov_num) & cov_num > 1.5, cov_num / 100, cov_num),
+      qc_raw = if (!is.na(mapping$qc_col) && mapping$qc_col %in% names(.)) as.character(.data[[mapping$qc_col]]) else NA_character_,
+      run_quality_group = if (!is.na(mapping$group_col) && mapping$group_col %in% names(.)) as.character(.data[[mapping$group_col]]) else "All",
+      Tessy_plot = if (!is.na(mapping$tessy_col) && mapping$tessy_col %in% names(.)) as.character(.data[[mapping$tessy_col]]) else NA_character_,
+      spike_raw = if ("spike_mut" %in% names(.)) as.character(spike_mut) else NA_character_
+    ) %>%
+    dplyr::filter(!is.na(run_id), trimws(run_id) != "", !is.na(plot_date))
+
+  if (nrow(d) == 0) return(NULL)
+
+  status_df <- classify_run_quality_status(
+    pathogen = mapping$pathogen,
+    qc_raw = d$qc_raw,
+    cov_raw = d$cov_raw,
+    cov_norm = d$run_quality_coverage_norm,
+    spike_raw = d$spike_raw
+  )
+  d <- dplyr::bind_cols(d, status_df)
+
+  if (!is.null(mapping$group_display_map)) {
+    d$run_quality_group <- unname(mapping$group_display_map[d$run_quality_group])
+    d$run_quality_group[is.na(d$run_quality_group) | trimws(d$run_quality_group) == ""] <- "Ukjent"
+  } else {
+    d$run_quality_group[is.na(d$run_quality_group) | trimws(d$run_quality_group) == ""] <- "Ukjent"
+  }
+
+  d$Tessy_plot[is.na(d$Tessy_plot) | trimws(d$Tessy_plot) == ""] <- "Ukjent"
+
+  run_meta <- d %>%
+    dplyr::group_by(run_id) %>%
+    dplyr::summarise(
+      run_date = max(plot_date, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    dplyr::filter(run_date >= as.Date(today) - as.integer(max_age_days)) %>%
+    dplyr::arrange(dplyr::desc(run_date), dplyr::desc(run_id)) %>%
+    dplyr::slice_head(n = as.integer(max_runs))
+
+  if (nrow(run_meta) == 0) return(NULL)
+
+  d %>%
+    dplyr::semi_join(run_meta, by = "run_id") %>%
+    dplyr::mutate(
+      run_id = factor(run_id, levels = rev(run_meta$run_id)),
+      run_quality_status = factor(run_quality_status, levels = c("Passed", "Not passed"))
+    )
+}
+
+run_quality_summary_table <- function(run_quality_df) {
+  if (is.null(run_quality_df) || nrow(run_quality_df) == 0) return(NULL)
+  run_quality_df %>%
+    dplyr::group_by(run_id) %>%
+    dplyr::summarise(
+      n_samples = dplyr::n(),
+      mean_coverage = round(mean(run_quality_coverage_norm, na.rm = TRUE), 3),
+      median_coverage = round(median(run_quality_coverage_norm, na.rm = TRUE), 3),
+      included_n = sum(run_quality_status == "Passed", na.rm = TRUE),
+      failed_n = sum(run_quality_status == "Not passed", na.rm = TRUE),
+      included_pct = round(100 * included_n / n_samples, 1),
+      .groups = "drop"
+    ) %>%
+    dplyr::arrange(dplyr::desc(included_pct), dplyr::desc(median_coverage), dplyr::desc(n_samples), run_id)
+}
+
+plot_run_quality_stacked <- function(run_quality_df, y_var = c("percent", "n"), title_txt = "Run quality", fill_label = "Status") {
+  y_var <- match.arg(y_var)
+  if (is.null(run_quality_df) || nrow(run_quality_df) == 0) return(NULL)
+
+  d <- run_quality_df %>%
+    dplyr::count(run_id, run_quality_status, name = "n") %>%
+    dplyr::group_by(run_id) %>%
+    dplyr::mutate(percent = 100 * n / sum(n)) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(
+      label_txt = ifelse(
+        y_var == "percent",
+        paste0("n=", scales::comma(n), "\n%=", round(percent, 1)),
+        paste0("n=", scales::comma(n), "\n%=", round(percent, 1))
+      )
+    )
+
+  ggplot2::ggplot(d, ggplot2::aes(x = run_id, y = .data[[y_var]], fill = run_quality_status)) +
+    ggplot2::geom_col(position = "stack") +
+    ggplot2::geom_text(
+      ggplot2::aes(label = ifelse(n > 0, label_txt, "")),
+      position = ggplot2::position_stack(vjust = 0.5),
+      size = 2.8,
+      lineheight = 0.9
+    ) +
+    ggplot2::scale_fill_manual(values = c("Passed" = "#179463", "Not passed" = "#d74b46")) +
+    ggplot2::labs(
+      title = title_txt,
+      x = "NGS run id",
+      y = ifelse(y_var == "percent", "Andel (%)", "Antall (n)"),
+      fill = fill_label
+    ) +
+    {if (y_var == "percent") ggplot2::scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(0, 100)) else ggplot2::scale_y_continuous()} +
+    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+}
+
+plot_run_quality_coverage_box <- function(run_quality_df, title_txt = "Coverage per run", color_label = "Tessy") {
+  if (is.null(run_quality_df) || nrow(run_quality_df) == 0) return(NULL)
+  d <- run_quality_df %>% dplyr::filter(!is.na(run_quality_coverage_norm))
+  if (nrow(d) == 0) return(NULL)
+
+  top_colors <- d %>%
+    dplyr::count(Tessy_plot, sort = TRUE) %>%
+    dplyr::slice_head(n = 8) %>%
+    dplyr::pull(Tessy_plot)
+  d <- d %>%
+    dplyr::mutate(Tessy_plot = ifelse(Tessy_plot %in% top_colors, Tessy_plot, "Andre"))
+
+  ggplot2::ggplot(d, ggplot2::aes(x = run_id, y = run_quality_coverage_norm)) +
+    ggplot2::geom_boxplot(fill = "grey90", color = "grey30", outlier.shape = NA) +
+    ggplot2::geom_jitter(ggplot2::aes(color = Tessy_plot), width = 0.2, height = 0, alpha = 0.7, size = 1.6) +
+    ggplot2::scale_color_manual(values = fhi_discrete_palette(dplyr::n_distinct(d$Tessy_plot), kvalitativ_comb)) +
+    ggplot2::labs(
+      title = title_txt,
+      x = "NGS run id",
+      y = "Normalisert dekning (0-1)",
+      color = color_label
+    ) +
+    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 }
 
 run_qc_summary_table <- function(run_qc_df) {
