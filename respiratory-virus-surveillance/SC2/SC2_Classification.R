@@ -3,7 +3,7 @@
 # https://www.who.int/activities/tracking-SARS-CoV-2-variants go here to update the list 
 # Add a Collapsed pango column to the dataset based on the long Pangolin lineage 
 
-SC2db_v <- SC2db_v %>%
+SC2db <- SC2db %>%
   mutate(Collapsed_pango = case_when(
     like(nc_pangolin_long, "B.1.1.529.2.86.1.1.11.1.1.1.3.8.1") ~ "LP.8.1",
     like(nc_pangolin_long, "XDV.1.5.1.1.8.1") ~ "NB.1.8.1",
@@ -68,7 +68,7 @@ if (file.exists(file.path(bundle_scripts_dir, "common_report_utils.R"))) {
   source(file.path(bundle_scripts_dir, "common_report_utils.R"))
 }
 
-variant_levels <- SC2db_v %>%
+variant_levels <- SC2db %>%
   dplyr::pull(Collapsed_pango) %>%
   as.character() %>%
   unique() %>%
@@ -95,7 +95,7 @@ custom_colors <- variant_color
 
 
 # Classification by Origin of Sequences
-SC2db_v <- SC2db_v %>%
+SC2db <- SC2db %>%
   mutate(Origin = case_when(
     startsWith(key, "SUS-") ~ "Stavanger",
     startsWith(key, "HUS_n") ~ "Haukeland",
@@ -107,7 +107,7 @@ SC2db_v <- SC2db_v %>%
   ))
 
 # FHI palette-driven Origin colors (automatic, no manual hardcoding).
-origin_levels <- SC2db_v %>%
+origin_levels <- SC2db %>%
   dplyr::pull(Origin) %>%
   as.character() %>%
   unique() %>%
@@ -160,16 +160,16 @@ find_matched_variant <- function(nc_pangolin_short) {
 }
 
 # Match included.sub.lineages and create a new column "Tessy" in the dataframe
-SC2db_v$Tessy <- sapply(SC2db_v$nc_pangolin_short, find_matched_variant)
+SC2db$Tessy <- sapply(SC2db$nc_pangolin_short, find_matched_variant)
 
 
 # Fill empty fields in "Tessy" column with "Andre Sars-CoV2"
-SC2db_v$Tessy <- ifelse(is.na(SC2db_v$Tessy), "Andre SARS CoV 2", SC2db_v$Tessy) 
+SC2db$Tessy <- ifelse(is.na(SC2db$Tessy), "Andre SARS CoV 2", SC2db$Tessy) 
 
 # Mutation based VOI/VUM/VOC classification (not in use currently)
 
 
-SC2db_v <- SC2db_v %>%
+SC2db <- SC2db %>%
   mutate(
     VUM = case_when(
       grepl("XFG", Tessy)  ~ "XFG",
@@ -179,7 +179,7 @@ SC2db_v <- SC2db_v %>%
     )
   )
 
-SC2db_v <- SC2db_v %>%
+SC2db <- SC2db %>%
   mutate(
     VOI = case_when(
       grepl("BA.2.86", Tessy) ~ "BA.2.86",
@@ -207,7 +207,7 @@ last_six_months <- tolower(last_six_months)
 
 # Process for VUM variant
 ## Extract unique values from VUM
-unique_variants_vum <- na.omit(unique(SC2db_v$VUM))
+unique_variants_vum <- na.omit(unique(SC2db$VUM))
 
 ## Generate all combinations of months and variants
 complete_combined_vum <- expand.grid(
@@ -216,7 +216,7 @@ complete_combined_vum <- expand.grid(
 )
 
 ## Process the actual data for VUM
-processed_data_vum <- SC2db_v %>%
+processed_data_vum <- SC2db %>%
   filter(my > yearmonth(Sys.Date() %m-% months(6))) %>%
   filter(!is.na(VUM) & VUM != "") %>%
   mutate(my = format(as.Date(my), "%Y %b") %>% tolower()) %>%
@@ -235,7 +235,7 @@ VUM <- complete_combined_vum %>%
 
 # Process for VOI variant
 ## Extract unique values from VOI
-unique_variants_voi <- na.omit(unique(SC2db_v$VOI))
+unique_variants_voi <- na.omit(unique(SC2db$VOI))
 
 ## Generate all combinations of months and variants
 complete_combined_voi <- expand.grid(
@@ -244,7 +244,7 @@ complete_combined_voi <- expand.grid(
 )
 
 ## Process the actual data for VOI
-processed_data_voi <- SC2db_v %>%
+processed_data_voi <- SC2db %>%
   filter(my > yearmonth(Sys.Date() %m-% months(6))) %>%
   filter(!is.na(VOI) & VOI != "") %>%
   mutate(my = format(as.Date(my), "%Y %b") %>% tolower()) %>%
@@ -278,7 +278,7 @@ last_six_months <- format(last_six_months, "%Y %b")
 last_six_months <- tolower(last_six_months)
 
 # Extract unique values for nc_pangolin_short in the last six months
-unique_variants <- SC2db_v %>%
+unique_variants <- SC2db %>%
   filter(my > yearmonth(Sys.Date() %m-% months(6))) %>%
   select(nc_pangolin_short) %>%
   distinct() %>%
@@ -293,7 +293,7 @@ complete_combined <- expand.grid(
 )
 
 # Process the actual data with grouping
-processed_data <- SC2db_v %>%
+processed_data <- SC2db %>%
   filter(my > yearmonth(Sys.Date() %m-% months(6))) %>%
   filter(!is.na(nc_pangolin_short) & nc_pangolin_short != "") %>%
   mutate(my = format(as.Date(my), "%Y %b") %>% tolower()) %>%
@@ -317,5 +317,7 @@ Stat <- Stat %>%
 print(Stat)
 
 ##############################
+
+
 
 

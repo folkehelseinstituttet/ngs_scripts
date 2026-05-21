@@ -1,8 +1,198 @@
 # Shared report helpers for Influenza and SARS-CoV-2 analyses.
+## ============================================================================
+## SHARED REPORT UTILITIES
+## Structure:
+## 1) Core utility functions
+## 2) Shared dictionaries/constants
+## 3) Plotting and export helpers
+## ============================================================================
 
-# -------------------------
-# FHI color palettes
-# -------------------------
+## -------------------------
+## 1) Core utility functions
+## -------------------------
+utils::globalVariables(
+  c(
+    ".data", "cat", "color_group", "ct_value", "cov_norm", "fv", "label_txt",
+    "month_date", "n", "pct", "percent", "run_id", "virus_group", "xv"
+  )
+)
+
+## Label/date helpers
+format_month_label <- function(x) {
+  tolower(format(as.Date(x), "%b-%Y"))
+}
+
+parse_month_label <- function(x) {
+  as.Date(paste0("01-", x), format = "%d-%b-%Y")
+}
+
+season_start_year_from_date <- function(x) {
+  d <- as.Date(x)
+  y <- lubridate::year(d)
+  w <- suppressWarnings(lubridate::isoweek(d))
+  ifelse(!is.na(w) & w >= 35, y, y - 1L)
+}
+
+season_label_from_start_year <- function(start_year) {
+  sy <- as.integer(start_year)
+  ey <- sy + 1L
+  paste0("Season", sprintf("%02d", sy %% 100L), "_", sprintf("%02d", ey %% 100L))
+}
+
+season_label_from_date <- function(x) {
+  season_label_from_start_year(season_start_year_from_date(x))
+}
+
+season_window_bounds <- function(start_year) {
+  sy <- as.integer(start_year)
+  list(
+    start = as.Date(sprintf("%04d-08-29", sy)),
+    end = as.Date(sprintf("%04d-08-28", sy + 1L))
+  )
+}
+
+current_and_previous_seasons <- function(today = Sys.Date()) {
+  cur_start_year <- as.integer(season_start_year_from_date(today))
+  list(
+    current_start_year = cur_start_year,
+    current_label = season_label_from_start_year(cur_start_year),
+    previous_start_year = cur_start_year - 1L,
+    previous_label = season_label_from_start_year(cur_start_year - 1L)
+  )
+}
+
+# Run-quality window:
+# use current season only, but if current season is shorter than min_months,
+# include prior-season dates to fill a full min_months lookback.
+run_quality_window_bounds <- function(today = Sys.Date(), min_months = 6L) {
+  d_today <- as.Date(today)
+  season_info <- current_and_previous_seasons(d_today)
+  season_bounds <- season_window_bounds(season_info$current_start_year)
+  six_month_start <- lubridate::`%m-%`(
+    d_today,
+    lubridate::period(months = as.integer(min_months))
+  )
+  start_date <- min(season_bounds$start, six_month_start, na.rm = TRUE)
+  list(
+    start = as.Date(start_date),
+    end = d_today,
+    current_season_start = as.Date(season_bounds$start),
+    current_season_end = as.Date(season_bounds$end)
+  )
+}
+
+normalize_norwegian_text <- function(x) {
+  x_chr <- as.character(x)
+  x_chr[is.na(x_chr)] <- ""
+
+  mojibake_fixes <- c(
+    "TrÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ndelag" = "TrÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ndelag",
+    "TrÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ndelag" = "TrÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ndelag",
+    "SÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸r-TrÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ndelag" = "SÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸r-TrÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ndelag",
+    "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸re og Romsdal" = "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸re og Romsdal",
+    "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¹ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“stfold" = "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œstfold",
+    "SÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸rlandet" = "SÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸rlandet",
+    "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¹ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“stlandet" = "ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œstlandet"
+  )
+
+  out <- enc2utf8(x_chr)
+  out <- iconv(out, from = "", to = "UTF-8", sub = "")
+  out[is.na(out)] <- ""
+
+  for (i in seq_along(mojibake_fixes)) {
+    out <- gsub(names(mojibake_fixes)[i], unname(mojibake_fixes[i]), out, fixed = TRUE)
+  }
+
+  out
+}
+
+normalize_geography_key <- function(x) {
+  x_norm <- normalize_norwegian_text(x)
+  x_norm <- trimws(x_norm)
+  x_norm <- stringr::str_to_lower(x_norm)
+  x_norm <- iconv(x_norm, from = "UTF-8", to = "ASCII//TRANSLIT", sub = "")
+  x_norm[is.na(x_norm)] <- ""
+  x_norm <- stringr::str_replace_all(x_norm, "[^a-z0-9]+", " ")
+  stringr::str_squish(x_norm)
+}
+
+normalize_fylke_value <- function(x) {
+  key <- normalize_geography_key(x)
+  mapped <- unname(fylke_value_dictionary[key])
+  mapped[is.na(mapped) & key == ""] <- "Ukjent"
+  mapped[is.na(mapped)] <- normalize_norwegian_text(x)[is.na(mapped)]
+  mapped <- trimws(mapped)
+  mapped[mapped == ""] <- "Ukjent"
+  mapped
+}
+
+normalize_landsdel_value <- function(x) {
+  key <- normalize_geography_key(x)
+  mapped <- unname(landsdel_value_dictionary[key])
+  mapped[is.na(mapped) & key == ""] <- "Ukjent"
+  mapped[is.na(mapped)] <- normalize_norwegian_text(x)[is.na(mapped)]
+  mapped <- trimws(mapped)
+  mapped[mapped == ""] <- "Ukjent"
+  mapped
+}
+
+derive_landsdel_from_fylke <- function(fylke_vec) {
+  fylke_std <- normalize_fylke_value(fylke_vec)
+  key <- normalize_geography_key(fylke_std)
+  mapped <- unname(fylke_to_landsdel_dictionary[key])
+  mapped[is.na(mapped)] <- "Ukjent"
+  mapped
+}
+
+normalize_geography_columns <- function(
+  df,
+  fylke_col = "pasient_fylke_name",
+  landsdel_col = "pasient_landsdel",
+  preserve_raw = TRUE
+) {
+  if (is.null(df) || nrow(df) == 0) return(df)
+
+  derived_landsdel <- NULL
+
+  if (!is.null(fylke_col) && fylke_col %in% names(df)) {
+    raw_col <- paste0(fylke_col, "_raw")
+    if (preserve_raw && !raw_col %in% names(df)) df[[raw_col]] <- df[[fylke_col]]
+    df[[fylke_col]] <- normalize_fylke_value(df[[fylke_col]])
+    map_col <- paste0(fylke_col, "_map")
+    df[[map_col]] <- unname(fylke_to_current_map_dictionary[normalize_geography_key(df[[fylke_col]])])
+    df[[map_col]][is.na(df[[map_col]])] <- "Ukjent"
+    derived_landsdel <- derive_landsdel_from_fylke(df[[fylke_col]])
+    df$pasient_landsdel_from_fylke <- derived_landsdel
+  }
+
+  if (!is.null(landsdel_col) && landsdel_col %in% names(df)) {
+    raw_col <- paste0(landsdel_col, "_raw")
+    if (preserve_raw && !raw_col %in% names(df)) df[[raw_col]] <- df[[landsdel_col]]
+    df[[landsdel_col]] <- normalize_landsdel_value(df[[landsdel_col]])
+  } else if (!is.null(derived_landsdel)) {
+    df[[landsdel_col]] <- derived_landsdel
+  }
+
+  if (!is.null(derived_landsdel)) {
+    replace_idx <- is.na(df[[landsdel_col]]) | trimws(as.character(df[[landsdel_col]])) %in% c("", "Ukjent")
+    df[[landsdel_col]][replace_idx] <- derived_landsdel[replace_idx]
+  }
+
+  df
+}
+
+fhi_discrete_palette <- function(n, palette = kvalitativ_comb) {
+  if (n <= length(palette)) {
+    palette[seq_len(n)]
+  } else {
+    grDevices::colorRampPalette(palette)(n)
+  }
+}
+
+## -------------------------
+## 2) Shared dictionaries/constants
+## -------------------------
+## FHI color palettes
 kvalitativ_a <- c("#ec7c73", "#40436d", "#61d2b2", "#a93c38", "#f9dc8c", "#7176c9", "#e0f0f7", "#09181f")
 kvalitativ_b <- c("#65a9c5", "#2a6a82", "#f0af5e", "#fee9e6", "#179463", "#c8e1ec")
 kvalitativ_comb <- c(
@@ -36,9 +226,7 @@ divergerende_6_1_6 <- c(
 )
 sc2_palette <- kvalitativ_comb
 
-# -------------------------
-# Shared patient normalization helpers
-# -------------------------
+## Shared patient normalization helpers
 # Canonical labels used across pathogens.
 sex_levels_standard <- c("Female", "Male", "Ukjent")
 age_group_levels_standard <- c("0-4", "5-14", "15-24", "25-59", "60+", "Ukjent")
@@ -55,6 +243,119 @@ sex_value_dictionary <- c(
   "u" = "Ukjent",
   "N" = "Ukjent",
   "0" = "Ukjent"
+)
+
+# Fylke normalization is based on observed SC2 raw outputs and harmonized for
+# cross-pathogen cleaning. Ambiguous historical merged counties are preserved as
+# canonical historical labels, while *_map columns carry the current-map-safe
+# version used for shapefile joins when needed.
+fylke_value_dictionary <- c(
+  "0" = "Ukjent",
+  "99" = "Ukjent",
+  "na" = "Ukjent",
+  "n a" = "Ukjent",
+  "n a n" = "Ukjent",
+  "none" = "Ukjent",
+  "unknown" = "Ukjent",
+  "ukjent" = "Ukjent",
+  "mangler" = "Ukjent",
+  "ikke oppgitt" = "Ukjent",
+  "agder" = "Agder",
+  "aust agder" = "Agder",
+  "vest agder" = "Agder",
+  "akershus" = "Akershus",
+  "buskerud" = "Buskerud",
+  "finnmark" = "Finnmark",
+  "finnmark finnmarku finmarkku" = "Finnmark",
+  "hedmark" = "Innlandet",
+  "oppland" = "Innlandet",
+  "innlandet" = "Innlandet",
+  "innlandt" = "Innlandet",
+  "innlandet sisdajve" = "Innlandet",
+  "more og romsdal" = "Møre og Romsdal",
+  "mre og romsdal" = "Møre og Romsdal",
+  "nordland" = "Nordland",
+  "nordland nordlannda nordlanda nordlaante" = "Nordland",
+  "oslo" = "Oslo",
+  "rogaland" = "Rogaland",
+  "telemark" = "Telemark",
+  "troms" = "Troms",
+  "troms romsa tromssa" = "Troms",
+  "trondelag" = "Trøndelag",
+  "trafa ndelag" = "Trøndelag",
+  "sor trondelag" = "Trøndelag",
+  "sor trndelag" = "Trøndelag",
+  "nord trondelag" = "Trøndelag",
+  "trondelag troondelage" = "Trøndelag",
+  "vestfold" = "Vestfold",
+  "vestland" = "Vestland",
+  "hordaland" = "Vestland",
+  "sogn og fjordane" = "Vestland",
+  "ostfold" = "Østfold",
+  "viken" = "Viken",
+  "viksen" = "Viken",
+  "vestfold og telemark" = "Vestfold og Telemark",
+  "troms og finnmark" = "Troms og Finnmark"
+)
+
+fylke_to_current_map_dictionary <- c(
+  "agder" = "Agder",
+  "akershus" = "Akershus",
+  "buskerud" = "Buskerud",
+  "finnmark" = "Finnmark",
+  "innlandet" = "Innlandet",
+  "more og romsdal" = "Møre og Romsdal",
+  "nordland" = "Nordland",
+  "oslo" = "Oslo",
+  "rogaland" = "Rogaland",
+  "telemark" = "Telemark",
+  "troms" = "Troms",
+  "trondelag" = "Trøndelag",
+  "trafa ndelag" = "Trøndelag",
+  "vestfold" = "Vestfold",
+  "vestland" = "Vestland",
+  "ostfold" = "Østfold",
+  "viken" = "Ukjent",
+  "vestfold og telemark" = "Ukjent",
+  "troms og finnmark" = "Ukjent",
+  "ukjent" = "Ukjent"
+)
+
+landsdel_value_dictionary <- c(
+  "sorlandet" = "Sørlandet",
+  "srlandet" = "Sørlandet",
+  "vestlandet" = "Vestlandet",
+  "ostlandet" = "Østlandet",
+  "stlandet" = "Østlandet",
+  "midt norge" = "Midt-Norge",
+  "midtnorge" = "Midt-Norge",
+  "midt norge trondelag" = "Midt-Norge",
+  "nord norge" = "Nord-Norge",
+  "nordnorge" = "Nord-Norge",
+  "ukjent" = "Ukjent"
+)
+
+fylke_to_landsdel_dictionary <- c(
+  "agder" = "Sørlandet",
+  "akershus" = "Østlandet",
+  "buskerud" = "Østlandet",
+  "finnmark" = "Nord-Norge",
+  "innlandet" = "Østlandet",
+  "more og romsdal" = "Vestlandet",
+  "nordland" = "Nord-Norge",
+  "oslo" = "Østlandet",
+  "rogaland" = "Vestlandet",
+  "telemark" = "Østlandet",
+  "troms" = "Nord-Norge",
+  "trondelag" = "Midt-Norge",
+  "trafa ndelag" = "Midt-Norge",
+  "vestfold" = "Østlandet",
+  "vestland" = "Vestlandet",
+  "ostfold" = "Østlandet",
+  "viken" = "Østlandet",
+  "vestfold og telemark" = "Østlandet",
+  "troms og finnmark" = "Nord-Norge",
+  "ukjent" = "Ukjent"
 )
 
 normalize_sex_value <- function(x) {
@@ -211,80 +512,10 @@ palette_all <- c(
   R1_20 = "#2C0807"
 )
 
-# -------------------------
-# Label/date helpers
-# -------------------------
-format_month_label <- function(x) {
-  tolower(format(as.Date(x), "%b-%Y"))
-}
-
-parse_month_label <- function(x) {
-  as.Date(paste0("01-", x), format = "%d-%b-%Y")
-}
-
-season_start_year_from_date <- function(x) {
-  d <- as.Date(x)
-  y <- lubridate::year(d)
-  w <- suppressWarnings(lubridate::isoweek(d))
-  ifelse(!is.na(w) & w >= 35, y, y - 1L)
-}
-
-season_label_from_start_year <- function(start_year) {
-  sy <- as.integer(start_year)
-  ey <- sy + 1L
-  paste0("Season", sprintf("%02d", sy %% 100L), "_", sprintf("%02d", ey %% 100L))
-}
-
-season_label_from_date <- function(x) {
-  season_label_from_start_year(season_start_year_from_date(x))
-}
-
-season_window_bounds <- function(start_year) {
-  sy <- as.integer(start_year)
-  list(
-    start = as.Date(sprintf("%04d-08-29", sy)),
-    end = as.Date(sprintf("%04d-08-28", sy + 1L))
-  )
-}
-
-current_and_previous_seasons <- function(today = Sys.Date()) {
-  cur_start_year <- as.integer(season_start_year_from_date(today))
-  list(
-    current_start_year = cur_start_year,
-    current_label = season_label_from_start_year(cur_start_year),
-    previous_start_year = cur_start_year - 1L,
-    previous_label = season_label_from_start_year(cur_start_year - 1L)
-  )
-}
-
-# Run-quality window:
-# use current season only, but if current season is shorter than min_months,
-# include prior-season dates to fill a full min_months lookback.
-run_quality_window_bounds <- function(today = Sys.Date(), min_months = 6L) {
-  d_today <- as.Date(today)
-  season_info <- current_and_previous_seasons(d_today)
-  season_bounds <- season_window_bounds(season_info$current_start_year)
-  six_month_start <- d_today %m-% months(as.integer(min_months))
-  start_date <- min(season_bounds$start, six_month_start, na.rm = TRUE)
-  list(
-    start = as.Date(start_date),
-    end = d_today,
-    current_season_start = as.Date(season_bounds$start),
-    current_season_end = as.Date(season_bounds$end)
-  )
-}
-
-fhi_discrete_palette <- function(n, palette = kvalitativ_comb) {
-  if (n <= length(palette)) {
-    palette[seq_len(n)]
-  } else {
-    grDevices::colorRampPalette(palette)(n)
-  }
-}
-
-# -------------------------
-# PowerPoint helpers
-# -------------------------
+## -------------------------
+## 3) Plotting and export helpers
+## -------------------------
+## PowerPoint helpers
 save_plot_to_ppt <- function(
   presentation,
   plot,
@@ -387,9 +618,7 @@ decorate_slide_title <- function(title, id = NULL) {
   }
 }
 
-# -------------------------
-# Metadata plot variants (SC2 / FLU / RSV styles)
-# -------------------------
+## Metadata plot variants (SC2 / FLU / RSV styles)
 build_metadata_counts <- function(df, x_var, fill_var) {
   if (!all(c(x_var, fill_var) %in% names(df))) return(NULL)
   d <- df %>%
@@ -618,19 +847,232 @@ build_two_season_pie_compare <- function(
     ggplot2::theme(legend.position = "right")
 }
 
-# Standardized geojson path resolver used by INF/SC2/RSV map blocks.
+## Standardized geojson path resolver used by INF/SC2/RSV map blocks.
 resolve_norway_geojson_path <- function() {
-  candidates <- c(
-    "N:/Virologi/Influensa/2526/WGS_Analyse/Scripts/Mapping/Norway_shapefile/Basisdata_0000_Norge_4258_Fylker_GeoJSON.geojson",
-    "N:/Virologi/Influensa/2526/WGS_Analyse/Backup/Scripts/Mapping/Norway_shapefile/Basisdata_0000_Norge_4258_Fylker_GeoJSON.geojson"
+  local_shape_dir <- file.path("Source_files", "Norway_shapefile")
+  if (!dir.exists(local_shape_dir)) return(NA_character_)
+
+  shape_candidates <- list.files(
+    path = local_shape_dir,
+    pattern = "(?i)fylke.*geojson$",
+    full.names = TRUE
   )
-  hit <- candidates[file.exists(candidates)]
-  if (length(hit) == 0) return(NA_character_)
-  hit[1]
+  if (length(shape_candidates) == 0) return(NA_character_)
+
+  shape_info <- file.info(shape_candidates)
+  newest_idx <- order(shape_info$mtime, decreasing = TRUE)[1]
+  normalizePath(shape_candidates[newest_idx], winslash = "/", mustWork = FALSE)
 }
 
-# Numeric outlier scan (IQR-based), including numeric columns and
-# numeric-like QC fields (e.g., PCR/CT/age/WL/ID/coverage-like names).
+load_norway_fylke_sf <- function() {
+  geojson_path <- resolve_norway_geojson_path()
+  if (is.na(geojson_path) || !file.exists(geojson_path)) {
+    stop("Missing Norway fylke GeoJSON under Source_files/Norway_shapefile")
+  }
+
+  fylke_sf <- sf::read_sf(geojson_path)
+  name_col <- intersect(
+    c("fylkesnavn", "fylke_navn", "navn", "name"),
+    names(fylke_sf)
+  )[1]
+  if (is.na(name_col)) {
+    stop("Could not identify county name column in Norway fylke GeoJSON")
+  }
+
+  fylke_sf |>
+    dplyr::mutate(
+      fylke_name_original = as.character(.data[[name_col]]),
+      fylke_name_std = normalize_fylke_value(fylke_name_original),
+      fylke_name_map = unname(
+        fylke_to_current_map_dictionary[
+          normalize_geography_key(fylke_name_std)
+        ]
+      ),
+      fylke_name_map = ifelse(
+        is.na(fylke_name_map) | trimws(fylke_name_map) == "",
+        fylke_name_std,
+        fylke_name_map
+      ),
+      landsdel_name = derive_landsdel_from_fylke(fylke_name_std)
+    )
+}
+
+build_fylke_map_plot_shared <- function(
+  df,
+  fylke_col = "pasient_fylke_name",
+  title = "Map: Fylke fordeling",
+  shape_path = NULL,
+  fill_palette = kvantitativ_b2,
+  ...
+) {
+  if (is.null(df) || nrow(df) == 0 || !fylke_col %in% names(df)) return(NULL)
+
+  fylke_map_col <- if (paste0(fylke_col, "_map") %in% names(df)) {
+    paste0(fylke_col, "_map")
+  } else {
+    fylke_col
+  }
+
+  count_df <- df |>
+    dplyr::transmute(
+      fylke_name_map = if (fylke_map_col == fylke_col) {
+        normalize_fylke_value(.data[[fylke_col]])
+      } else {
+        as.character(.data[[fylke_map_col]])
+      }
+    ) |>
+    dplyr::mutate(
+      fylke_name_map = ifelse(
+        is.na(fylke_name_map) | trimws(fylke_name_map) == "",
+        "Ukjent",
+        fylke_name_map
+      )
+    ) |>
+    dplyr::filter(fylke_name_map != "Ukjent") |>
+    dplyr::count(fylke_name_map, name = "n_map")
+
+  norway_sf <- load_norway_fylke_sf() |>
+    dplyr::left_join(count_df, by = "fylke_name_map") |>
+    dplyr::mutate(n_map = dplyr::coalesce(n_map, 0L))
+
+  label_pts <- sf::st_point_on_surface(sf::st_geometry(norway_sf))
+  label_xy <- sf::st_coordinates(label_pts)
+  label_df <- norway_sf |>
+    sf::st_drop_geometry() |>
+    dplyr::mutate(X = label_xy[, "X"], Y = label_xy[, "Y"]) |>
+    dplyr::filter(n_map > 0) |>
+    dplyr::mutate(label_txt = paste0("n=", scales::comma(n_map)))
+
+  ggplot2::ggplot(norway_sf) +
+    ggplot2::geom_sf(
+      ggplot2::aes(fill = n_map),
+      color = "white",
+      linewidth = 0.2
+    ) +
+    ggplot2::geom_text(
+      data = label_df,
+      ggplot2::aes(x = X, y = Y, label = label_txt),
+      size = 2.8
+    ) +
+    ggplot2::scale_fill_gradient(
+      low = fill_palette[2],
+      high = fill_palette[min(length(fill_palette), 8)],
+      na.value = "grey95"
+    ) +
+    ggplot2::labs(title = title, fill = "Antall (n)") +
+    ggplot2::theme_void()
+}
+
+build_landsdel_map_plot_shared <- function(
+  df,
+  fylke_col = "pasient_fylke_name",
+  landsdel_col = "pasient_landsdel",
+  title = "Map: Landsdel fordeling",
+  shape_path = NULL,
+  fill_palette = NULL,
+  ...
+) {
+  if (is.null(df) || nrow(df) == 0 || !fylke_col %in% names(df)) return(NULL)
+
+  fylke_map_col <- if (paste0(fylke_col, "_map") %in% names(df)) {
+    paste0(fylke_col, "_map")
+  } else {
+    fylke_col
+  }
+
+  county_df <- df |>
+    dplyr::transmute(
+      fylke_name_map = if (fylke_map_col == fylke_col) {
+        normalize_fylke_value(.data[[fylke_col]])
+      } else {
+        as.character(.data[[fylke_map_col]])
+      },
+      landsdel_name = derive_landsdel_from_fylke(.data[[fylke_col]])
+    ) |>
+    dplyr::mutate(
+      fylke_name_map = ifelse(
+        is.na(fylke_name_map) | trimws(fylke_name_map) == "",
+        "Ukjent",
+        fylke_name_map
+      ),
+      landsdel_name = ifelse(
+        is.na(landsdel_name) | trimws(landsdel_name) == "",
+        "Ukjent",
+        landsdel_name
+      )
+    ) |>
+    dplyr::filter(fylke_name_map != "Ukjent")
+
+  count_df <- county_df |>
+    dplyr::count(fylke_name_map, landsdel_name, name = "n_map") |>
+    dplyr::group_by(fylke_name_map) |>
+    dplyr::slice_max(order_by = n_map, n = 1, with_ties = FALSE) |>
+    dplyr::ungroup()
+
+  norway_sf <- load_norway_fylke_sf() |>
+    dplyr::left_join(count_df, by = "fylke_name_map")
+  if (!"landsdel_name" %in% names(norway_sf)) {
+    norway_sf$landsdel_name <- NA_character_
+  }
+  if (!"n_map" %in% names(norway_sf)) {
+    norway_sf$n_map <- 0L
+  }
+  norway_sf <- norway_sf |>
+    dplyr::mutate(
+      landsdel_name = ifelse(
+        is.na(.data$landsdel_name) | trimws(.data$landsdel_name) == "",
+        "Ukjent",
+        .data$landsdel_name
+      ),
+      n_map = dplyr::coalesce(n_map, 0L)
+    )
+
+  label_df <- norway_sf |>
+    dplyr::filter(.data$landsdel_name != "Ukjent") |>
+    dplyr::group_by(.data$landsdel_name) |>
+    dplyr::summarise(
+      n_map = sum(.data$n_map, na.rm = TRUE),
+      geometry = sf::st_union(geometry),
+      .groups = "drop"
+    ) |>
+    dplyr::filter(.data$n_map > 0) |>
+    dplyr::mutate(
+      geometry = sf::st_point_on_surface(geometry),
+      label_txt = paste0("n=", scales::comma(.data$n_map))
+    )
+
+  label_xy <- sf::st_coordinates(sf::st_geometry(label_df))
+  label_df <- label_df |>
+    sf::st_drop_geometry() |>
+    dplyr::mutate(X = label_xy[, 1], Y = label_xy[, 2])
+
+  ggplot2::ggplot(norway_sf) +
+    ggplot2::geom_sf(
+      ggplot2::aes(fill = landsdel_name),
+      color = "white",
+      linewidth = 0.2
+    ) +
+    ggplot2::geom_text(
+      data = label_df,
+      ggplot2::aes(x = X, y = Y, label = label_txt),
+      size = 2.8
+    ) +
+    ggplot2::scale_fill_manual(
+      values = c(
+        "Sørlandet" = kvalitativ_a[1],
+        "Vestlandet" = kvalitativ_b[1],
+        "Østlandet" = kvalitativ_b[2],
+        "Midt-Norge" = kvantitativ_gu1[5],
+        "Nord-Norge" = kvantitativ_r1[5],
+        "Ukjent" = "grey85"
+      )
+    ) +
+    ggplot2::labs(title = title, fill = "Landsdel") +
+    ggplot2::theme_void()
+}
+
+## Numeric outlier scan (IQR-based), including numeric columns and
+## numeric-like QC fields (e.g., PCR/CT/age/WL/ID/coverage-like names).
 numeric_outlier_scan_table <- function(
   df,
   include_name_regex = "(pcr|ct|age|alder|wl|id|coverage|cov)",
@@ -677,9 +1119,7 @@ numeric_outlier_scan_table <- function(
     dplyr::arrange(dplyr::desc(outlier_pct), dplyr::desc(outlier_n), column_name)
 }
 
-# -------------------------
-# CT plot helpers (SC2-style monthly box+jitter, colored by subclade/clade)
-# -------------------------
+## CT plot helpers (SC2-style monthly box+jitter, colored by subclade/clade)
 build_ct_month_plot <- function(df, date_col, ct_col, color_col, title_txt, subtitle_txt = NULL, color_label = "Subclade") {
   if (!all(c(date_col, ct_col, color_col) %in% names(df))) return(NULL)
   d <- df %>%
@@ -708,7 +1148,7 @@ build_ct_month_plot <- function(df, date_col, ct_col, color_col, title_txt, subt
     ggplot2::labs(
       title = title_txt,
       subtitle = subtitle_txt,
-      x = "Måned",
+      x = "MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥ned",
       y = "Ct-verdi",
       color = color_label
     ) +

@@ -1,51 +1,53 @@
-# RSV SQL query
+# RSV 23-24 SQL query
+# Self-contained script intended for sourcing by analysis/orchestration scripts.
+# Responsibility: load raw SQL tables, apply duplicate-column harmonization, and output raw merged dataframe only.
 
-source(file = "N:/Virologi/Influensa/2526/WGS_Analyse/Source_files/SQL_address.R")
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(stringr)
+  library(janitor)
+  library(lubridate)
+  library(dbplyr)
+})
 
-# Load required packages used by the query pipeline.
-library(dplyr)
-library(tidyr)
-library(stringr)
-library(janitor)
-library(lubridate)
-library(dbplyr)
+sql_address_local <- Sys.getenv(
+  "RSV_SQL_ADDRESS_FILE",
+  unset = "N:/Virologi/Influensa/2526/WGS_Analyse/Source_files/SQL_address.R"
+)
+if (!file.exists(sql_address_local)) {
+  stop("Local SQL address file not found. Set RSV_SQL_ADDRESS_FILE to your local SQL_address.R path.")
+}
+source(file = sql_address_local)
 
 safe_utf8 <- function(x) {
   x <- as.character(x)
   y <- iconv(x, from = "", to = "UTF-8", sub = NA)
   bad <- is.na(y)
-  if (any(bad)) {
-    # Fallback for legacy DB values/headers stored in Latin-1/Windows-1252.
-    y[bad] <- iconv(x[bad], from = "latin1", to = "UTF-8", sub = "")
-  }
+  if (any(bad)) y[bad] <- iconv(x[bad], from = "latin1", to = "UTF-8", sub = "")
   y[is.na(y)] <- ""
   y
 }
 
-safe_parse_date <- function(x) {
-  x <- trimws(as.character(x))
-  x[x == ""] <- NA_character_
-  parsed <- suppressWarnings(lubridate::parse_date_time(
-    x,
-    orders = c("Y-m-d", "d.m.Y", "d/m/Y", "Y/m/d")
-  ))
-  as.Date(parsed)
+collapse_duplicate_columns <- function(df) {
+  dup_cols <- names(df)[duplicated(names(df))]
+  for (col in unique(dup_cols)) {
+    df <- df %>%
+      mutate(!!sym(col) := apply(select(df, starts_with(col)), 1, function(x) {
+        vals <- na.omit(x)
+        if (length(vals) == 0) return(NA_character_)
+        paste(vals, collapse = ";")
+      })) %>%
+      select(-matches(paste0("^", col, "\\..+")))
+  }
+  df
 }
 
-safe_num <- function(x) {
-  suppressWarnings(as.numeric(as.character(x)))
-}
-
-# Extract and process entry information fields.
 entryinf <- tbl(conRSV2324, "ENTRYINFOFIELDS") %>%
   select(FIELDID, DISPNAME, NAME) %>%
   collect() %>%
-  mutate(
-    DISPNAME = safe_utf8(DISPNAME),
-    NAME = safe_utf8(NAME)
-  )
+  mutate(DISPNAME = safe_utf8(DISPNAME), NAME = safe_utf8(NAME))
 
-# Extract and process entry fields.
 entryfld <- tbl(conRSV2324, "ENTRYFLD") %>%
   collect() %>%
   left_join(entryinf, by = "FIELDID") %>%
@@ -53,82 +55,29 @@ entryfld <- tbl(conRSV2324, "ENTRYFLD") %>%
   pivot_wider(names_from = DISPNAME, values_from = CONTENT) %>%
   select(-OBJACTIONID, -FIELDID, -NAME) %>%
   group_by(KEY) %>%
-  summarise(across(
-    everything(),
-    ~ ifelse(all(is.na(.x)), NA, paste(na.omit(.x), collapse = ";"))
-  ))
+  summarise(across(everything(), ~ ifelse(all(is.na(.x)), NA, paste(na.omit(.x), collapse = ";"))))
 
 names(entryfld) <- safe_utf8(names(entryfld))
+entryfld <- entryfld %>% collapse_duplicate_columns()
 
-# Extract entry table.
-entrytable <- tbl(conRSV2324, "ENTRYTABLE") %>%
-  collect()
+entrytable <- tbl(conRSV2324, "ENTRYTABLE") %>% collect()
 names(entrytable) <- safe_utf8(names(entrytable))
 
-# Get the mapping of DISPNAME to column names.
 name_mapping <- entryinf %>%
   filter(!is.na(DISPNAME)) %>%
   select(NAME, DISPNAME) %>%
   distinct()
 
-# Replace column names in entrytable with DISPNAME from entryinf.
 entrytable <- entrytable %>%
-  rename_with( ~ ifelse(
-    . %in% name_mapping$NAME,
-    as.character(name_mapping$DISPNAME[match(., name_mapping$NAME)]),
-    .
-  ), .cols = everything())
+  rename_with(~ ifelse(. %in% name_mapping$NAME, as.character(name_mapping$DISPNAME[match(., name_mapping$NAME)]), .), .cols = everything())
 
-# Normalize potentially mixed encodings in column names before clean_names().
 names(entrytable) <- safe_utf8(names(entrytable))
-names(entryfld) <- safe_utf8(names(entryfld))
+entrytable <- entrytable %>% collapse_duplicate_columns()
 
-entrytable_cols <- names(entrytable)
-entryfld_cols <- names(entryfld)
-
-# Find duplicated columns between entrytable and entryfld.
-duplicated_cols <- intersect(entrytable_cols, entryfld_cols)
-
-# Keep KEY and remove duplicated columns from entrytable before merge.
+duplicated_cols <- intersect(names(entrytable), names(entryfld))
 filtered_entrytable <- entrytable %>% select(-all_of(duplicated_cols), KEY)
 
-# Merge and normalize column names.
-rsvdb <- left_join(filtered_entrytable, entryfld, by = "KEY") %>%
-  clean_names() %>%
-  filter(is.na(ngs_report) | trimws(ngs_report) == "") %>%
-  filter(
-    !str_detect(
-      coalesce(prove_kategori, ""),
-      regex("^\\s*(?:3|P3(?:_.*)?)\\s*$", ignore_case = TRUE)
-    )
-  ) %>%
-  filter(!str_detect(coalesce(prove_kategori, ""), regex("ref", ignore_case = TRUE))) %>%
-  select(-any_of(c(
-    "levelid", "prkey", "endtcreated", "endtmodif",
-    "objactionid", "objlck", "objowner", "objshared"
-  )))
+RSV_23_24_raw_merged <- left_join(filtered_entrytable, entryfld, by = "KEY") %>%
+  clean_names()
 
-# Normalize all character fields to UTF-8 to avoid downstream string warnings.
-rsvdb <- rsvdb %>%
-  mutate(across(where(is.character), safe_utf8))
-
-# Add date-derived helper columns when prove_tatt is available.
-if ("prove_tatt" %in% names(rsvdb)) {
-  rsvdb <- rsvdb %>%
-    mutate(
-      prove_tatt = na_if(prove_tatt, ""),
-      prove_tatt = safe_parse_date(prove_tatt),
-      week = week(prove_tatt),
-      year = year(prove_tatt),
-      wy = sprintf("%d-W%02d", isoyear(prove_tatt), isoweek(prove_tatt)),
-      my = format(prove_tatt, "%Y-%m")
-    )
-}
-
-if (exists("close_sql_connections")) close_sql_connections()
-
-rm(
-  entrytable, entryfld, entryinf, name_mapping,
-  filtered_entrytable, duplicated_cols, entryfld_cols,
-  entrytable_cols, conRSV2324
-)
+rm(entrytable, entryfld, entryinf, name_mapping, filtered_entrytable, duplicated_cols)

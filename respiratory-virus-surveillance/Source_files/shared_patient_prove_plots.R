@@ -23,7 +23,7 @@ build_meta_count_data <- function(df, x_var, fill_var, count_var = NULL) {
   if (nrow(d) == 0) {
     return(NULL)
   }
-  d
+  d1
 }
 
 meta_fill_scale <- function(d, palette_base = NULL) {

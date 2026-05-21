@@ -8,8 +8,6 @@
 # ============================================================================
 
 # NOTE:
-# This script uses tidy-eval, dynamic columns, and sourced helpers,
-# nolint start
 
 resolve_script_dir <- function() {
   args_all <- commandArgs(trailingOnly = FALSE)
@@ -137,7 +135,6 @@ options(datatable.week = "legacy")
 
 # Execute shared report utilities (includes FHI palettes).
 timed_step("Source common report utilities", source("Source_files/common_report_utils.R"))
-timed_step("Source shared patient/prove plot helpers", source("Source_files/shared_patient_prove_plots.R"))
 if (!exists("fhi_discrete_palette", mode = "function")) {
   fhi_discrete_palette <- function(n, palette_name = NULL) {
     base_palette <- if (exists("kvalitativ_comb", inherits = TRUE)) {
@@ -210,7 +207,8 @@ add_section_slide <- function(presentation, section_title, section_subtitle = NU
   section_plot <- ggplot() +
     annotate("text", x = 0, y = 0.2, label = section_title, size = 11, fontface = "bold", family = "sans") +
     annotate("text", x = 0, y = -0.2, label = ifelse(is.null(section_subtitle), "", section_subtitle), size = 5, family = "sans") +
-    xlim(-1, 1) + ylim(-1, 1) +
+    xlim(-1, 1) +
+    ylim(-1, 1) +
     theme_void()
   export_to_ppt(presentation, section_plot, section_title)
 }
@@ -220,12 +218,12 @@ current_year_title <- year(Sys.Date())
 title_plot <- ggplot() +
   annotate("text", x = 0, y = 0.2, label = "SARS-CoV-2-overv\u00e5king", size = 13, fontface = "bold", family = "sans") +
   annotate("text", x = 0, y = -0.1, label = paste0("Uke ", current_week_title, " - ", current_year_title), size = 8, family = "sans") +
-  xlim(-1, 1) + ylim(-1, 1) +
+  xlim(-1, 1) +
+  ylim(-1, 1) +
   theme_void()
 
 export_graph <- export_to_ppt(export_graph, title_plot, paste0("SARS-CoV-2 Uke ", current_week_title))
 export_graph <- add_section_slide(export_graph, "Datakvalitetskontroller", "Dataintegritet, kompletthet og konsistens")
-
 
 
 # ============================================================================
@@ -233,7 +231,35 @@ export_graph <- add_section_slide(export_graph, "Datakvalitetskontroller", "Data
 # ============================================================================
 
 timed_step("Source SC2_SQLquery_BNCOVID19.R", source(file.path(bundle_scripts_dir, "SC2_SQLquery_BNCOVID19.R")))
+
+timed_step("Source SC2_DataCleaning_BNCOVID19.R", source(file.path(bundle_scripts_dir, "SC2_DataCleaning_BNCOVID19.R")))
 timed_step("Source SC2_SQLquery_25-26.R", source(file.path(bundle_scripts_dir, "SC2_SQLquery_25-26.R")))
+
+timed_step("Source SC2_DataCleaning_25-26.R", source(file.path(bundle_scripts_dir, "SC2_DataCleaning_25-26.R")))
+
+# Root-cause fix for DBI warning:
+# SQL address scripts can leave live connection objects in the global environment.
+# If they are garbage-collected later, DBI warns: "call dbDisconnect() when finished working with a connection".
+# We proactively disconnect all known SC2 connection handles before classification.
+disconnect_if_valid <- function(obj_name, env = .GlobalEnv) {
+  if (!exists(obj_name, envir = env, inherits = FALSE)) {
+    return(invisible(NULL))
+  }
+  obj <- get(obj_name, envir = env, inherits = FALSE)
+  if (inherits(obj, "DBIConnection")) {
+    tryCatch(
+      {
+        if (DBI::dbIsValid(obj)) DBI::dbDisconnect(obj)
+      },
+      error = function(e) NULL
+    )
+  }
+  rm(list = obj_name, envir = env)
+  invisible(NULL)
+}
+invisible(lapply(c("conBNCOVID", "conSC22526", "conSC2", "con"), disconnect_if_valid))
+closeAllConnections()
+
 timed_step("Source SC2_Classification.R", source(file.path(bundle_scripts_dir, "SC2_Classification.R")))
 
 # Harmonized sample-category classification:
@@ -253,8 +279,8 @@ clean_project_code <- function(x) {
   x_chr
 }
 
-if (exists("SC2db_v")) {
-  SC2db_v <- SC2db_v %>%
+if (exists("SC2db")) {
+  SC2db <- SC2db %>%
     mutate(
       prove_tatt = as.Date(prove_tatt),
       season = season_label_from_date(prove_tatt),
@@ -278,7 +304,7 @@ if (exists("SC2db")) {
 # "Run Quality Issues" section below.
 
 # ============================================================================
-# EXTENDED SC2 PATIENT/TESSY EXPLORATION + DATA QUALITY (SC2db_v)
+# EXTENDED SC2 PATIENT/TESSY EXPLORATION + DATA QUALITY (SC2db)
 # ============================================================================
 
 # Helper for Tessy distribution plots used in the early SC2 QC block.
@@ -352,7 +378,7 @@ build_tessy_group_plots <- function(df, x_col, x_label, export_graph_in) {
   export_graph_out
 }
 
-eda_source_df <- if (exists("SC2db_v")) SC2db_v else SC2db
+eda_source_df <- if (exists("SC2db")) SC2db else SC2db
 results_dir_stats <- results_stats_dir
 current_week_eda <- week(Sys.Date())
 current_year_eda <- year(Sys.Date())
@@ -471,7 +497,7 @@ if (!is.na(eda_tessy_col)) {
   ) %>%
     arrange(desc(value))
   export_graph <- export_to_ppt(export_graph, qc_summary, "SC2 data quality summary")
-  export_graph <- export_to_ppt(export_graph, head(column_profile, 30), "SC2 SC2db_v: highest missingness columns")
+  export_graph <- export_to_ppt(export_graph, head(column_profile, 30), "SC2 SC2db: highest missingness columns")
 
   # Numeric outlier scan (IQR-based):
   # include numeric-like columns (comma/dot aware), exclude ID/code fields.
@@ -508,7 +534,9 @@ if (!is.na(eda_tessy_col)) {
     outlier_scan <- lapply(numeric_cols, function(col_name) {
       x <- parsed_map[[col_name]]$x
       x <- x[!is.na(x) & is.finite(x)]
-      if (length(x) < 10) return(NULL)
+      if (length(x) < 10) {
+        return(NULL)
+      }
       q1 <- as.numeric(quantile(x, 0.25, na.rm = TRUE))
       q3 <- as.numeric(quantile(x, 0.75, na.rm = TRUE))
       iqr <- q3 - q1
@@ -555,7 +583,7 @@ if (!is.na(eda_tessy_col)) {
 # ============================================================================
 export_graph <- add_section_slide(export_graph, "Run Quality Issues", "Run setup pass/fail and operational quality")
 
-ngs_qc_source <- if (exists("SC2db_v")) SC2db_v else if (exists("SC2db_prefilter")) SC2db_prefilter else if (exists("SC2db")) SC2db else NULL
+ngs_qc_source <- if (exists("SC2db")) SC2db else if (exists("SC2db_prefilter")) SC2db_prefilter else if (exists("SC2db")) SC2db else NULL
 
 if (!is.null(ngs_qc_source)) {
   current_week_ngs <- week(Sys.Date())
@@ -575,11 +603,11 @@ if (!is.null(ngs_qc_source)) {
         cov_raw = as.character(.data[[ngs_cov_col]]),
         cov_num = suppressWarnings(as.numeric(cov_raw)),
         cov_norm = ifelse(!is.na(cov_num) & cov_num > 1.5, cov_num / 100, cov_num),
-        spike_ok = if ("Spike_mut" %in% names(.)) (!is.na(Spike_mut) & trimws(as.character(Spike_mut)) != "") else TRUE,
-        # Match SC2db_v inclusion rule from SC2_SQLquery_25-26.
+        spike_ok = if ("spike_mut" %in% names(.)) (!is.na(spike_mut) & trimws(as.character(spike_mut)) != "") else TRUE,
+        # Match SC2db inclusion rule from SC2_SQLquery_25-26.
         include_by_coverage = (!is.na(cov_raw) & cov_raw == "NA") | (!is.na(cov_norm) & cov_norm >= 0.7),
         include_flag = include_by_coverage & spike_ok,
-        qc_status = ifelse(include_flag, "Included_in_SC2db_v", "Failed_threshold_or_missing")
+        qc_status = ifelse(include_flag, "Included_in_SC2db", "Failed_threshold_or_missing")
       ) %>%
       filter(!is.na(run_setup), trimws(run_setup) != "", run_setup != "Ukjent")
 
@@ -667,7 +695,7 @@ if (!is.null(ngs_qc_source)) {
           median_cov = round(median(cov_norm, na.rm = TRUE), 3),
           p10_cov = round(as.numeric(stats::quantile(cov_norm, probs = 0.10, na.rm = TRUE)), 3),
           p90_cov = round(as.numeric(stats::quantile(cov_norm, probs = 0.90, na.rm = TRUE)), 3),
-          included_n = sum(qc_status == "Included_in_SC2db_v", na.rm = TRUE),
+          included_n = sum(qc_status == "Included_in_SC2db", na.rm = TRUE),
           failed_n = sum(qc_status == "Failed_threshold_or_missing", na.rm = TRUE),
           included_pct = round(100 * included_n / n_samples, 1),
           .groups = "drop"
@@ -772,7 +800,6 @@ if (!is.null(ngs_qc_source)) {
         export_graph <- export_to_ppt(export_graph, p_cov_month_subclade, "Dekning per m\u00e5ned og subklade")
       }
     }
-
   }
 }
 
@@ -785,52 +812,54 @@ export_graph <- add_section_slide(export_graph, "Dekning", "Dekningsbredde og se
 # ---- BEGIN INLINED: SC2/SC2_Seqs_per_month.R ----
 ###### Sekvenser per uke for prosentberegning: ######
 
-if (!exists("SC2db_v")) {
-  stop("Object 'SC2db_v' is missing. Run the SQL/classification scripts before sourcing SC2_Seqs_per_month.R.")
+if (!exists("SC2db")) {
+  stop("Object 'SC2db' is missing. Run the SQL/classification scripts before sourcing SC2_Seqs_per_month.R.")
 }
 
 ###### Sekvenser per m\u00e5ned for prosentberegning: ######
 
 # Calculate Sequences per month for Spike protein sequence results
-spm_spike <- SC2db_v %>%
+spm_spike <- SC2db %>%
   filter(nc_pangolin_short != "") %>%
-  filter(Spike_mut != "") %>%
+  filter(spike_mut != "") %>%
   count(my, name = "TotalSeq") %>%
   ungroup() %>%
   mutate(
     Date = as.Date(my),
     YearMonth = format(Date, "%Y %b")
   ) %>%
-  select(-Date)  # Drop the temporary Date column if not needed
+  select(-Date) # Drop the temporary Date column if not needed
 
 # Calculate Total Valid Sequences per month
-v_seqs_per_month <- SC2db_v %>%
+v_seqs_per_month <- SC2db %>%
   count(my, name = "TotalSeq")
 
 ###### Sekvenser per opprinnelseslaboratorium #######
 
-v_seqs_per_month_origin <- SC2db_v %>%
+v_seqs_per_month_origin <- SC2db %>%
   group_by(my, Origin) %>%
   count(name = "TotalSeq") %>%
   ungroup() %>%
-  mutate(my  = as.Date(paste0(my, " 01"), format="%Y %b %d")) 
+  mutate(my = as.Date(paste0(my, " 01"), format = "%Y %b %d"))
 
 
 # Create a bar chart per month based on Origin
 spmlabto <- ggplot(v_seqs_per_month_origin, aes(x = my, y = TotalSeq, fill = Origin)) +
   geom_bar(stat = "identity") +
-  labs(title = "Sekvensering av SC2 i Norge",
-       x = "M\u00e5ned",
-       y = "Antall (n)") +
-  scale_x_date(
-    breaks = "1 month",  # Show breaks every month
-    labels = scales::date_format("%b %Y")  # Format as month name and year
+  labs(
+    title = "Sekvensering av SC2 i Norge",
+    x = "M\u00e5ned",
+    y = "Antall (n)"
   ) +
-  scale_fill_manual(values = kvalitativ_a) +  # Set custom colors
+  scale_x_date(
+    breaks = "1 month", # Show breaks every month
+    labels = scales::date_format("%b %Y") # Format as month name and year
+  ) +
+  scale_fill_manual(values = kvalitativ_a) + # Set custom colors
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  theme(plot.title = element_text(hjust = 0.5, size = 14)) +  # Center the title and increase its size
-  theme(legend.position="right")  # Optional: Remove legend if not needed
+  theme(plot.title = element_text(hjust = 0.5, size = 14)) + # Center the title and increase its size
+  theme(legend.position = "right") # Optional: Remove legend if not needed
 
 
 # Add a slide to the presentation with Title and Content layout and Office Theme master
@@ -858,18 +887,20 @@ v_seqs_per_month_origin8m <- v_seqs_per_month_origin %>%
 # Create a bar chart per month based on Origin
 spmlabto8m <- ggplot(v_seqs_per_month_origin8m, aes(x = my, y = TotalSeq, fill = Origin)) +
   geom_bar(stat = "identity") +
-  labs(title = "Sekvensering av SC2 i Norge",
-       x = "M\u00e5ned",
-       y = "Antall (n)") +
-  scale_x_date(
-    breaks = "1 month",  # Show breaks every month
-    labels = scales::date_format("%b %Y")  # Format as month name and year
+  labs(
+    title = "Sekvensering av SC2 i Norge",
+    x = "M\u00e5ned",
+    y = "Antall (n)"
   ) +
-  scale_fill_manual(values = kvalitativ_a) +  # Set custom colors
+  scale_x_date(
+    breaks = "1 month", # Show breaks every month
+    labels = scales::date_format("%b %Y") # Format as month name and year
+  ) +
+  scale_fill_manual(values = kvalitativ_a) + # Set custom colors
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  theme(plot.title = element_text(hjust = 0.5, size = 14)) +  # Center the title and increase its size
-  theme(legend.position="right")  # Optional: Remove legend if not needed
+  theme(plot.title = element_text(hjust = 0.5, size = 14)) + # Center the title and increase its size
+  theme(legend.position = "right") # Optional: Remove legend if not needed
 
 
 spmlabto8m
@@ -895,11 +926,11 @@ export_graph <- add_slide(export_graph, layout = "Title and Content", master = "
 sequencing_window_start <- if (exists("data_window_start")) as.Date(data_window_start) else (Sys.Date() %m-% months(6))
 
 # Prepare data for the weekly sequence count
-monthcount <- SC2db_v %>%
+monthcount <- SC2db %>%
   dplyr::count(my, name = "TotalSeq")
 
 # Calculate weekly counts for each Pangolin lineage
-pangomtcount <- SC2db_v %>%
+pangomtcount <- SC2db %>%
   group_by(my) %>%
   dplyr::count(Collapsed_pango, my, name = "count") %>%
   ungroup() %>%
@@ -908,7 +939,7 @@ pangomtcount <- SC2db_v %>%
   mutate(Percent = count / TotalSeq)
 
 # Count sequences per Pangolin lineage and Collapsed_pango variant for each month
-fpangomtcount <- SC2db_v %>%
+fpangomtcount <- SC2db %>%
   group_by(my) %>%
   dplyr::count(nc_pangolin_short, Collapsed_pango, my, name = "count") %>%
   ungroup() %>%
@@ -921,9 +952,11 @@ monthcounstat <- monthcount %>%
   mutate(Sampledate = as.Date(paste(my, "01"), format = "%Y %b %d"))
 
 # Filter data using SC2 shared window: current season, or include previous season to minimum 6 months
-pangowk12mo <- subset(SC2db_v,
-                      prove_tatt >= sequencing_window_start &
-                        prove_tatt <= Sys.Date())
+pangowk12mo <- subset(
+  SC2db,
+  prove_tatt >= sequencing_window_start &
+    prove_tatt <= Sys.Date()
+)
 subset_data12mo <- subset(pangomtcount, Sampledate >= sequencing_window_start)
 subset_data2mo <- subset(pangomtcount, Sampledate >= Sys.Date() %m-% months(2))
 subset_data4mo <- subset(pangomtcount, Sampledate >= Sys.Date() %m-% months(4))
@@ -934,8 +967,10 @@ monthcount12mo <- subset(monthcounstat, Sampledate >= sequencing_window_start)
 monthcounstat12mo <- subset(monthcounstat, Sampledate >= sequencing_window_start)
 
 # Generate and save stacked bar percentage chart for all data period
-grpangomtp <- ggplot(pangomtcount,
-                     aes(x = Sampledate, y = Percent, fill = Collapsed_pango)) +
+grpangomtp <- ggplot(
+  pangomtcount,
+  aes(x = Sampledate, y = Percent, fill = Collapsed_pango)
+) +
   geom_bar(stat = "identity") +
   scale_fill_manual(values = custom_colors) +
   labs(y = "Andel (%)", x = "", fill = "SARS-CoV-2-nomenklatur") +
@@ -973,28 +1008,27 @@ export_graph <- add_slide(export_graph, layout = "Title and Content", master = "
 export_graph <- ph_with(export_graph, value = combined_plotwp, location = ph_location_fullsize())
 
 
-
 # Convert `my` to the desired format and correctly order the data
 pangoxls <- pangomtcount %>%
   select(my, Collapsed_pango, count) %>%
   mutate(my = format(as.Date(my), "%Y %b") %>% tolower()) %>%
   pivot_wider(
-    names_from = my,     # Column that defines the new columns
-    values_from = count  # Values for the new columns
+    names_from = my, # Column that defines the new columns
+    values_from = count # Values for the new columns
   ) %>%
   mutate(across(everything(), ~ replace_na(.x, 0)))
 
 # Convert back to the long format with correct ordering
 pangostatistikk <- pangoxls %>%
   pivot_longer(
-    cols = -Collapsed_pango,  # Pivot all columns except 'Collapsed_pango'
-    names_to = "my",          # Name for the new key column
-    values_to = "count"       # Name for the new value column
+    cols = -Collapsed_pango, # Pivot all columns except 'Collapsed_pango'
+    names_to = "my", # Name for the new key column
+    values_to = "count" # Name for the new value column
   ) %>%
   mutate(flagg = 0) %>%
   mutate(my_ord = as.Date(paste0(my, " 01"), format = "%Y %b %d")) %>%
   arrange(my_ord) %>%
-  select(-my_ord)  # Remove the ordering column
+  select(-my_ord) # Remove the ordering column
 
 # Calculate total counts for each 'my'
 total_counts <- pangostatistikk %>%
@@ -1004,7 +1038,7 @@ total_counts <- pangostatistikk %>%
 # Join total counts back to the data
 pangostatistikk_with_totals <- pangostatistikk %>%
   left_join(total_counts, by = "my") %>%
-  mutate(percent = round((count / total_count) * 100))  # Calculate and round percentage to whole number
+  mutate(percent = round((count / total_count) * 100)) # Calculate and round percentage to whole number
 
 
 # Select and arrange the final data
@@ -1015,15 +1049,15 @@ final_pangostatistikk <- pangostatistikk_with_totals %>%
 final_pangostatistikk <- final_pangostatistikk %>%
   mutate(across(
     .cols = where(is.numeric),
-    .fns = ~ format(., scientific = FALSE)  # Ensure numeric values are correctly formatted
+    .fns = ~ format(., scientific = FALSE) # Ensure numeric values are correctly formatted
   ))
 
 
-
-
 # Prepare data for last 12 months stacked bar percentage chart
-grpangomtp_12mo <- ggplot(subset_data12mo,
-                          aes(x = Sampledate, y = Percent, fill = Collapsed_pango)) +
+grpangomtp_12mo <- ggplot(
+  subset_data12mo,
+  aes(x = Sampledate, y = Percent, fill = Collapsed_pango)
+) +
   geom_bar(stat = "identity") +
   scale_fill_manual(values = variant_color) +
   labs(y = "Andel (%)", x = "", fill = "Pangolin") +
@@ -1067,7 +1101,7 @@ for (collapsed_pango in unique_collapsed_pangosrec) {
   subset_data <- subset_data6mopango %>%
     filter(Collapsed_pango == collapsed_pango) %>%
     mutate(Sampledate = as.Date(Sampledate))
-  
+
   # Plot for sequence count
   collapsed_pangosrecgr <- ggplot(subset_data, aes(x = Sampledate, fill = nc_pangolin_short)) +
     geom_bar(aes(y = count), stat = "identity") +
@@ -1083,8 +1117,10 @@ for (collapsed_pango in unique_collapsed_pangosrec) {
     ) +
     scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") +
     theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, size = 12),
-          axis.text.y = element_text(size = 12)) +
+    theme(
+      axis.text.x = element_text(angle = 90, size = 12),
+      axis.text.y = element_text(size = 12)
+    ) +
     geom_text(
       aes(
         y = count,
@@ -1094,12 +1130,12 @@ for (collapsed_pango in unique_collapsed_pangosrec) {
       color = "black",
       size = 3.5
     )
-  
+
   # Save plot to PowerPoint as vector graphic
   plot_rvg <- dml(ggobj = collapsed_pangosrecgr)
   export_graph <- add_slide(export_graph, layout = "Title and Content", master = "Office Theme") %>%
     ph_with(plot_rvg, location = ph_location_fullsize())
-  
+
   # Plot for percentage of sequences
   collapsed_pangosrecgr_percent <- ggplot(subset_data, aes(x = Sampledate, fill = nc_pangolin_short)) +
     geom_col(aes(y = Percent)) +
@@ -1115,8 +1151,10 @@ for (collapsed_pango in unique_collapsed_pangosrec) {
     ) +
     scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") +
     theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, size = 12),
-          axis.text.y = element_text(size = 12)) +
+    theme(
+      axis.text.x = element_text(angle = 90, size = 12),
+      axis.text.y = element_text(size = 12)
+    ) +
     geom_text(
       aes(
         y = Percent,
@@ -1126,7 +1164,7 @@ for (collapsed_pango in unique_collapsed_pangosrec) {
       color = "black",
       size = 3.5
     )
-  
+
   # Save percentage plot to PowerPoint
   plot_rvg_percent <- dml(ggobj = collapsed_pangosrecgr_percent)
   export_graph <- add_slide(export_graph, layout = "Title and Content", master = "Office Theme") %>%
@@ -1138,19 +1176,21 @@ for (collapsed_pango in unique_collapsed_pangosrec) {
 }
 
 ###### 15 top variants last recorded month
-p6modata  <- subset_data6mopango %>% mutate(n = paste0(count, " (", round(Percent, 2), "%", ")"))
+p6modata <- subset_data6mopango %>% mutate(n = paste0(count, " (", round(Percent, 2), "%", ")"))
 
 SC2_6mopangopivot <- p6modata %>%
-  pivot_wider(id_cols = nc_pangolin_short,
-              names_from = my,
-              values_from = n,) %>%
+  pivot_wider(
+    id_cols = nc_pangolin_short,
+    names_from = my,
+    values_from = n,
+  ) %>%
   rename("SARS-CoV2 Variants" = nc_pangolin_short)
 
 SC2_6mopangopivot <- SC2_6mopangopivot %>%
-  mutate(last_col_numeric = as.numeric(str_extract(.[[ncol(.)]], "^[0-9]+"))) %>%  
+  mutate(last_col_numeric = as.numeric(str_extract(.[[ncol(.)]], "^[0-9]+"))) %>%
   # Extract only the numeric part before ' b (...)'
-  arrange(desc(last_col_numeric)) %>%  
-  select(-last_col_numeric)  # Remove the temporary numeric column
+  arrange(desc(last_col_numeric)) %>%
+  select(-last_col_numeric) # Remove the temporary numeric column
 
 
 # Display the result
@@ -1161,8 +1201,9 @@ ft <- autofit(ft)
 # Save summary table to PowerPoint
 export_graph <- add_slide(export_graph, layout = "Title and Content", master = "Office Theme")
 export_graph <- ph_with(export_graph,
-                        value = ft,
-                        location = ph_location_type(type = "body"))
+  value = ft,
+  location = ph_location_type(type = "body")
+)
 #####
 
 subset_data6mopango$count <- as.numeric(subset_data6mopango$count)
@@ -1172,11 +1213,11 @@ SC2_6mopangopivot <- subset_data6mopango %>%
     id_cols = nc_pangolin_short,
     names_from = my,
     values_from = count,
-    values_fill = 0  # Fill missing values with 0
+    values_fill = 0 # Fill missing values with 0
   ) %>%
   rename("SARS-CoV2 Variants" = nc_pangolin_short) %>%
-  arrange(desc(.[[ncol(.)]])) %>%  # Order by the last column in descending order
-  slice_head(n = 15)  # Display the top 15 rows
+  arrange(desc(.[[ncol(.)]])) %>% # Order by the last column in descending order
+  slice_head(n = 15) # Display the top 15 rows
 
 
 # Assuming the first column is an identifier and the rest are used for calculations
@@ -1185,24 +1226,25 @@ SC2_6mopangopivoperc <- subset_data6mopango %>%
     id_cols = nc_pangolin_short,
     names_from = my,
     values_from = count,
-    values_fill = 0  # Fill missing values with 0
+    values_fill = 0 # Fill missing values with 0
   ) %>%
   rename("SARS-CoV2 Variants" = nc_pangolin_short) %>%
-  arrange(desc(.[[ncol(.)]])) %>%  # Order by the last column in descending order
-  slice_head(n = 15)  # Display the top 15 rows
+  arrange(desc(.[[ncol(.)]])) %>% # Order by the last column in descending order
+  slice_head(n = 15) # Display the top 15 rows
 
 
 # Display the result with flextable
 ft <- flextable(SC2_6mopangopivot) %>%
   autofit() %>%
-  set_header_labels(Arrow = "Trend")   # Rename the Arrow column to "Trend"
+  set_header_labels(Arrow = "Trend") # Rename the Arrow column to "Trend"
 
 
 # Save summary table to PowerPoint
 export_graph <- add_slide(export_graph, layout = "Title and Content", master = "Office Theme")
 export_graph <- ph_with(export_graph,
-                        value = ft,
-                        location = ph_location_type(type = "body"))
+  value = ft,
+  location = ph_location_type(type = "body")
+)
 
 # ---- END INLINED: SC2/SC2_Pangolin_p_m.R ----
 
@@ -1213,28 +1255,28 @@ export_graph <- add_slide(export_graph, layout = "Title and Content", master = "
 sequencing_window_start <- if (exists("data_window_start")) as.Date(data_window_start) else (Sys.Date() %m-% months(6))
 
 # Count the number of sequences per month
-monthcount <- SC2db_v %>%
+monthcount <- SC2db %>%
   dplyr::count(my, name = "TotalSeq")
 
 # Count the number of sequences for each tessy lineage per month
-tessymtcount <- SC2db_v %>%
+tessymtcount <- SC2db %>%
   group_by(my) %>%
   dplyr::count(Tessy, my, name = "count") %>%
   ungroup() %>%
   mutate(Sampledate = as.Date(paste(my, "01"), format = "%Y %b %d"))
 
-# Merge the lineage counts with the total sequence counts 
+# Merge the lineage counts with the total sequence counts
 tessymtcount <- tessymtcount %>%
   left_join(monthcount, by = "my") %>%
-  mutate(Percent = (count / TotalSeq)*100)
+  mutate(Percent = (count / TotalSeq) * 100)
 
 # Add Sampledate to monthcount
 monthcount <- monthcount %>%
   mutate(Sampledate = as.Date(paste(my, "01"), format = "%Y %b %d"))
 
 # Subset data for shared sequencing window + short recency views
-tessy12mo <- subset(SC2db_v, prove_tatt >= sequencing_window_start & prove_tatt <= Sys.Date())
-tessy6mo <- subset(SC2db_v, prove_tatt >= sequencing_window_start & prove_tatt <= Sys.Date())
+tessy12mo <- subset(SC2db, prove_tatt >= sequencing_window_start & prove_tatt <= Sys.Date())
+tessy6mo <- subset(SC2db, prove_tatt >= sequencing_window_start & prove_tatt <= Sys.Date())
 subset_data12mo <- subset(tessymtcount, Sampledate >= sequencing_window_start)
 subset_data2mo <- subset(tessymtcount, Sampledate >= Sys.Date() %m-% months(2))
 subset_data4mo <- subset(tessymtcount, Sampledate >= Sys.Date() %m-% months(4))
@@ -1251,7 +1293,7 @@ subset_data_year_p <- subset_data_year %>%
 # Create the first stacked bar percentage chart for tessys
 grtessymtp <- ggplot(tessymtcount, aes(x = Sampledate, y = Percent, fill = Tessy)) +
   geom_bar(stat = "identity") +
-    labs(y = "Andel (%)", x = "", fill = "Tessy-kategori") +
+  labs(y = "Andel (%)", x = "", fill = "Tessy-kategori") +
   scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 
@@ -1284,7 +1326,7 @@ get_data_for_tessy <- function(dataset, tessy_name) {
     group_by(my) %>%
     dplyr::count(nc_pangolin_short, my, name = "Count") %>%
     ungroup() %>%
-    left_join(SC2db_v %>% dplyr::count(my, name = "TotalSeq"), by = "my") %>%
+    left_join(SC2db %>% dplyr::count(my, name = "TotalSeq"), by = "my") %>%
     mutate(Percentage = (Count / TotalSeq) * 100) %>%
     arrange(my) %>%
     mutate(Sampledate = as.Date(paste(my, "01"), format = "%Y %b %d"))
@@ -1307,18 +1349,17 @@ for (i in seq_along(unique_tessyrec)) {
   if (exists("log_timed_message", mode = "function")) {
     log_timed_message("Loop Tessy ", i, "/", length(unique_tessyrec), " START: ", tessy)
   }
-  subset_data <- get_data_for_tessy(tessy6mo, tessy)  # Retrieve the data for the specific tessy
-  
+  subset_data <- get_data_for_tessy(tessy6mo, tessy) # Retrieve the data for the specific tessy
+
   # Check if the subset is not empty
   if (nrow(subset_data) > 0) {
-    
     # Create the chart for sequence count
     collapsed_pangosrecgr <- ggplot(subset_data, aes(x = Sampledate, fill = nc_pangolin_short)) +
       geom_bar(aes(y = Count), stat = "identity") +
       labs(
         title = paste("Pangolin-nomenklatur per Tessy-kategori", tessy),
-        x = "", 
-        y = "Antall (n)", 
+        x = "",
+        y = "Antall (n)",
         fill = "Pangolin-nomenklatur"
       ) +
       scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") +
@@ -1327,27 +1368,28 @@ for (i in seq_along(unique_tessyrec)) {
         axis.text.x = element_text(angle = 90, size = 12),
         axis.text.y = element_text(size = 12)
       ) +
-      geom_text(aes(y = Count, label = paste(nc_pangolin_short, "(", Count, ")", sep = "")), 
-                position = position_stack(vjust = 0.5), 
-                color = "black", 
-                size = 3.5)
-    
+      geom_text(aes(y = Count, label = paste(nc_pangolin_short, "(", Count, ")", sep = "")),
+        position = position_stack(vjust = 0.5),
+        color = "black",
+        size = 3.5
+      )
+
     # Save the individual chart to PowerPoint without title
     plot_rvg <- dml(ggobj = collapsed_pangosrecgr)
     export_graph <- add_slide(export_graph, layout = "Title and Content", master = "Office Theme") %>%
       ph_with(plot_rvg, location = ph_location_fullsize())
-    
+
     # Calculate percentages for the subset data
     subset_data <- subset_data %>%
       mutate(Percent = Count / sum(Count) * 100) # Calculate the percentage
-    
+
     # Create the chart for percentage of sequences
     collapsed_pangosrecgr_percent <- ggplot(subset_data, aes(x = Sampledate, fill = nc_pangolin_short)) +
       geom_col(aes(y = Percent)) +
       labs(
         title = paste("Pangolin-nomenklatur per Tessy-kategori", tessy),
-        x = "", 
-        y = "Andel (%)", 
+        x = "",
+        y = "Andel (%)",
         fill = "Pangolin-nomenklatur"
       ) +
       scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") +
@@ -1356,11 +1398,12 @@ for (i in seq_along(unique_tessyrec)) {
         axis.text.x = element_text(angle = 90, size = 12),
         axis.text.y = element_text(size = 12)
       ) +
-      geom_text(aes(y = Percent, label = paste(nc_pangolin_short, "(", Count, ")", sep = "")), 
-                position = position_stack(vjust = 0.5), 
-                color = "black", 
-                size = 3.5)
-    
+      geom_text(aes(y = Percent, label = paste(nc_pangolin_short, "(", Count, ")", sep = "")),
+        position = position_stack(vjust = 0.5),
+        color = "black",
+        size = 3.5
+      )
+
     # Save percentage plot to PowerPoint
     plot_rvg_percent <- dml(ggobj = collapsed_pangosrecgr_percent)
     export_graph <- add_slide(export_graph, layout = "Title and Content", master = "Office Theme") %>%
@@ -1376,11 +1419,13 @@ for (i in seq_along(unique_tessyrec)) {
 # ################Table last 4 months Tessy frequency ############################
 
 # Round the Percent column to 2 decimal points
-p4modata  <- subset_data4mo %>% mutate(n = paste0(count, " (", round(Percent, 2), "%", ")"))
+p4modata <- subset_data4mo %>% mutate(n = paste0(count, " (", round(Percent, 2), "%", ")"))
 
 # Pivot wider on the "my" column, keeping count as a separate value
-pv4modata <- p4modata %>% pivot_wider(names_from = my,id_cols = Tessy, values_from = n, 
-                                      values_fill = list(count = 0, Percent = 0) ) 
+pv4modata <- p4modata %>% pivot_wider(
+  names_from = my, id_cols = Tessy, values_from = n,
+  values_fill = list(count = 0, Percent = 0)
+)
 
 # Display the updated dataframe
 pv4modata
@@ -1391,7 +1436,7 @@ export_graph <- add_slide(export_graph, layout = "Title and Content", master = "
 export_graph <- ph_with(export_graph, ft, location = ph_location_type(type = "body"))
 
 
-##########################Combined bar and line plot with tessy variables################
+########################## Combined bar and line plot with tessy variables################
 
 # ------------- STEP 1: Process Data -------------
 # Step 1: Rename 'Tessy' values based on the condition
@@ -1404,8 +1449,8 @@ subset_data12mo_mod <- subset_data12mo %>%
 subset_data12mo_mod <- subset_data12mo_mod %>%
   group_by(Sampledate, Tessy) %>% # Group by month (Sampledate) and variant (Tessy)
   summarise(
-    count = sum(count),           # Recalculate counts for each category
-    TotalSeq = first(TotalSeq),   # Keep the total sequences for the month
+    count = sum(count), # Recalculate counts for each category
+    TotalSeq = first(TotalSeq), # Keep the total sequences for the month
     .groups = "drop_last"
   )
 
@@ -1426,8 +1471,9 @@ grtessymtp_12mo <- ggplot(subset_data12mo, aes(x = Sampledate, y = Percent, fill
 
 # ------------- PLOT 2: Grey Bars for TotalSeq with Line Plot for Percentages -------------
 combined_plot_12mo_mod <- ggplot(subset_data12mo_modp, aes(x = Sampledate)) +
-  geom_bar(aes(y = TotalSeq / max(TotalSeq) * 100, fill = "TotalSeq"), 
-           stat = "identity", alpha = 0.5, color = "black", position = "identity") +
+  geom_bar(aes(y = TotalSeq / max(TotalSeq) * 100, fill = "TotalSeq"),
+    stat = "identity", alpha = 0.5, color = "black", position = "identity"
+  ) +
   geom_line(aes(y = Percent, color = Tessy, group = Tessy), linewidth = 2) +
   scale_y_continuous(
     name = "Andel (%)",
@@ -1438,15 +1484,15 @@ combined_plot_12mo_mod <- ggplot(subset_data12mo_modp, aes(x = Sampledate)) +
   ) +
   scale_color_manual(values = variant_color, name = "Pangolin-nomenklatur") +
   scale_fill_manual(values = c("TotalSeq" = "grey"), name = "", labels = "Antall (n)") +
-  scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") + # Same scale on x-axis but no limits 
+  scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") + # Same scale on x-axis but no limits
   labs(x = "") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90, size = 10))
 
 # ------------- COMBINE PLOTS USING PATCHWORK -------------
 # Adjusting the height of the lower graph to be bigger (increasing lower plot's relative height in the layout)
-combined_plot <- grtessymtp_12mo / combined_plot_12mo_mod + 
-  plot_layout(guides = "collect", heights = c(3, 2))  # Adjusting height proportions (3 for lower plot)
+combined_plot <- grtessymtp_12mo / combined_plot_12mo_mod +
+  plot_layout(guides = "collect", heights = c(3, 2)) # Adjusting height proportions (3 for lower plot)
 
 # Print the combined plot
 
@@ -1454,8 +1500,7 @@ export_graph <- add_slide(export_graph, layout = "Title and Content", master = "
 export_graph <- ph_with(export_graph, value = combined_plot, location = ph_location_fullsize())
 
 
- ### Season only Tessy with trends 
-
+### Season only Tessy with trends
 
 
 # Assuming subset_data_season is correctly defined and has the necessary columns
@@ -1467,13 +1512,14 @@ subset_data_season_gr <- ggplot(subset_data_season, aes(x = Sampledate, y = Perc
   theme_minimal() +
   theme(
     axis.text.x = element_blank(), # Remove x-axis labels
-    axis.title.x = element_blank()  # Optionally, remove x-axis title
+    axis.title.x = element_blank() # Optionally, remove x-axis title
   )
 
 # Assuming subset_data_season_p is defined and has necessary columns
 subset_data_season_pgr <- ggplot(subset_data_season_p, aes(x = Sampledate)) +
-  geom_bar(aes(y = TotalSeq / max(TotalSeq) * 100, fill = "TotalSeq"), 
-           stat = "identity", alpha = 0.5, color = "black", position = "identity") +
+  geom_bar(aes(y = TotalSeq / max(TotalSeq) * 100, fill = "TotalSeq"),
+    stat = "identity", alpha = 0.5, color = "black", position = "identity"
+  ) +
   geom_line(aes(y = Percent, color = Tessy, group = Tessy), linewidth = 1.5) +
   scale_y_continuous(
     name = "Andel (%)",
@@ -1493,7 +1539,7 @@ subset_data_season_pgr <- ggplot(subset_data_season_p, aes(x = Sampledate)) +
   )
 
 # Combine the plots using Patchwork, adjusting the heights appropriately
-combined_plot <- subset_data_season_gr / subset_data_season_pgr + 
+combined_plot <- subset_data_season_gr / subset_data_season_pgr +
   plot_layout(guides = "collect", heights = c(3, 2))
 
 # Display the combined plot
@@ -1511,13 +1557,14 @@ subset_data_year_gr <- ggplot(subset_data_year, aes(x = Sampledate, y = Percent,
   theme_minimal() +
   theme(
     axis.text.x = element_blank(), # Remove x-axis labels
-    axis.title.x = element_blank()  # Optionally, remove x-axis title
+    axis.title.x = element_blank() # Optionally, remove x-axis title
   )
 
 # Assuming subset_data_season_p is defined and has necessary columns
 subset_data_year_pgr <- ggplot(subset_data_year_p, aes(x = Sampledate)) +
-  geom_bar(aes(y = TotalSeq / max(TotalSeq) * 100, fill = "TotalSeq"), 
-           stat = "identity", alpha = 0.5, color = "black", position = "identity") +
+  geom_bar(aes(y = TotalSeq / max(TotalSeq) * 100, fill = "TotalSeq"),
+    stat = "identity", alpha = 0.5, color = "black", position = "identity"
+  ) +
   geom_line(aes(y = Percent, color = Tessy, group = Tessy), linewidth = 1.5) +
   scale_y_continuous(
     name = "Andel (%)",
@@ -1537,7 +1584,7 @@ subset_data_year_pgr <- ggplot(subset_data_year_p, aes(x = Sampledate)) +
   )
 
 # Combine the plots using Patchwork, adjusting the heights appropriately
-combined_plot <- subset_data_year_gr / subset_data_year_pgr + 
+combined_plot <- subset_data_year_gr / subset_data_year_pgr +
   plot_layout(guides = "collect", heights = c(3, 2))
 
 # Display the combined plot
@@ -1554,18 +1601,18 @@ export_graph <- ph_with(export_graph, value = combined_plot, location = ph_locat
 # ============================================================================
 
 export_graph <- add_section_slide(export_graph, "Mutation Analysis", "Mutation combinations, frequencies and domains")
-# ---- BEGIN INLINED: SC2/SC2_Spike_mut_of_interest.R ----
+# ---- BEGIN INLINED: SC2/SC2_spike_mut_of_interest.R ----
 export_graph <- add_slide(export_graph, layout = "Title and Content", master = "Office Theme") %>%
   ph_with(value = "Spike-mutasjoner av interesse", location = ph_location_type(type = "title"))
 
 # Extract relevant mutation data and perform initial filtering and transformations
-mutfr <- SC2db_v %>%
-  select(prove_tatt, Spike_mut, nc_pangolin_short, Collapsed_pango, Tessy) %>%
+mutfr <- SC2db %>%
+  select(prove_tatt, spike_mut, nc_pangolin_short, Collapsed_pango, Tessy) %>%
   filter(prove_tatt >= Sys.Date() - 365) %>%
   mutate(
-    Sampledate = as.Date(prove_tatt),         # Convert prove_tatt to Date format
-    Substitution = gsub(";", ",", Spike_mut),  # Replace semicolons with commas
-    month = format(Sampledate, "%Y-%m"),      # Extract Year-Month
+    Sampledate = as.Date(prove_tatt), # Convert prove_tatt to Date format
+    Substitution = gsub(";", ",", spike_mut), # Replace semicolons with commas
+    month = format(Sampledate, "%Y-%m"), # Extract Year-Month
     Tessy_group = as.character(Tessy),
     Tessy_group = ifelse(is.na(Tessy_group) | trimws(Tessy_group) == "", "Ukjent", Tessy_group)
   ) %>%
@@ -1576,16 +1623,16 @@ mutfr <- SC2db_v %>%
   mutate(
     n = ifelse(is.na(n), 0, n),
     n_mut = str_count(Substitution, ","),
-    date = as.Date(paste0(month, "-01"))     # Set to first day of the month
+    date = as.Date(paste0(month, "-01")) # Set to first day of the month
   ) %>%
-  arrange(date)                               # Sort by date
+  arrange(date) # Sort by date
 
 mutfr_monthly <- mutfr %>%
   group_by(date, Tessy_group, n_mut) %>%
   summarise(n = sum(n), .groups = "drop")
 
 grnmutfr <- ggplot(mutfr_monthly, aes(x = date, y = n_mut, color = Tessy_group, size = n)) +
-  geom_point(alpha = 0.85, position = position_jitter(width = 2, height = 0.08, seed = 2526)) +
+  geom_point(alpha = 0.85, position = position_jitter(width = 2, height = 0.08, seed = 2526), na.rm = TRUE) +
   labs(
     title = "Punktplott av mutasjoner per type og m\u00e5ned",
     x = "M\u00e5ned",
@@ -1611,14 +1658,14 @@ export_graph <- add_slide(export_graph, layout = "Title and Content", master = "
 export_graph <- ph_with(export_graph, value = grnmutfr, location = ph_location_fullsize())
 
 # Create a heatmap for mutation combinations over the last 12 months
-S_mut_data <- SC2db_v %>%
-  filter(grepl(paste(mutations, collapse = "|"), Spike_mut)) %>%
+S_mut_data <- SC2db %>%
+  filter(grepl(paste(mutations, collapse = "|"), spike_mut)) %>%
   mutate(
     Sampledate = as.Date(prove_tatt),
-    Substitution = gsub(";", ",", Spike_mut),
+    Substitution = gsub(";", ",", spike_mut),
     YearMonth = format(Sampledate, "%Y %b")
   ) %>%
-  select(Sampledate, Spike_mut, nc_pangolin_short, Collapsed_pango, YearMonth) %>%
+  select(Sampledate, spike_mut, nc_pangolin_short, Collapsed_pango, YearMonth) %>%
   filter(Sampledate >= Sys.Date() - months(12))
 
 # Create binary columns indicating the presence of each mutation
@@ -1627,7 +1674,7 @@ for (mutation in mutations) {
   if (exists("log_timed_message", mode = "function")) {
     log_timed_message("Loop Mutation column START: ", mutation)
   }
-  S_mut_data[[mutation]] <- as.integer(str_detect(S_mut_data$Spike_mut, mutation))
+  S_mut_data[[mutation]] <- as.integer(str_detect(S_mut_data$spike_mut, mutation))
   if (exists("log_timed_message", mode = "function")) {
     loop_elapsed <- as.numeric(difftime(Sys.time(), loop_started_at, units = "secs"))
     log_timed_message("Loop Mutation column DONE: ", mutation, " (", sprintf("%.2f", loop_elapsed), "s)")
@@ -1641,11 +1688,11 @@ S_mut_data <- S_mut_data %>%
 # Summarize occurrences of each mutation combination by month
 counts <- S_mut_data %>%
   group_by(YearMonth, Combination) %>%
-  summarise(Count = n(), .groups = 'drop')
+  summarise(Count = n(), .groups = "drop")
 
 countspango <- S_mut_data %>%
   group_by(YearMonth, nc_pangolin_short, Combination) %>%
-  summarise(Count = n(), .groups = 'drop')
+  summarise(Count = n(), .groups = "drop")
 
 # Join with total sequences per month
 counts <- counts %>%
@@ -1690,14 +1737,14 @@ for (combination in unique_combinations) {
   # Subset data for the current combination
   subset_data <- countspango %>%
     filter(Combination == combination)
-  
+
   # Plot for sequence count
   collapsed_pangosrecgr <- ggplot(subset_data, aes(x = Sampledate, fill = nc_pangolin_short)) +
     geom_bar(aes(y = Count), stat = "identity") +
     labs(
       title = paste("Pangolin-nomenklatur per kombinasjon av spike-mutasjoner for", combination),
-    x = "M\u00e5ned",
-      y = "Antall (n)", 
+      x = "M\u00e5ned",
+      y = "Antall (n)",
       fill = "Pangolin-nomenklatur"
     ) +
     scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") +
@@ -1706,27 +1753,28 @@ for (combination in unique_combinations) {
       axis.text.x = element_text(angle = 90, size = 12),
       axis.text.y = element_text(size = 12)
     ) +
-    geom_text(aes(y = Count, label = paste(nc_pangolin_short, "(", Count, ")", sep = "")), 
-              position = position_stack(vjust = 0.5), 
-              color = "black", 
-              size = 3.5)
-  
+    geom_text(aes(y = Count, label = paste(nc_pangolin_short, "(", Count, ")", sep = "")),
+      position = position_stack(vjust = 0.5),
+      color = "black",
+      size = 3.5
+    )
+
   # Save the count plot to PowerPoint as a vector graphic
   plot_rvg <- dml(ggobj = collapsed_pangosrecgr)
   export_graph <- add_slide(export_graph, layout = "Title and Content", master = "Office Theme") %>%
     ph_with(plot_rvg, location = ph_location_fullsize())
-  
+
   # Calculate percentages for the subset data
   subset_data <- subset_data %>%
     mutate(Percent = Count / sum(Count) * 100) # Calculate the percentage
-  
+
   # Plot for percentage of sequences
   collapsed_pangosrecgr_percent <- ggplot(subset_data, aes(x = Sampledate, fill = nc_pangolin_short)) +
     geom_col(aes(y = Percent)) +
     labs(
       title = paste("Andel av Pangolin-nomenklatur per kombinasjon av spike-mutasjoner for", combination),
-    x = "M\u00e5ned",
-      y = "Andel (%)", 
+      x = "M\u00e5ned",
+      y = "Andel (%)",
       fill = "Pangolin-nomenklatur"
     ) +
     scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") +
@@ -1735,11 +1783,12 @@ for (combination in unique_combinations) {
       axis.text.x = element_text(angle = 90, size = 12),
       axis.text.y = element_text(size = 12)
     ) +
-    geom_text(aes(y = Percent, label = paste(nc_pangolin_short, "(", Count, ")", sep = "")), 
-              position = position_stack(vjust = 0.5), 
-              color = "black", 
-              size = 3.5)
-  
+    geom_text(aes(y = Percent, label = paste(nc_pangolin_short, "(", Count, ")", sep = "")),
+      position = position_stack(vjust = 0.5),
+      color = "black",
+      size = 3.5
+    )
+
   # Save percentage plot to PowerPoint
   plot_rvg_percent <- dml(ggobj = collapsed_pangosrecgr_percent)
   export_graph <- add_slide(export_graph, layout = "Title and Content", master = "Office Theme") %>%
@@ -1750,29 +1799,29 @@ for (combination in unique_combinations) {
   }
 }
 
-# ---- END INLINED: SC2/SC2_Spike_mut_of_interest.R ----
+# ---- END INLINED: SC2/SC2_spike_mut_of_interest.R ----
 
 
 # ============================================================================
 # MUTATION ANALYSIS - PANGOLIN FOCUS
 # ============================================================================
 
-# ---- BEGIN INLINED: SC2/SC2_Spike_mut_freq.R ----
+# ---- BEGIN INLINED: SC2/SC2_spike_mut_freq.R ----
 export_graph <- add_slide(export_graph, layout = "Title and Content", master = "Office Theme") %>%
   ph_with(value = "Spike-mutasjonsfrekvens", location = ph_location_type(type = "title"))
 
 # --- Filter and Prepare Linmut Data for Mutation Analysis ---
 
-Linmut <- SC2db_v %>%
+Linmut <- SC2db %>%
   # Select relevant columns for mutation analysis
-  select(Spike_mut, my, year, week, nc_pangolin_short, nc_pangolin_long, Collapsed_pango, Tessy, key, prove_tatt) %>%
+  select(spike_mut, my, year, week, nc_pangolin_short, nc_pangolin_long, Collapsed_pango, Tessy, key, prove_tatt) %>%
   # Filter to include data within the last year
   filter(prove_tatt >= Sys.Date() - 365) %>%
   # Split mutation data into separate entries per substitution
-  mutate(Substitution = str_split(Spike_mut, ";|,", simplify = FALSE)) %>%
+  mutate(Substitution = str_split(spike_mut, ";|,", simplify = FALSE)) %>%
   unnest(Substitution) %>%
   # Remove redundant columns and empty substitutions
-  select(-Spike_mut) %>%
+  select(-spike_mut) %>%
   mutate(Substitution = stringr::str_trim(as.character(Substitution))) %>%
   filter(Substitution != "")
 
@@ -1788,7 +1837,7 @@ spikecount <- Linmut %>%
     Percent = count / TotalSeq,
     Sampledate = as.Date(paste0(my, " 01"), format = "%Y %b %d")
   ) %>%
-  filter(Sampledate >= Sys.Date() - 365) 
+  filter(Sampledate >= Sys.Date() - 365)
 
 # --- Count Mutations per Uke by Pangolin Variant ---
 
@@ -1797,7 +1846,7 @@ spikecountcpango <- Linmut %>%
   ungroup() %>%
   # Join to get total sequence counts by variant and time period
   left_join(
-    SC2db_v %>%
+    SC2db %>%
       count(my, Collapsed_pango, name = "Total") %>%
       ungroup(),
     by = c("my", "Collapsed_pango")
@@ -1807,7 +1856,7 @@ spikecountcpango <- Linmut %>%
     Percent = count / Total,
     Sampledate = as.Date(paste0(my, " 01"), format = "%Y %b %d")
   ) %>%
-  filter(Sampledate >= Sys.Date() - 180) 
+  filter(Sampledate >= Sys.Date() - 180)
 
 # --- Identify Unique Pangolin Variants of Interest ---
 
@@ -1826,7 +1875,7 @@ for (collapsed_pango in unique_collapsed_pangos$Collapsed_pango) {
   # Filter data for the current variant
   plot_data <- spikecountcpango %>%
     filter(Collapsed_pango == collapsed_pango)
-  
+
   # Generate line plot of mutation percentage over time
   plot <- ggplot(plot_data, aes(x = Sampledate, y = Percent, group = Substitution, colour = Substitution)) +
     geom_line(linewidth = 1) +
@@ -1842,7 +1891,7 @@ for (collapsed_pango in unique_collapsed_pangos$Collapsed_pango) {
       axis.title.x = element_text(color = "grey20", size = 15, angle = 0, hjust = .5, vjust = 0.5, face = "bold"),
       axis.title.y = element_text(color = "grey20", size = 15, angle = 90, hjust = .5, vjust = .5, face = "bold")
     ) +
-    scale_colour_discrete(guide = 'none') +
+    scale_colour_discrete(guide = "none") +
     scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0, 0)) +
     # Add labels for recent mutations of interest
     geom_text_repel(
@@ -1859,8 +1908,8 @@ for (collapsed_pango in unique_collapsed_pangos$Collapsed_pango) {
       box.padding = 2,
       max.overlaps = Inf,
       show.legend = FALSE
-    ) 
-  
+    )
+
   # Use save_plot function to save the plot and insert into PowerPoint
   export_graph <- save_plot(plot, paste("Spike Mutations -", collapsed_pango), export_graph)
   if (exists("log_timed_message", mode = "function")) {
@@ -1888,20 +1937,20 @@ plots <- lapply(mut_int$Substitution, function(mut) {
   x_i <- Linmut %>%
     filter(str_detect(Substitution, mut), my >= Sys.Date() - months(3)) %>%
     count(my, nc_pangolin_short, Substitution)
-  
+
   # Create a tree map for the mutation composition
   tm <- ggplot(x_i, aes(area = n, fill = nc_pangolin_short, label = nc_pangolin_short)) +
     geom_treemap() +
     geom_treemap_text(color = "white", place = "centre", grow = TRUE) +
     ggtitle(mut) +
-    theme(legend.position = "none")  # Suppress the legend display
-  
+    theme(legend.position = "none") # Suppress the legend display
+
   tm
 })
 
 # Define the layout of the plots on each slide
 num_plots <- length(plots)
-plots_per_slide <- 2 * 2  # Number of plots per slide
+plots_per_slide <- 2 * 2 # Number of plots per slide
 num_slides <- ceiling(num_plots / plots_per_slide)
 
 # Loop to Save Tree Map Grids Across Multiple Slides
@@ -1913,13 +1962,13 @@ for (slide_index in 1:num_slides) {
   # Identify the range of plots for this slide
   start_plot <- (slide_index - 1) * plots_per_slide + 1
   end_plot <- min(start_plot + plots_per_slide - 1, num_plots)
-  
+
   # Subset the list of plots for the current slide
   plot_subset <- plots[start_plot:end_plot]
-  
+
   # Arrange selected plots into a grid
   combined_plot <- plot_grid(plotlist = plot_subset, ncol = 2)
-  
+
   # Use save_plot function to save combined plot and insert into PowerPoint
   export_graph <- save_plot(combined_plot, paste("Mutation Composition - Slide", slide_index), export_graph)
   if (exists("log_timed_message", mode = "function")) {
@@ -1928,41 +1977,40 @@ for (slide_index in 1:num_slides) {
   }
 }
 
-  
-  # --- Spike lollipop map: mutation position + domain + Collapsed_pango ---
 
-  Linmut <- Linmut %>%
-    mutate(Number = as.integer(gsub("\\D", "", Substitution))) %>%
-    mutate(Sampledate = as.Date(paste0(my, " 01"), format = "%Y %b %d")) %>%
-    filter(!is.na(Number), Number >= 1, Number <= 1273) %>%
-    mutate(Domain = case_when(
-      Number < 13                      ~ "SP",
-      Number >= 13 & Number <= 205     ~ "NTD",
-      Number >= 319 & Number <= 541    ~ "RBD",
-      Number >= 788 & Number <= 806    ~ "FP",
-      Number >= 912 & Number <= 984    ~ "HR1",
-      Number >= 1163 & Number <= 1213  ~ "HR2",
-      Number >= 1214 & Number <= 1237  ~ "TM",
-      Number >= 1238 & Number <= 1273  ~ "CT",
-      TRUE                             ~ "Andre"
-    ))
+# --- Spike lollipop map: mutation position + domain + Collapsed_pango ---
 
-  domainmutcp <- Linmut %>%
-    mutate(
-      Tessy_group = as.character(Tessy),
-      Tessy_group = ifelse(is.na(Tessy_group) | trimws(Tessy_group) == "", "Ukjent", Tessy_group)
-    ) %>%
-    group_by(Tessy_group, Substitution, Number, Domain) %>%
-    summarise(n = n(), .groups = "drop")
+Linmut <- Linmut %>%
+  mutate(Number = as.integer(gsub("\\D", "", Substitution))) %>%
+  mutate(Sampledate = as.Date(paste0(my, " 01"), format = "%Y %b %d")) %>%
+  filter(!is.na(Number), Number >= 1, Number <= 1273) %>%
+  mutate(Domain = case_when(
+    Number < 13 ~ "SP",
+    Number >= 13 & Number <= 205 ~ "NTD",
+    Number >= 319 & Number <= 541 ~ "RBD",
+    Number >= 788 & Number <= 806 ~ "FP",
+    Number >= 912 & Number <= 984 ~ "HR1",
+    Number >= 1163 & Number <= 1213 ~ "HR2",
+    Number >= 1214 & Number <= 1237 ~ "TM",
+    Number >= 1238 & Number <= 1273 ~ "CT",
+    TRUE ~ "Andre"
+  ))
 
-  # Keep only Tessy groups with observed mutations for this view.
-  domainmutcp <- domainmutcp %>%
-    filter(!is.na(Tessy_group), trimws(as.character(Tessy_group)) != "")
+domainmutcp <- Linmut %>%
+  mutate(
+    Tessy_group = as.character(Tessy),
+    Tessy_group = ifelse(is.na(Tessy_group) | trimws(Tessy_group) == "", "Ukjent", Tessy_group)
+  ) %>%
+  group_by(Tessy_group, Substitution, Number, Domain) %>%
+  summarise(n = n(), .groups = "drop")
 
-  if (nrow(domainmutcp) == 0) {
-    message("No valid Spike mutation positions found for domain lollipop map.")
-  } else {
+# Keep only Tessy groups with observed mutations for this view.
+domainmutcp <- domainmutcp %>%
+  filter(!is.na(Tessy_group), trimws(as.character(Tessy_group)) != "")
 
+if (nrow(domainmutcp) == 0) {
+  message("No valid Spike mutation positions found for domain lollipop map.")
+} else {
   domain_df <- tibble::tribble(
     ~Domain, ~xmin, ~xmax,
     "SP", 1, 12,
@@ -2064,11 +2112,10 @@ for (slide_index in 1:num_slides) {
       export_graph
     )
   }
-  }
-  
+}
 
 
-# ---- END INLINED: SC2/SC2_Spike_mut_freq.R ----
+# ---- END INLINED: SC2/SC2_spike_mut_freq.R ----
 
 
 # ============================================================================
@@ -2081,7 +2128,7 @@ export_graph <- add_section_slide(
   "Mutasjonstrender fordelt p\u00e5 type og gen (fasettert etter Tessy)"
 )
 
-sc2_indel_source <- if (exists("SC2db_v")) SC2db_v else SC2db
+sc2_indel_source <- if (exists("SC2db")) SC2db else SC2db
 sc2_indel_date_col <- intersect(c("prove_tatt", "PROVE_TATT", "sample_date", "Sampledate"), names(sc2_indel_source))[1]
 sc2_indel_cols <- names(sc2_indel_source)[grepl("(frameshift|insertion|deletion)", names(sc2_indel_source), ignore.case = TRUE)]
 sc2_tessy_col <- intersect(c("Tessy", "tessy"), names(sc2_indel_source))[1]
@@ -2205,7 +2252,7 @@ export_graph <- add_section_slide(
 )
 
 # Paxlovid resistance
-dr_pax <- SC2db_v %>%
+dr_pax <- SC2db %>%
   group_by(Tessy, dr_3c_lpro_mut, dr_res_paxlovid, dr_3c_lpro_fold) %>%
   filter(!is.na(dr_3c_lpro_mut) &
     dr_3c_lpro_mut != "NA" &
@@ -2217,7 +2264,7 @@ dr_pax <- SC2db_v %>%
   as.data.frame()
 
 # Remdesivir resistance
-dr_remd <- SC2db_v %>%
+dr_remd <- SC2db %>%
   group_by(Tessy, dr_rd_rp_mut, dr_res_remdesevir, dr_rd_rp_fold) %>%
   filter(!is.na(dr_rd_rp_mut) &
     dr_rd_rp_mut != "NA" &
@@ -2229,7 +2276,7 @@ dr_remd <- SC2db_v %>%
   as.data.frame()
 
 # Antibody resistance
-dr_ab <- SC2db_v %>%
+dr_ab <- SC2db %>%
   group_by(Tessy, dr_spike_m_abs, dr_spike_m_abs_fold) %>%
   filter(!is.na(dr_3c_lpro_mut) &
     dr_spike_m_abs != "NA" &
@@ -2268,8 +2315,8 @@ for (table_info in table_data) {
 # ============================================================================
 export_graph <- add_section_slide(export_graph, "CT-verdier kvalitet", "PCR CT-fordelinger per Tessy")
 
-# Use SC2db_v if it exists, otherwise default to SC2db_v.
-ct_source_df <- if (exists("SC2db_v")) SC2db_v else SC2db_v
+# Use SC2db if it exists, otherwise default to SC2db.
+ct_source_df <- if (exists("SC2db")) SC2db else SC2db
 
 # Resolve column names robustly across naming styles in current datasets.
 ct_col <- intersect(c("pcr_sc2_ext_ct", "PCR_SC2_EXT_CT"), names(ct_source_df))[1]
@@ -2357,7 +2404,7 @@ if (!is.na(ct_col) && !is.na(tessy_col) && !is.na(pango_col) && !is.na(date_col)
 # AGE DISTRIBUTION BY TESSY (3M/6M)
 # ============================================================================
 
-age_source_df <- if (exists("SC2db_v")) SC2db_v else SC2db
+age_source_df <- if (exists("SC2db")) SC2db else SC2db
 
 age_date_col <- intersect(c("prove_tatt", "PROVE_TATT", "sample_date", "Sampledate"), names(age_source_df))[1]
 age_tessy_col <- intersect(c("Tessy", "tessy"), names(age_source_df))[1]
@@ -2504,7 +2551,7 @@ if (FALSE) {
 # ============================================================================
 export_graph <- add_section_slide(export_graph, "Befolkning under overv\u00e5king")
 
-patient_source_df <- if (exists("SC2db_v")) SC2db_v else SC2db
+patient_source_df <- if (exists("SC2db")) SC2db else SC2db
 patient_tessy_col <- intersect(c("Tessy", "tessy"), names(patient_source_df))[1]
 patient_date_col <- intersect(c("prove_tatt", "PROVE_TATT", "sample_date", "Sampledate"), names(patient_source_df))[1]
 patient_fylke_col <- intersect(c("pasient_fylke_name", "fylkenavn", "pasient_fylke"), names(patient_source_df))[1]
@@ -2611,9 +2658,9 @@ if (!is.na(patient_tessy_col)) {
       fill_palette = kvantitativ_b2
     )
     if (!is.null(p_fylke_curr) && !is.null(p_fylke_prev)) {
-      p_fylke_pair <- (p_fylke_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(nrow(sc2_curr)), ")"))) |
-        (p_fylke_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(nrow(sc2_prev)), ")")))
-      export_graph <- export_to_ppt(export_graph, p_fylke_pair, "Map: Fylke fordeling - left current, right previous")
+      p_fylke_pair <- (p_fylke_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(nrow(sc2_prev)), ")"))) |
+        (p_fylke_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(nrow(sc2_curr)), ")")))
+      export_graph <- export_to_ppt(export_graph, p_fylke_pair, "Map: Fylke fordeling - left previous, right current")
     }
   }
   if (!is.na(patient_fylke_col) && !is.na(patient_landsdel_col)) {
@@ -2632,9 +2679,9 @@ if (!is.na(patient_tessy_col)) {
       palette_base = kvalitativ_comb
     )
     if (!is.null(p_landsdel_curr) && !is.null(p_landsdel_prev)) {
-      p_landsdel_pair <- (p_landsdel_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(nrow(sc2_curr)), ")"))) |
-        (p_landsdel_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(nrow(sc2_prev)), ")")))
-      export_graph <- export_to_ppt(export_graph, p_landsdel_pair, "Map: Landsdel fordeling - left current, right previous")
+      p_landsdel_pair <- (p_landsdel_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(nrow(sc2_prev)), ")"))) |
+        (p_landsdel_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(nrow(sc2_curr)), ")")))
+      export_graph <- export_to_ppt(export_graph, p_landsdel_pair, "Map: Landsdel fordeling - left previous, right current")
     }
   }
 
@@ -2728,10 +2775,3 @@ log_timed_message("Share PPTX path: ", share_written_path)
 
 total_elapsed_sec <- as.numeric(difftime(Sys.time(), analysis_started_at, units = "secs"))
 log_timed_message("TOTAL RUNTIME: ", sprintf("%.2f", total_elapsed_sec), "s")
-
-# nolint end
-
-
-
-
-

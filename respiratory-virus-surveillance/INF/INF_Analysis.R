@@ -1,4 +1,3 @@
-# nolint start
 resolve_script_dir <- function() {
   args_all <- commandArgs(trailingOnly = FALSE)
   file_arg <- grep("^--file=", args_all, value = TRUE)
@@ -30,6 +29,8 @@ timed_step <- function(step_name, expr) {
 
 invisible(timed_step("Source INF SQL query script", source(file.path(bundle_scripts_dir, "INF_SQLquery_25-26.R"))))
 
+invisible(timed_step("Source INF data cleaning script", source(file.path(bundle_scripts_dir, "INF_DataCleaning_25-26.R"))))
+
 # ==============================================================================
 # Setup
 # ==============================================================================
@@ -55,7 +56,6 @@ required_packages <- c(
 )
 invisible(load_required_libraries(required_packages))
 invisible(timed_step("Source common report utilities", source("Source_files/common_report_utils.R")))
-invisible(timed_step("Source shared patient/prove plot helpers", source("Source_files/shared_patient_prove_plots.R")))
 
 Sys.setlocale("LC_TIME", "nb_NO.utf8")
 export_graph_f <- read_pptx()
@@ -156,44 +156,12 @@ season_info <- current_and_previous_seasons(Sys.Date())
 current_season_label <- season_info$current_label
 previous_season_label <- season_info$previous_label
 
-normalize_norwegian_text <- function(x) {
-  iconv(x, from = "", to = "UTF-8", sub = "")
-}
-
-derive_landsdel_from_fylke <- function(fylke_vec) {
-  f <- normalize_norwegian_text(as.character(fylke_vec))
-  f <- trimws(f)
-  f <- stringr::str_to_lower(f)
-
-  dplyr::case_when(
-    f %in% c("agder", "aust-agder", "vest-agder") ~ "Sørlandet",
-    f %in% c("rogaland", "vestland", "hordaland", "sogn og fjordane", "møre og romsdal") ~ "Vestlandet",
-    f %in% c("trøndelag", "sør-trøndelag", "nord-trøndelag") ~ "Trøndelag",
-    f %in% c("nordland", "troms", "finnmark", "troms og finnmark") ~ "Nord-Norge",
-    f %in% c("oslo", "akershus", "østfold", "buskerud", "innlandet", "vestfold", "telemark", "vestfold og telemark", "viken", "hedmark", "oppland") ~ "Østlandet",
-    TRUE ~ NA_character_
-  )
-}
-
-if ("pasient_landsdel" %in% names(fludb)) {
-  fludb$pasient_landsdel <- normalize_norwegian_text(fludb$pasient_landsdel)
-  fludb$pasient_landsdel <- dplyr::recode(
-    fludb$pasient_landsdel,
-    "Sorlandet" = "S\u00f8rlandet",
-    "Trondelag" = "Tr\u00f8ndelag",
-    "Ostlandet" = "\u00d8stlandet",
-    .default = fludb$pasient_landsdel
-  )
-}
-if ("pasient_fylke_name" %in% names(fludb)) {
-  fludb$pasient_fylke_name <- normalize_norwegian_text(fludb$pasient_fylke_name)
-  fludb$pasient_landsdel_from_fylke <- derive_landsdel_from_fylke(fludb$pasient_fylke_name)
-}
-
-# Rebuild subclade signature map on each run; if rebuild fails, use repo fallback.
 signature_script_path <- file.path("Source_files", "Subclade_mutations_INF.ps1")
 signature_map_results_path <- file.path("Results", "Subclade_mutations_INF.csv")
-signature_map_fallback_path <- file.path("Source_files", "Subclade_mutations_INF.csv")
+signature_map_fallback_path <- file.path(
+  "Source_files",
+  "Subclade_mutations_INF.csv"
+)
 
 if (file.exists(signature_script_path)) {
   timed_step("Rebuild Subclade_mutations_INF.csv", {
@@ -345,7 +313,6 @@ fludb$mut_ha1_without_subclade_signature <- mapply(
   fludb$nc_ha_subclade,
   USE.NAMES = FALSE
 )
-
 
 
 # ==============================================================================
@@ -1688,334 +1655,334 @@ for (table_info in table_data) {
 # ==============================================================================
 
 if (FALSE) {
-export_graph_f <- add_section_slide(
-  export_graph_f,
-  "Seksjon: Pasientmetadata",
-  "Metadatafigurer og fordelinger beregnet fra fludb"
-)
-
-# Function to create a pie chart with counts
-create_pie_chart <- function(
-  data,
-  fill_var,
-  fill_label,
-  presentation,
-  layout = "Title and Content",
-  master = "Office Theme"
-) {
-  # Create a vector of labels that include counts
-  labels_with_counts <- paste(data[[fill_var]], "\nn=", data$count)
-
-  pie_chart <- ggplot(data, aes(x = "", y = count, fill = .data[[fill_var]])) +
-    geom_bar(stat = "identity", width = 1) + # Bar chart (needed for pie chart)
-    coord_polar("y", start = 0) + # Convert to pie chart
-    theme_void() + # Remove background and axis
-    scale_fill_manual(values = kvalitativ_comb, labels = labels_with_counts) + # Color palette with labels
-    labs(fill = fill_label) + # Label for legend
-    theme(legend.position = "right") # Position legend on the right
-
-  # Print the chart
-
-  # Save to PowerPoint
-  export_graph_f <- save_plot_to_ppt(
+  export_graph_f <- add_section_slide(
     export_graph_f,
-    pie_chart,
-    layout,
-    master,
-    title = paste("Fordeling:", fill_label)
+    "Seksjon: Pasientmetadata",
+    "Metadatafigurer og fordelinger beregnet fra fludb"
   )
 
-  return(export_graph_f)
-}
-
-
-# Function to create a percentage stacked bar chart
-create_percentage_stacked_bar_chart <- function(
-  data,
-  x_var,
-  y_var,
-  fill_var,
-  fill_label,
-  presentation,
-  layout = "Title and Content",
-  master = "Office Theme"
-) {
-  # Calculate percentages
-  data <- data %>%
-    group_by(.data[[x_var]]) %>%
-    mutate(percent = .data[[y_var]] / sum(.data[[y_var]]) * 100)
-
-  stacked_bar_chart <- ggplot(
+  # Function to create a pie chart with counts
+  create_pie_chart <- function(
     data,
-    aes(x = .data[[x_var]], y = percent, fill = .data[[fill_var]])
-  ) +
-    geom_bar(stat = "identity", position = "fill") + # Percentage stacked bar chart
-    labs(x = x_var, y = axis_share_label, fill = fill_label) + # Axis labels
-    scale_fill_manual(values = kvalitativ_comb) + # Use the color palette
-    theme_minimal() + # Minimal theme
-    theme(legend.position = "right") + # Position legend on the right
-    geom_text(
-      aes(label = paste0(round(percent, 1), "%")),
-      position = position_fill(vjust = 0.5),
-      color = fhi_text_dark
-    ) # Add text labels
+    fill_var,
+    fill_label,
+    presentation,
+    layout = "Title and Content",
+    master = "Office Theme"
+  ) {
+    # Create a vector of labels that include counts
+    labels_with_counts <- paste(data[[fill_var]], "\nn=", data$count)
 
-  # Print the chart
+    pie_chart <- ggplot(data, aes(x = "", y = count, fill = .data[[fill_var]])) +
+      geom_bar(stat = "identity", width = 1) + # Bar chart (needed for pie chart)
+      coord_polar("y", start = 0) + # Convert to pie chart
+      theme_void() + # Remove background and axis
+      scale_fill_manual(values = kvalitativ_comb, labels = labels_with_counts) + # Color palette with labels
+      labs(fill = fill_label) + # Label for legend
+      theme(legend.position = "right") # Position legend on the right
 
-  # Save to PowerPoint
-  export_graph_f <- save_plot_to_ppt(
-    export_graph_f,
-    stacked_bar_chart,
-    layout,
-    master,
-    title = paste("Andeler:", x_var, "og", fill_label)
-  )
+    # Print the chart
 
-  return(export_graph_f)
-}
+    # Save to PowerPoint
+    export_graph_f <- save_plot_to_ppt(
+      export_graph_f,
+      pie_chart,
+      layout,
+      master,
+      title = paste("Fordeling:", fill_label)
+    )
+
+    return(export_graph_f)
+  }
 
 
-# Function to create a standard bar chart
-create_standard_bar_chart <- function(
-  data,
-  x_var,
-  y_var,
-  fill_var,
-  fill_label,
-  presentation,
-  layout = "Title and Content",
-  master = "Office Theme"
-) {
-  # Create the bar chart using counts
-  standard_bar_chart <- ggplot(
+  # Function to create a percentage stacked bar chart
+  create_percentage_stacked_bar_chart <- function(
     data,
-    aes(x = .data[[x_var]], y = .data[[y_var]], fill = .data[[fill_var]])
-  ) +
-    geom_bar(stat = "identity") + # Standard bar chart
-    labs(x = x_var, y = axis_count_label, fill = fill_label) + # Axis labels
-    scale_fill_manual(values = kvalitativ_comb) + # Use the color palette
-    theme_minimal() + # Minimal theme
-    theme(legend.position = "right") + # Position legend on the right
-    geom_text(
-      aes(label = .data[[y_var]]), # Add text labels with counts
-      position = position_stack(vjust = 0.5),
-      color = fhi_text_dark
-    ) # Adjust label position
+    x_var,
+    y_var,
+    fill_var,
+    fill_label,
+    presentation,
+    layout = "Title and Content",
+    master = "Office Theme"
+  ) {
+    # Calculate percentages
+    data <- data %>%
+      group_by(.data[[x_var]]) %>%
+      mutate(percent = .data[[y_var]] / sum(.data[[y_var]]) * 100)
 
-  # Print the chart
+    stacked_bar_chart <- ggplot(
+      data,
+      aes(x = .data[[x_var]], y = percent, fill = .data[[fill_var]])
+    ) +
+      geom_bar(stat = "identity", position = "fill") + # Percentage stacked bar chart
+      labs(x = x_var, y = axis_share_label, fill = fill_label) + # Axis labels
+      scale_fill_manual(values = kvalitativ_comb) + # Use the color palette
+      theme_minimal() + # Minimal theme
+      theme(legend.position = "right") + # Position legend on the right
+      geom_text(
+        aes(label = paste0(round(percent, 1), "%")),
+        position = position_fill(vjust = 0.5),
+        color = fhi_text_dark
+      ) # Add text labels
 
-  # Save to PowerPoint
-  export_graph_f <- save_plot_to_ppt(
-    export_graph_f,
-    standard_bar_chart,
-    layout,
-    master,
-    title = paste("Antall:", x_var, "og", fill_label)
+    # Print the chart
+
+    # Save to PowerPoint
+    export_graph_f <- save_plot_to_ppt(
+      export_graph_f,
+      stacked_bar_chart,
+      layout,
+      master,
+      title = paste("Andeler:", x_var, "og", fill_label)
+    )
+
+    return(export_graph_f)
+  }
+
+
+  # Function to create a standard bar chart
+  create_standard_bar_chart <- function(
+    data,
+    x_var,
+    y_var,
+    fill_var,
+    fill_label,
+    presentation,
+    layout = "Title and Content",
+    master = "Office Theme"
+  ) {
+    # Create the bar chart using counts
+    standard_bar_chart <- ggplot(
+      data,
+      aes(x = .data[[x_var]], y = .data[[y_var]], fill = .data[[fill_var]])
+    ) +
+      geom_bar(stat = "identity") + # Standard bar chart
+      labs(x = x_var, y = axis_count_label, fill = fill_label) + # Axis labels
+      scale_fill_manual(values = kvalitativ_comb) + # Use the color palette
+      theme_minimal() + # Minimal theme
+      theme(legend.position = "right") + # Position legend on the right
+      geom_text(
+        aes(label = .data[[y_var]]), # Add text labels with counts
+        position = position_stack(vjust = 0.5),
+        color = fhi_text_dark
+      ) # Adjust label position
+
+    # Print the chart
+
+    # Save to PowerPoint
+    export_graph_f <- save_plot_to_ppt(
+      export_graph_f,
+      standard_bar_chart,
+      layout,
+      master,
+      title = paste("Antall:", x_var, "og", fill_label)
+    )
+
+    return(export_graph_f)
+  }
+
+  create_andel_antall_combined_plot <- function(
+    data,
+    x_var,
+    fill_var,
+    count_var = "n",
+    x_label = NULL,
+    title_base = NULL
+  ) {
+    if (is.null(x_label)) x_label <- x_var
+    if (is.null(title_base)) title_base <- x_var
+
+    p_andel <- ggplot(data, aes(x = .data[[x_var]], y = .data[[count_var]], fill = .data[[fill_var]])) +
+      geom_col(position = "fill") +
+      scale_fill_manual(values = kvalitativ_comb) +
+      scale_y_continuous(labels = percent_format(scale = 1), expand = c(0, 0)) +
+      labs(title = NULL, x = NULL, y = axis_share_label, fill = fill_var) +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "right")
+
+    p_antall <- ggplot(data, aes(x = .data[[x_var]], y = .data[[count_var]], fill = .data[[fill_var]])) +
+      geom_col() +
+      scale_fill_manual(values = kvalitativ_comb) +
+      labs(title = NULL, x = NULL, y = axis_count_label, fill = fill_var) +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
+
+    p_andel + p_antall +
+      plot_layout(ncol = 1, heights = c(1, 1), guides = "collect") &
+      theme(legend.position = "right")
+  }
+
+
+  # Create the summarized data for Prove Kategori
+  prove_kat <- fludb %>%
+    filter(tessy_reportable_variable != "") %>%
+    mutate(prove_kategori = prove_kategori_group) %>%
+    group_by(prove_kategori) %>%
+    summarise(count = n(), .groups = "drop") # Count samples for each category
+
+  # Create the pie chart for Prove Kategori
+  prove_kat_plot <- create_pie_chart(
+    prove_kat,
+    "prove_kategori",
+    "Prove Kategori"
   )
 
-  return(export_graph_f)
-}
-
-create_andel_antall_combined_plot <- function(
-  data,
-  x_var,
-  fill_var,
-  count_var = "n",
-  x_label = NULL,
-  title_base = NULL
-) {
-  if (is.null(x_label)) x_label <- x_var
-  if (is.null(title_base)) title_base <- x_var
-
-  p_andel <- ggplot(data, aes(x = .data[[x_var]], y = .data[[count_var]], fill = .data[[fill_var]])) +
-    geom_col(position = "fill") +
-    scale_fill_manual(values = kvalitativ_comb) +
-    scale_y_continuous(labels = percent_format(scale = 1), expand = c(0, 0)) +
-    labs(title = NULL, x = NULL, y = axis_share_label, fill = fill_var) +
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "right")
-
-  p_antall <- ggplot(data, aes(x = .data[[x_var]], y = .data[[count_var]], fill = .data[[fill_var]])) +
-    geom_col() +
-    scale_fill_manual(values = kvalitativ_comb) +
-    labs(title = NULL, x = NULL, y = axis_count_label, fill = fill_var) +
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "none")
-
-  p_andel + p_antall +
-    plot_layout(ncol = 1, heights = c(1, 1), guides = "collect") &
-    theme(legend.position = "right")
-}
+  # Create the summarized data for Pasient Status
+  pasient_hosp <- fludb %>%
+    filter(pasient_status != "") %>% # Remove empty pasient_status
+    group_by(pasient_status) %>% # Group by pasient_status
+    summarise(count = n(), .groups = "drop") # Count samples for each category
 
 
-# Create the summarized data for Prove Kategori
-prove_kat <- fludb %>%
-  filter(tessy_reportable_variable != "") %>%
-  mutate(prove_kategori = prove_kategori_group) %>%
-  group_by(prove_kategori) %>%
-  summarise(count = n(), .groups = "drop") # Count samples for each category
+  # Create the pie chart for Pasient Status
+  pasient_hospgr <- create_pie_chart(
+    pasient_hosp,
+    "pasient_status",
+    "Pasient Status"
+  )
 
-# Create the pie chart for Prove Kategori
-prove_kat_plot <- create_pie_chart(
-  prove_kat,
-  "prove_kategori",
-  "Prove Kategori"
-)
+  # Create the summarized data for Pasient Status and Prove Kategori
+  prove_kat_combined <- fludb %>%
+    filter(pasient_status != "") %>% # Remove empty pasient_status
+    mutate(
+      prove_kategori = prove_kategori_group
+    ) %>%
+    group_by(pasient_status, prove_kategori) %>%
+    count(name = "n") # Count samples for each combination
 
-# Create the summarized data for Pasient Status
-pasient_hosp <- fludb %>%
-  filter(pasient_status != "") %>% # Remove empty pasient_status
-  group_by(pasient_status) %>% # Group by pasient_status
-  summarise(count = n(), .groups = "drop") # Count samples for each category
-
-
-# Create the pie chart for Pasient Status
-pasient_hospgr <- create_pie_chart(
-  pasient_hosp,
-  "pasient_status",
-  "Pasient Status"
-)
-
-# Create the summarized data for Pasient Status and Prove Kategori
-prove_kat_combined <- fludb %>%
-  filter(pasient_status != "") %>% # Remove empty pasient_status
-  mutate(
-    prove_kategori = prove_kategori_group
-  ) %>%
-  group_by(pasient_status, prove_kategori) %>%
-  count(name = "n") # Count samples for each combination
-
-prove_kat_combined_plot <- create_andel_antall_combined_plot(
-  prove_kat_combined,
-  x_var = "pasient_status",
-  fill_var = "prove_kategori",
-  count_var = "n",
-  x_label = "Pasientstatus",
-  title_base = "Pasientstatus"
-)
-export_graph_f <- save_plot_to_ppt(export_graph_f, prove_kat_combined_plot, title = "Pasientstatus")
-
-# Create the summarized data for Pasient Status and subclade by subtype
-passtat_subclade <- fludb %>%
-  filter(
-    ngs_sekvens_resultat %in% c("A/H1N1", "A/H3N2", "B/Victoria"),
-    !is.na(nc_ha_subclade),
-    nc_ha_subclade != ""
-  ) %>%
-  group_by(ngs_sekvens_resultat, pasient_status, nc_ha_subclade) %>%
-  count(name = "n") %>%
-  group_by(ngs_sekvens_resultat, pasient_status) %>%
-  mutate(percent = n / sum(n) * 100) %>%
-  ungroup()
-
-for (subtype_name in c("A/H1N1", "A/H3N2", "B/Victoria")) {
-  subtype_passtat <- passtat_subclade %>% filter(ngs_sekvens_resultat == subtype_name)
-  if (nrow(subtype_passtat) == 0) next
-
-  combined_passtat_plot <- create_andel_antall_combined_plot(
-    subtype_passtat,
+  prove_kat_combined_plot <- create_andel_antall_combined_plot(
+    prove_kat_combined,
     x_var = "pasient_status",
-    fill_var = "nc_ha_subclade",
+    fill_var = "prove_kategori",
     count_var = "n",
     x_label = "Pasientstatus",
     title_base = "Pasientstatus"
   )
-  export_graph_f <- save_plot_to_ppt(
-    export_graph_f,
-    combined_passtat_plot,
-    title = paste(subtype_name, "- Pasientstatus")
+  export_graph_f <- save_plot_to_ppt(export_graph_f, prove_kat_combined_plot, title = "Pasientstatus")
+
+  # Create the summarized data for Pasient Status and subclade by subtype
+  passtat_subclade <- fludb %>%
+    filter(
+      ngs_sekvens_resultat %in% c("A/H1N1", "A/H3N2", "B/Victoria"),
+      !is.na(nc_ha_subclade),
+      nc_ha_subclade != ""
+    ) %>%
+    group_by(ngs_sekvens_resultat, pasient_status, nc_ha_subclade) %>%
+    count(name = "n") %>%
+    group_by(ngs_sekvens_resultat, pasient_status) %>%
+    mutate(percent = n / sum(n) * 100) %>%
+    ungroup()
+
+  for (subtype_name in c("A/H1N1", "A/H3N2", "B/Victoria")) {
+    subtype_passtat <- passtat_subclade %>% filter(ngs_sekvens_resultat == subtype_name)
+    if (nrow(subtype_passtat) == 0) next
+
+    combined_passtat_plot <- create_andel_antall_combined_plot(
+      subtype_passtat,
+      x_var = "pasient_status",
+      fill_var = "nc_ha_subclade",
+      count_var = "n",
+      x_label = "Pasientstatus",
+      title_base = "Pasientstatus"
+    )
+    export_graph_f <- save_plot_to_ppt(
+      export_graph_f,
+      combined_passtat_plot,
+      title = paste(subtype_name, "- Pasientstatus")
+    )
+  }
+
+  # Create the summarized data for Pasient_aldersgruppe
+  pasage <- fludb %>%
+    filter(tessy_reportable_variable != "") %>%
+    group_by(pasient_aldersgruppe) %>% # Group by prove_kategori
+    summarise(count = n(), .groups = "drop") # Count samples for each category
+
+  # Create the pie chart for Pasient_aldersgruppe
+  pas_age_plot <- create_pie_chart(
+    pasage,
+    "pasient_aldersgruppe",
+    "Pasient aldersgruppe NGS"
   )
-}
 
-# Create the summarized data for Pasient_aldersgruppe
-pasage <- fludb %>%
-  filter(tessy_reportable_variable != "") %>%
-  group_by(pasient_aldersgruppe) %>% # Group by prove_kategori
-  summarise(count = n(), .groups = "drop") # Count samples for each category
+  # Create summarized data for Pasient Aldersgruppe and subclade by subtype
+  pasage_subclade <- fludb %>%
+    filter(
+      ngs_sekvens_resultat %in% c("A/H1N1", "A/H3N2", "B/Victoria"),
+      !is.na(nc_ha_subclade),
+      nc_ha_subclade != ""
+    ) %>%
+    group_by(ngs_sekvens_resultat, pasient_aldersgruppe, nc_ha_subclade) %>%
+    count(name = "n") %>%
+    group_by(ngs_sekvens_resultat, pasient_aldersgruppe) %>%
+    mutate(percent = n / sum(n) * 100) %>%
+    ungroup()
 
-# Create the pie chart for Pasient_aldersgruppe
-pas_age_plot <- create_pie_chart(
-  pasage,
-  "pasient_aldersgruppe",
-  "Pasient aldersgruppe NGS"
-)
+  for (subtype_name in c("A/H1N1", "A/H3N2", "B/Victoria")) {
+    subtype_pasage <- pasage_subclade %>% filter(ngs_sekvens_resultat == subtype_name)
+    if (nrow(subtype_pasage) == 0) next
 
-# Create summarized data for Pasient Aldersgruppe and subclade by subtype
-pasage_subclade <- fludb %>%
-  filter(
-    ngs_sekvens_resultat %in% c("A/H1N1", "A/H3N2", "B/Victoria"),
-    !is.na(nc_ha_subclade),
-    nc_ha_subclade != ""
-  ) %>%
-  group_by(ngs_sekvens_resultat, pasient_aldersgruppe, nc_ha_subclade) %>%
-  count(name = "n") %>%
-  group_by(ngs_sekvens_resultat, pasient_aldersgruppe) %>%
-  mutate(percent = n / sum(n) * 100) %>%
-  ungroup()
+    combined_pasage_plot <- create_andel_antall_combined_plot(
+      subtype_pasage,
+      x_var = "pasient_aldersgruppe",
+      fill_var = "nc_ha_subclade",
+      count_var = "n",
+      x_label = "Pasientaldersgruppe",
+      title_base = "Pasientaldersgruppe"
+    )
+    export_graph_f <- save_plot_to_ppt(
+      export_graph_f,
+      combined_pasage_plot,
+      title = paste(subtype_name, "- Pasientaldersgruppe")
+    )
+  }
 
-for (subtype_name in c("A/H1N1", "A/H3N2", "B/Victoria")) {
-  subtype_pasage <- pasage_subclade %>% filter(ngs_sekvens_resultat == subtype_name)
-  if (nrow(subtype_pasage) == 0) next
+  # Create the summarized data for Pasient Landsdel
+  pasladel <- fludb %>%
+    filter(tessy_reportable_variable != "") %>%
+    group_by(pasient_landsdel) %>% # Group by prove_kategori
+    summarise(count = n(), .groups = "drop") # Count samples for each category
 
-  combined_pasage_plot <- create_andel_antall_combined_plot(
-    subtype_pasage,
-    x_var = "pasient_aldersgruppe",
-    fill_var = "nc_ha_subclade",
-    count_var = "n",
-    x_label = "Pasientaldersgruppe",
-    title_base = "Pasientaldersgruppe"
+  # Create the pie chart for Pasient_aldersgruppe
+  pasladel_plot <- create_pie_chart(
+    pasladel,
+    "pasient_landsdel",
+    "Pasient Landsdel NGS"
   )
-  export_graph_f <- save_plot_to_ppt(
-    export_graph_f,
-    combined_pasage_plot,
-    title = paste(subtype_name, "- Pasientaldersgruppe")
-  )
-}
 
-# Create the summarized data for Pasient Landsdel
-pasladel <- fludb %>%
-  filter(tessy_reportable_variable != "") %>%
-  group_by(pasient_landsdel) %>% # Group by prove_kategori
-  summarise(count = n(), .groups = "drop") # Count samples for each category
+  # Create summarized data for Pasient Landsdel and subclade by subtype
+  pasladel_subclade <- fludb %>%
+    filter(
+      ngs_sekvens_resultat %in% c("A/H1N1", "A/H3N2", "B/Victoria"),
+      !is.na(nc_ha_subclade),
+      nc_ha_subclade != ""
+    ) %>%
+    group_by(ngs_sekvens_resultat, pasient_landsdel, nc_ha_subclade) %>%
+    count(name = "n") %>%
+    group_by(ngs_sekvens_resultat, pasient_landsdel) %>%
+    mutate(percent = n / sum(n) * 100) %>%
+    ungroup()
 
-# Create the pie chart for Pasient_aldersgruppe
-pasladel_plot <- create_pie_chart(
-  pasladel,
-  "pasient_landsdel",
-  "Pasient Landsdel NGS"
-)
+  for (subtype_name in c("A/H1N1", "A/H3N2", "B/Victoria")) {
+    subtype_pasladel <- pasladel_subclade %>% filter(ngs_sekvens_resultat == subtype_name)
+    if (nrow(subtype_pasladel) == 0) next
 
-# Create summarized data for Pasient Landsdel and subclade by subtype
-pasladel_subclade <- fludb %>%
-  filter(
-    ngs_sekvens_resultat %in% c("A/H1N1", "A/H3N2", "B/Victoria"),
-    !is.na(nc_ha_subclade),
-    nc_ha_subclade != ""
-  ) %>%
-  group_by(ngs_sekvens_resultat, pasient_landsdel, nc_ha_subclade) %>%
-  count(name = "n") %>%
-  group_by(ngs_sekvens_resultat, pasient_landsdel) %>%
-  mutate(percent = n / sum(n) * 100) %>%
-  ungroup()
-
-for (subtype_name in c("A/H1N1", "A/H3N2", "B/Victoria")) {
-  subtype_pasladel <- pasladel_subclade %>% filter(ngs_sekvens_resultat == subtype_name)
-  if (nrow(subtype_pasladel) == 0) next
-
-  combined_pasladel_plot <- create_andel_antall_combined_plot(
-    subtype_pasladel,
-    x_var = "pasient_landsdel",
-    fill_var = "nc_ha_subclade",
-    count_var = "n",
-    x_label = "Landsdel",
-    title_base = "Pasient landsdel"
-  )
-  export_graph_f <- save_plot_to_ppt(
-    export_graph_f,
-    combined_pasladel_plot,
-    title = paste(subtype_name, "- Pasient landsdel")
-  )
-}
+    combined_pasladel_plot <- create_andel_antall_combined_plot(
+      subtype_pasladel,
+      x_var = "pasient_landsdel",
+      fill_var = "nc_ha_subclade",
+      count_var = "n",
+      x_label = "Landsdel",
+      title_base = "Pasient landsdel"
+    )
+    export_graph_f <- save_plot_to_ppt(
+      export_graph_f,
+      combined_pasladel_plot,
+      title = paste(subtype_name, "- Pasient landsdel")
+    )
+  }
 }
 
 
@@ -2159,7 +2126,7 @@ hmap_flu <- ggplot(
 HA_mut <- fludb %>%
   mutate(my = as.yearmon(prove_tatt, format = "%Y %b")) %>%
   mutate(
-    ha_mutations = pmap_chr(
+    ha_mutations = purrr::pmap_chr(
       list(nc_ha_deletion, nc_ha_insertion, nc_ha_frameshift, mut_ha1_1),
       ~ {
         vals <- c(...)
@@ -2208,7 +2175,7 @@ HA_mut_l <- HA_mut %>%
 HA_mut_vac <- fludb %>%
   mutate(my = as.yearmon(prove_tatt, format = "%Y %b")) %>%
   mutate(
-    ha_mutations = pmap_chr(
+    ha_mutations = purrr::pmap_chr(
       list(
         nc_ha_deletion,
         nc_ha_insertion,
@@ -3828,7 +3795,9 @@ export_graph_f <- add_section_slide(
 )
 
 add_meta_plot <- function(plot_obj, plot_title) {
-  if (is.null(plot_obj)) return(invisible(NULL))
+  if (is.null(plot_obj)) {
+    return(invisible(NULL))
+  }
   export_graph_f <<- save_plot_to_ppt(export_graph_f, plot_obj, title = plot_title)
 }
 
@@ -3853,7 +3822,7 @@ if (!is.null(p_fylke_curr) && !is.null(p_fylke_prev)) {
   n_prev_map <- nrow(flu_prev)
   p_fylke_pair <- (p_fylke_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(n_prev_map), ")"))) |
     (p_fylke_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(n_curr_map), ")")))
-  add_meta_plot(p_fylke_pair, "Map: Fylke fordeling - left current, right previous")
+  add_meta_plot(p_fylke_pair, "Map: Fylke fordeling - left previous, right current")
 }
 
 p_landsdel_prev <- build_landsdel_map_plot_shared(
@@ -3875,7 +3844,7 @@ if (!is.null(p_landsdel_curr) && !is.null(p_landsdel_prev)) {
   n_prev_map <- nrow(flu_prev)
   p_landsdel_pair <- (p_landsdel_prev + labs(subtitle = paste0(previous_season_label, " (m=", scales::comma(n_prev_map), ")"))) |
     (p_landsdel_curr + labs(subtitle = paste0(current_season_label, " (m=", scales::comma(n_curr_map), ")")))
-  add_meta_plot(p_landsdel_pair, "Map: Landsdel fordeling - left current, right previous")
+  add_meta_plot(p_landsdel_pair, "Map: Landsdel fordeling - left previous, right current")
 }
 
 # Kjønn: current season vs previous season, pie side-by-side + monthly comparison
@@ -3888,7 +3857,9 @@ if (all(c("pasient_kjnn", "season", "prove_tatt") %in% names(fludb))) {
     d <- dat %>%
       filter(season == season_lbl) %>%
       count(pasient_kjonn_std, name = "n")
-    if (nrow(d) == 0) return(NULL)
+    if (nrow(d) == 0) {
+      return(NULL)
+    }
     season_n <- sum(d$n, na.rm = TRUE)
     d <- d %>%
       mutate(
@@ -3911,8 +3882,12 @@ if (all(c("pasient_kjnn", "season", "prove_tatt") %in% names(fludb))) {
   p_kj_prev <- pie_builder(kjonn_compare, previous_season_label)
   p_kj_curr <- pie_builder(kjonn_compare, current_season_label)
   if (!is.null(p_kj_prev) && !is.null(p_kj_curr)) {
-    n_prev <- kjonn_compare %>% filter(season == previous_season_label) %>% nrow()
-    n_curr <- kjonn_compare %>% filter(season == current_season_label) %>% nrow()
+    n_prev <- kjonn_compare %>%
+      filter(season == previous_season_label) %>%
+      nrow()
+    n_curr <- kjonn_compare %>%
+      filter(season == current_season_label) %>%
+      nrow()
     p_kj_pies <- p_kj_prev + p_kj_curr + patchwork::plot_layout(ncol = 2, guides = "collect") &
       theme(legend.position = "right")
     add_meta_plot(
@@ -4163,4 +4138,3 @@ cat(
 )
 total_elapsed_sec <- as.numeric(difftime(Sys.time(), analysis_started_at, units = "secs"))
 log_timed_message("TOTAL RUNTIME: ", sprintf("%.2f", total_elapsed_sec), "s")
-# nolint end

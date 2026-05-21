@@ -1,4 +1,3 @@
-# nolint start
 resolve_script_dir <- function() {
   args_all <- commandArgs(trailingOnly = FALSE)
   file_arg <- grep('^--file=', args_all, value = TRUE)
@@ -26,6 +25,8 @@ timed_step <- function(step_name, expr) {
 
 invisible(timed_step('Source RSV SQL query', source(file.path(bundle_scripts_dir, 'RSV_SQLquery.R'))))
 
+invisible(timed_step('Source RSV data cleaning', source(file.path(bundle_scripts_dir, 'RSV_DataCleaning_23-24.R'))))
+
 library(dplyr)
 library(ggplot2)
 library(lubridate)
@@ -36,14 +37,8 @@ library(openxlsx)
 library(patchwork)
 
 invisible(timed_step('Source common report utilities', source('Source_files/common_report_utils.R')))
-invisible(timed_step('Source shared patient/prove plot helpers', source('Source_files/shared_patient_prove_plots.R')))
 
 Sys.setlocale('LC_TIME', 'nb_NO.utf8')
-
-normalize_norwegian_text <- function(x) {
-  x <- iconv(x, from = '', to = 'UTF-8', sub = '')
-  ifelse(is.na(x), '', x)
-}
 
 parse_prove_tatt <- function(x) {
   x <- as.character(x)
@@ -63,19 +58,6 @@ rsvdb <- rsvdb %>%
     ngs_clade = ifelse(is.na(ngs_clade) | trimws(as.character(ngs_clade)) == '', 'Ukjent', trimws(as.character(ngs_clade))),
     pasient_landsdel = ifelse(is.na(pasient_landsdel) | trimws(as.character(pasient_landsdel)) == '', 'Ukjent', trimws(as.character(pasient_landsdel))),
     pasient_status = ifelse(is.na(pasient_status) | trimws(as.character(pasient_status)) == '', 'Ukjent', trimws(as.character(pasient_status)))
-  ) %>%
-  mutate(
-    pasient_landsdel = normalize_norwegian_text(pasient_landsdel),
-    pasient_landsdel = recode(
-      pasient_landsdel,
-      'Sorlandet' = 'Sørlandet',
-      'Srlandet' = 'Sørlandet',
-      'Ostlandet' = 'Østlandet',
-      'stlandet' = 'Østlandet',
-      'MidtNorge' = 'Midt-Norge',
-      'NordNorge' = 'Nord-Norge',
-      .default = pasient_landsdel
-    )
   ) %>%
   filter(!is.na(prove_tatt)) %>%
   filter(prove_tatt >= as.Date('2023-01-01'), prove_tatt <= Sys.Date() + 31)
@@ -306,9 +288,9 @@ if (all(c('pasient_fylke_name', 'pasient_landsdel', 'season') %in% names(rsvdb))
     fill_palette = kvantitativ_b2
   )
   if (!is.null(p_fylke_curr) && !is.null(p_fylke_prev)) {
-    p_fylke_pair <- (p_fylke_curr + labs(subtitle = paste0(current_season_label, ' (m=', scales::comma(nrow(rsv_curr_map)), ')'))) |
-      (p_fylke_prev + labs(subtitle = paste0(previous_season_label, ' (m=', scales::comma(nrow(rsv_prev)), ')')))
-    export_graph_f <- save_plot_to_ppt(export_graph_f, p_fylke_pair, title = 'Map: Fylke fordeling - left current, right previous')
+    p_fylke_pair <- (p_fylke_prev + labs(subtitle = paste0(previous_season_label, ' (m=', scales::comma(nrow(rsv_prev)), ')'))) |
+      (p_fylke_curr + labs(subtitle = paste0(current_season_label, ' (m=', scales::comma(nrow(rsv_curr_map)), ')')))
+    export_graph_f <- save_plot_to_ppt(export_graph_f, p_fylke_pair, title = 'Map: Fylke fordeling - left previous, right current')
   }
 
   p_landsdel_prev <- build_landsdel_map_plot_shared(
@@ -326,9 +308,9 @@ if (all(c('pasient_fylke_name', 'pasient_landsdel', 'season') %in% names(rsvdb))
     palette_base = kvalitativ_comb
   )
   if (!is.null(p_landsdel_curr) && !is.null(p_landsdel_prev)) {
-    p_landsdel_pair <- (p_landsdel_curr + labs(subtitle = paste0(current_season_label, ' (m=', scales::comma(nrow(rsv_curr_map)), ')'))) |
-      (p_landsdel_prev + labs(subtitle = paste0(previous_season_label, ' (m=', scales::comma(nrow(rsv_prev)), ')')))
-    export_graph_f <- save_plot_to_ppt(export_graph_f, p_landsdel_pair, title = 'Map: Landsdel fordeling - left current, right previous')
+    p_landsdel_pair <- (p_landsdel_prev + labs(subtitle = paste0(previous_season_label, ' (m=', scales::comma(nrow(rsv_prev)), ')'))) |
+      (p_landsdel_curr + labs(subtitle = paste0(current_season_label, ' (m=', scales::comma(nrow(rsv_curr_map)), ')')))
+    export_graph_f <- save_plot_to_ppt(export_graph_f, p_landsdel_pair, title = 'Map: Landsdel fordeling - left previous, right current')
   }
 }
 
@@ -476,6 +458,3 @@ cat(sprintf('PowerPoint lagret med %d lysbilder (lysbilde 1-%d):\n- %s\n- %s\n',
 
 elapsed_total <- as.numeric(difftime(Sys.time(), analysis_started_at, units = 'secs'))
 log_timed_message('TOTAL RUNTIME: ', sprintf('%.2f', elapsed_total), 's')
-# nolint end
-
-
