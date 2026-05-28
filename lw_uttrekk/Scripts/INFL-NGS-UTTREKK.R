@@ -1,3 +1,4 @@
+library(DBI)
 library(odbc)
 library(tidyverse)
 library(lubridate)
@@ -59,7 +60,7 @@ if (!dir.exists(output_dir)) {
 ## ==================================================
 
 run_date <- Sys.Date()
-date_from <- run_date - 365
+date_from <- run_date %m-% years(2)
 date_to   <- run_date
 
 message("Script version: ", script_version)
@@ -98,9 +99,9 @@ con <- tryCatch(
 
 season_code_from_date <- function(x) {
   y <- year(x)
-  m <- month(x)
+  season_start <- make_date(y, 8, 25)
   ifelse(
-    m >= 7,
+    x >= season_start,
     paste0(substr(y, 3, 4), substr(y + 1, 3, 4)),
     paste0(substr(y - 1, 3, 4), substr(y, 3, 4))
   )
@@ -111,12 +112,13 @@ rekvnr_from_id <- function(x, sample_date) {
   sample_date <- as.Date(sample_date)
   year_prefix <- ifelse(is.na(sample_date), NA_character_, paste0("25", format(sample_date, "%y")))
   serial <- rep(NA_character_, length(x))
+  id_core <- sub("-[0-9]+$", "", x)
   
-  has_influ_serial <- !is.na(x) & grepl("[0-9]{4}[0-9]+$", x)
-  serial[has_influ_serial] <- sub("^.*?[0-9]{4}([0-9]+)$", "\\1", x[has_influ_serial], perl = TRUE)
+  has_influ_serial <- !is.na(id_core) & grepl("[0-9]{4}[0-9]+$", id_core)
+  serial[has_influ_serial] <- sub("^.*?[0-9]{4}([0-9]+)$", "\\1", id_core[has_influ_serial], perl = TRUE)
   
-  has_fallback_serial <- is.na(serial) & !is.na(x) & grepl("[0-9]+$", x)
-  serial[has_fallback_serial] <- sub("^.*?([0-9]+)$", "\\1", x[has_fallback_serial])
+  has_fallback_serial <- is.na(serial) & !is.na(id_core) & grepl("[0-9]+$", id_core)
+  serial[has_fallback_serial] <- sub("^.*?([0-9]+)$", "\\1", id_core[has_fallback_serial])
   
   out <- rep(NA_character_, length(x))
   valid <- !is.na(year_prefix) & !is.na(serial)
@@ -157,10 +159,10 @@ repair_text <- function(x) {
   x <- gsub("Ã¦", "æ", x, fixed = TRUE)
   x <- gsub("Ã¥", "å", x, fixed = TRUE)
   x <- gsub("Ã¼", "ü", x, fixed = TRUE)
-  x <- gsub("Ã~", "Ø", x, fixed = TRUE)
-  x <- gsub("Ã???", "Æ", x, fixed = TRUE)
-  x <- gsub("Ã.", "Å", x, fixed = TRUE)
-  x <- gsub("Ão", "Ü", x, fixed = TRUE)
+  x <- gsub("Ã˜", "Ø", x, fixed = TRUE)
+  x <- gsub("Ã†", "Æ", x, fixed = TRUE)
+  x <- gsub("Ã…", "Å", x, fixed = TRUE)
+  x <- gsub("Ãœ", "Ü", x, fixed = TRUE)
   x <- gsub("<f8>", "ø", x, ignore.case = TRUE)
   x <- gsub("<d8>", "Ø", x, ignore.case = TRUE)
   x <- gsub("<e6>", "æ", x, ignore.case = TRUE)
@@ -188,6 +190,38 @@ format_report_date <- function(x) {
   out <- ifelse(is.na(parsed), x, format(as.Date(parsed), "%Y-%m-%d"))
   out[is.na(x)] <- NA_character_
   as.character(out)
+}
+
+calculate_age_years <- function(birth_date, reference_date) {
+  birth_date <- repair_text(birth_date)
+  birth_date <- na_if(str_trim(as.character(birth_date)), "")
+  reference_date <- as.Date(reference_date)
+  
+  parsed_birth_date <- suppressWarnings(parse_date_time(
+    birth_date,
+    orders = c("ymd HMS", "ymd HM", "ymd", "dmy HMS", "dmy HM", "dmy"),
+    tz = "UTC"
+  ))
+  birth_date <- as.Date(parsed_birth_date)
+  
+  out <- rep(NA_integer_, length(birth_date))
+  valid <- !is.na(birth_date) & !is.na(reference_date) & birth_date <= reference_date
+  out[valid] <- floor(time_length(interval(birth_date[valid], reference_date[valid]), "years"))
+  as.character(out)
+}
+
+format_patient_age <- function(patient_age, birth_date, reference_date) {
+  patient_age <- repair_text(patient_age)
+  patient_age <- na_if(str_trim(as.character(patient_age)), "")
+  coalesce(patient_age, calculate_age_years(birth_date, reference_date))
+}
+
+format_ct_value <- function(x) {
+  x <- repair_text(x)
+  x <- str_trim(as.character(x))
+  x <- na_if(x, "")
+  x <- gsub(",", ".", x, fixed = TRUE)
+  as.character(x)
 }
 
 write_report_csv <- function(df, file) {
@@ -225,6 +259,9 @@ analysis_to_assay_groups <- function(x) {
   if (str_detect(x_norm, "h3")) {
     out <- c(out, "H3")
   }
+  if (str_detect(x_norm, "h5")) {
+    out <- c(out, "H5")
+  }
   if (str_detect(x_norm, "vic")) {
     out <- c(out, "BVIC")
   }
@@ -245,25 +282,28 @@ analysis_to_assay_groups <- function(x) {
 }
 
 county_to_landsdel <- c(
-  "Østfold" = "Østlandet",
-  "Akershus" = "Østlandet",
-  "Oslo" = "Østlandet",
-  "Buskerud" = "Østlandet",
-  "Innlandet" = "Østlandet",
-  "Vestfold" = "Østlandet",
-  "Telemark" = "Østlandet",
-  "Agder" = "Sørlandet",
-  "Rogaland" = "Vestlandet",
-  "Vestland" = "Vestlandet",
-  "Møre og Romsdal" = "Vestlandet",
-  "Trøndelag" = "Trøndelag",
-  "Nordland" = "Nord-Norge",
-  "Troms" = "Nord-Norge",
-  "Finnmark" = "Nord-Norge"
+  "østfold" = "Østlandet",
+  "ostfold" = "Østlandet",
+  "akershus" = "Østlandet",
+  "oslo" = "Østlandet",
+  "buskerud" = "Østlandet",
+  "innlandet" = "Østlandet",
+  "vestfold" = "Østlandet",
+  "telemark" = "Østlandet",
+  "agder" = "Sørlandet",
+  "rogaland" = "Vestlandet",
+  "vestland" = "Vestlandet",
+  "møre_og_romsdal" = "Vestlandet",
+  "more_og_romsdal" = "Vestlandet",
+  "trøndelag" = "Trøndelag",
+  "trondelag" = "Trøndelag",
+  "nordland" = "Nord-Norge",
+  "troms" = "Nord-Norge",
+  "finnmark" = "Nord-Norge"
 )
 
 map_county_to_landsdel <- function(x) {
-  out <- unname(county_to_landsdel[as.character(x)])
+  out <- unname(county_to_landsdel[normalize_name(x)])
   out[is.na(x)] <- NA_character_
   out
 }
@@ -508,6 +548,8 @@ build_report <- function(report_label, batch_pattern) {
         NAME_norm == "vaksinert_2_uker_for_provetaking" ~ "Pasient_Vaks_2uipt",
         NAME_norm == "vaksinert_2_uker_for_provetakning" ~ "Pasient_Vaks_2uipt",
         NAME_norm == "kliniske_opplysninger" ~ "Pasient_Kommentar",
+        NAME_norm %in% c("estimert_prøvetakingsdato", "estimert_provetakingsdato", "prøvetaking_estimert", "provetaking_estimert", "prove_tatt_est", "prøve_tatt_est") ~ "Prove_Tatt_Est",
+        NAME_norm %in% c("utbrudd", "utbruddsnavn", "utbrudd_navn") ~ "Prove_Utbrudd",
         NAME_norm == "infprøvekategori" ~ "Prove_Kategori",
         NAME_norm == "infprovekategori" ~ "Prove_Kategori",
         NAME_norm == "agens_testprioritet" ~ "Prove_Prioritet",
@@ -544,25 +586,42 @@ build_report <- function(report_label, batch_pattern) {
   # 9. PCR-specific mapping with per-analysis dates
   # ==================================================
   
-  pcr_rows <- results_selected %>%
+  pcr_rows_named <- results_selected %>%
     mutate(
       assay_group = case_when(
-        NAME_norm == "ct_h1" ~ "H1",
-        NAME_norm == "ct_h3" ~ "H3",
+        NAME_norm %in% c("ct_h1", "resultat_h1") ~ "H1",
+        NAME_norm %in% c("ct_h3", "resultat_h3") ~ "H3",
+        NAME_norm %in% c("ct_h5", "resultat_h5") ~ "H5",
         NAME_norm %in% c("ct_vic", "resultat_vic") ~ "BVIC",
         NAME_norm %in% c("ct_yam", "resultat_yam") ~ "BYAM",
         NAME_norm %in% c("ct_infa", "influensa_a") ~ "TRIPLEX_INFA",
         NAME_norm %in% c("ct_infb", "influensa_b") ~ "TRIPLEX_INFB",
-        NAME_norm == "ct_sc2" ~ "TRIPLEX_SC2",
+        NAME_norm %in% c("ct_sc2", "resultat_sc2", "sars_cov_2", "sars_cov_2_resultat") ~ "TRIPLEX_SC2",
         TRUE ~ NA_character_
       ),
       assay_field = case_when(
-        NAME_norm %in% c("ct_h1", "ct_h3", "ct_vic", "ct_yam", "ct_infa", "ct_infb", "ct_sc2") ~ "CT",
-        NAME_norm %in% c("resultat_vic", "resultat_yam", "influensa_a", "influensa_b") ~ "RES",
+        NAME_norm %in% c("ct_h1", "ct_h3", "ct_h5", "ct_vic", "ct_yam", "ct_infa", "ct_infb", "ct_sc2") ~ "CT",
+        NAME_norm %in% c("resultat_h1", "resultat_h3", "resultat_h5", "resultat_vic", "resultat_yam", "influensa_a", "influensa_b", "resultat_sc2", "sars_cov_2", "sars_cov_2_resultat") ~ "RES",
         TRUE ~ NA_character_
       )
     ) %>%
     filter(!is.na(assay_group), !is.na(assay_field))
+  
+  pcr_rows_from_analysis <- results_selected %>%
+    filter(NAME_norm %in% c("ct", "resultat")) %>%
+    mutate(
+      assay_field = case_when(
+        NAME_norm == "ct" ~ "CT",
+        NAME_norm == "resultat" ~ "RES",
+        TRUE ~ NA_character_
+      ),
+      assay_group = lapply(ANALYSIS, analysis_to_assay_groups)
+    ) %>%
+    unnest(assay_group) %>%
+    filter(!is.na(assay_group), assay_group != "", !is.na(assay_field))
+  
+  pcr_rows <- bind_rows(pcr_rows_named, pcr_rows_from_analysis) %>%
+    distinct(SAMPLE_NUMBER, TEST_NUMBER, NAME, ANALYSIS, assay_group, assay_field, .keep_all = TRUE)
   
   pcr_one <- pcr_rows %>%
     arrange(SAMPLE_NUMBER, assay_group, assay_field, desc(CHANGED_ON), desc(ENTERED_ON)) %>%
@@ -579,6 +638,8 @@ build_report <- function(report_label, batch_pattern) {
         assay_group == "H1" & assay_field == "RES" ~ "PCR_H1_Res",
         assay_group == "H3" & assay_field == "CT" ~ "PCR_H3_CT",
         assay_group == "H3" & assay_field == "RES" ~ "PCR_H3_Res",
+        assay_group == "H5" & assay_field == "CT" ~ "PCR_H5_CT",
+        assay_group == "H5" & assay_field == "RES" ~ "PCR_H5_Res",
         assay_group == "BVIC" & assay_field == "CT" ~ "PCR_Bvic_CT",
         assay_group == "BVIC" & assay_field == "RES" ~ "PCR_Bvic_Res",
         assay_group == "BYAM" & assay_field == "CT" ~ "PCR_Byam_CT",
@@ -635,6 +696,7 @@ build_report <- function(report_label, batch_pattern) {
       out_col = case_when(
         assay_group == "H1" ~ "PCR_H1_Dato",
         assay_group == "H3" ~ "PCR_H3_Dato",
+        assay_group == "H5" ~ "PCR_H5_Dato",
         assay_group == "BVIC" ~ "PCR_Bvic_Dato",
         assay_group == "BYAM" ~ "PCR_Byam_Dato",
         assay_group == "TRIPLEX_INFA" ~ "PCR_triplex_INFA_Dato",
@@ -661,6 +723,8 @@ build_report <- function(report_label, batch_pattern) {
     "Pasient_Vaks",
     "Pasient_Vaks_2uipt",
     "Pasient_Kommentar",
+    "Prove_Tatt_Est",
+    "Prove_Utbrudd",
     "Prove_Kategori",
     "Prove_Prioritet",
     "Prove_Innsender_Res",
@@ -688,6 +752,7 @@ build_report <- function(report_label, batch_pattern) {
   needed_pcr_cols <- c(
     "PCR_H1_CT", "PCR_H1_Res", "PCR_H1_Dato",
     "PCR_H3_CT", "PCR_H3_Res", "PCR_H3_Dato",
+    "PCR_H5_CT", "PCR_H5_Res", "PCR_H5_Dato",
     "PCR_Bvic_CT", "PCR_Bvic_Res", "PCR_Bvic_Dato",
     "PCR_Byam_CT", "PCR_Byam_Res", "PCR_Byam_Dato",
     "PCR_triplex_INFA_CT", "PCR_triplex_INFA_Res", "PCR_triplex_INFA_Dato",
@@ -709,7 +774,7 @@ build_report <- function(report_label, batch_pattern) {
     left_join(pcr_wide, by = "SAMPLE_NUMBER") %>%
     mutate(
       INF_Res = NA_character_,
-      Pasient_Alder = coalesce(as.character(X_PATIENT_AGE), as.character(BIRTH_DATE)),
+      Pasient_Alder = format_patient_age(X_PATIENT_AGE, BIRTH_DATE, SAMPLED_DATE),
       Pasient_Kjonn = safe_coalesce_chr(X_GENDER, GENDER),
       Pasient_No = as.character(PATIENT),
       Prove_Innsender_ID = as.character(FOR_ENTITY),
@@ -717,18 +782,20 @@ build_report <- function(report_label, batch_pattern) {
       Prove_Lokalisasjon = as.character(X_SAMPLE_LOC_ID),
       Prove_Material = safe_coalesce_chr(X_SPECIMEN_SOURCE, SAMPLE_TYPE),
       Prove_Prioritet = coalesce(Prove_Prioritet, as.character(PRIORITY)),
-      Prove_Tatt_Est = NA_character_,
-      Prove_Utbrudd = NA_character_,
+      Pasient_Sykdomsdebut_Dato = format_report_date(Pasient_Sykdomsdebut_Dato),
+      Prove_Tatt_Est = coalesce(Prove_Tatt_Est, NA_character_),
+      Prove_Utbrudd = coalesce(Prove_Utbrudd, NA_character_),
       Prove_Vaks = Pasient_Vaks,
       
-      PCR_H5_CT = NA_character_,
-      PCR_H5_Dato = NA_character_,
-      PCR_H5_Res = NA_character_,
+      PCR_H5_CT = coalesce(PCR_H5_CT, NA_character_),
+      PCR_H5_Dato = coalesce(PCR_H5_Dato, NA_character_),
+      PCR_H5_Res = coalesce(PCR_H5_Res, NA_character_),
       
       Ct_samlekolonne = coalesce(
         Ct_samlekolonne,
         PCR_H1_CT,
         PCR_H3_CT,
+        PCR_H5_CT,
         PCR_Bvic_CT,
         PCR_Byam_CT,
         PCR_triplex_INFA_CT,
@@ -737,14 +804,29 @@ build_report <- function(report_label, batch_pattern) {
       ),
       
       Pasient_Aldersgruppe = case_when(
-        suppressWarnings(as.numeric(Pasient_Alder)) < 1 ~ "0",
-        suppressWarnings(as.numeric(Pasient_Alder)) <= 4 ~ "1-4",
+        suppressWarnings(as.numeric(Pasient_Alder)) <= 4 ~ "0-4",
         suppressWarnings(as.numeric(Pasient_Alder)) <= 14 ~ "5-14",
         suppressWarnings(as.numeric(Pasient_Alder)) <= 24 ~ "15-24",
         suppressWarnings(as.numeric(Pasient_Alder)) <= 44 ~ "25-44",
         suppressWarnings(as.numeric(Pasient_Alder)) <= 64 ~ "45-64",
         suppressWarnings(as.numeric(Pasient_Alder)) >= 65 ~ "65+",
         TRUE ~ NA_character_
+      )
+    ) %>%
+    mutate(
+      across(
+        any_of(c(
+          "PCR_Bvic_CT",
+          "PCR_Byam_CT",
+          "PCR_H1_CT",
+          "PCR_H3_CT",
+          "PCR_H5_CT",
+          "PCR_triplex_SC2_CT",
+          "PCR_triplex_INFA_CT",
+          "PCR_triplex_INFB_CT",
+          "Ct_samlekolonne"
+        )),
+        format_ct_value
       )
     ) %>%
     select(
@@ -846,6 +928,18 @@ build_report <- function(report_label, batch_pattern) {
   deduplicated_rows <- nrow(final_report_all_rows) - nrow(final_report)
   if (deduplicated_rows > 0) {
     message("Removed duplicate RekvNr rows: ", deduplicated_rows)
+  }
+  
+  empty_final_cols <- names(final_report)[vapply(
+    final_report,
+    function(x) all(is.na(x) | str_trim(as.character(x)) == ""),
+    logical(1)
+  )]
+  if (length(empty_final_cols) > 0) {
+    message(
+      "Columns still empty before NaN export: ",
+      paste(empty_final_cols, collapse = ", ")
+    )
   }
   
   # ==================================================
