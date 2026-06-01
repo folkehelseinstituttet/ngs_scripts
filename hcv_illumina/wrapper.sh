@@ -7,8 +7,8 @@ set -euo pipefail
 # Send all stdout/stderr to the main wrapper log (and to the console when not detached)
 exec > >(tee -a /home/ngs/hcv_illumina_wrapper.log) 2>&1
 
-# Error/history log file
-LOGFILE="/home/ngs/hcv_illumina_wrapper_error.log"
+# Error/history log file (default before args are parsed)
+LOGFILE="/home/ngs/hcv_illumina_unknown_wrapper_error.log"
 
 # Provide a conservative default STATUS_FILE early so very early failures still write somewhere.
 # This will be overwritten with the run-specific file after argument parsing.
@@ -82,8 +82,10 @@ done
 
 # Now that arguments are parsed, set a run-specific status file and initialize it.
 if [ -n "${RUN:-}" ]; then
+    LOGFILE="/home/ngs/hcv_illumina_${RUN}_wrapper_error.log"
     STATUS_FILE="$HOME/hcv_illumina_${RUN}_status.txt"
 else
+    LOGFILE="/home/ngs/hcv_illumina_unknown_wrapper_error.log"
     STATUS_FILE="$HOME/hcv_illumina_unknown_status.txt"
 fi
 printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" >> "$STATUS_FILE"
