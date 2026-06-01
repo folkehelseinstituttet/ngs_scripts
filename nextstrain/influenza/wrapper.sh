@@ -63,24 +63,39 @@ cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/builds.yaml"      "${SEASONAL_FLU_
 cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/config.yaml"      "${SEASONAL_FLU_DIR}/profiles/niph/"
 cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/prepare_data.smk" "${SEASONAL_FLU_DIR}/profiles/niph/"
 cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/fhi/lat_longs.tsv" "${SEASONAL_FLU_DIR}/config/"
+cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/global/xls2csv.py" "${SEASONAL_FLU_DIR}/scripts/"
+cp "$NGS_SCRIPTS_DIR/nextstrain/influenza/global/nextstrain.yaml" "${SEASONAL_FLU_DIR}/workflow/envs/"
 
 # Ensure builds.yaml points to our local rule file (if it referenced profiles/gisaid before)
 if grep -q 'profiles/gisaid/prepare_data\.smk' "${SEASONAL_FLU_DIR}/profiles/niph/builds.yaml"; then
   sed -i 's#profiles/gisaid/prepare_data\.smk#profiles/niph/prepare_data.smk#g' "${SEASONAL_FLU_DIR}/profiles/niph/builds.yaml"
 fi
 
+copy_lineage_inputs() {
+  local src_dir="$1"
+  local dest_dir="$2"
+  local label="$3"
+  local metadata_src=""
+
+  if [ -f "${src_dir}/metadata.xlsx" ]; then
+    metadata_src="${src_dir}/metadata.xlsx"
+  elif [ -f "${src_dir}/metadata.xls" ]; then
+    metadata_src="${src_dir}/metadata.xls"
+  else
+    echo "ERROR: ${label} is missing metadata.xlsx or metadata.xls in ${src_dir}" >&2
+    exit 1
+  fi
+
+  echo "Copying ${label} metadata from ${metadata_src}"
+  cp "$metadata_src" "${dest_dir}/metadata.xls"
+  cp "${src_dir}/raw_sequences_ha.fasta" "${dest_dir}/"
+  cp "${src_dir}/raw_sequences_na.fasta" "${dest_dir}/"
+}
+
 # --- Copy data into seasonal-flu expected locations ---
-cp "${BASE_DIR}/flu_nextstrain/H1/metadata.xls"            "${SEASONAL_FLU_DIR}/data/h1n1pdm/"
-cp "${BASE_DIR}/flu_nextstrain/H1/raw_sequences_ha.fasta"  "${SEASONAL_FLU_DIR}/data/h1n1pdm/"
-cp "${BASE_DIR}/flu_nextstrain/H1/raw_sequences_na.fasta"  "${SEASONAL_FLU_DIR}/data/h1n1pdm/"
-
-cp "${BASE_DIR}/flu_nextstrain/H3/metadata.xls"            "${SEASONAL_FLU_DIR}/data/h3n2/"
-cp "${BASE_DIR}/flu_nextstrain/H3/raw_sequences_ha.fasta"  "${SEASONAL_FLU_DIR}/data/h3n2/"
-cp "${BASE_DIR}/flu_nextstrain/H3/raw_sequences_na.fasta"  "${SEASONAL_FLU_DIR}/data/h3n2/"
-
-cp "${BASE_DIR}/flu_nextstrain/VIC/metadata.xls"           "${SEASONAL_FLU_DIR}/data/vic/"
-cp "${BASE_DIR}/flu_nextstrain/VIC/raw_sequences_ha.fasta" "${SEASONAL_FLU_DIR}/data/vic/"
-cp "${BASE_DIR}/flu_nextstrain/VIC/raw_sequences_na.fasta" "${SEASONAL_FLU_DIR}/data/vic/"
+copy_lineage_inputs "${BASE_DIR}/flu_nextstrain/H1"  "${SEASONAL_FLU_DIR}/data/h1n1pdm" "H1"
+copy_lineage_inputs "${BASE_DIR}/flu_nextstrain/H3"  "${SEASONAL_FLU_DIR}/data/h3n2"    "H3"
+copy_lineage_inputs "${BASE_DIR}/flu_nextstrain/VIC" "${SEASONAL_FLU_DIR}/data/vic"     "VIC"
 
 # --- Activate env ---
 conda activate NEXTSTRAIN
