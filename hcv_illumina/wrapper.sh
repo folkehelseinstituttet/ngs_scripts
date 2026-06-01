@@ -164,7 +164,7 @@ set_status "Creating samplesheet"
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR/ \
     -v $HOME/$RUN:/out \
-    ghcr.io/jonbra/viralseq_utils:v1.0.2 \
+    ghcr.io/jonbra/viralseq_utils:v1.0.4 \
     $TMP_DIR /out/samplesheet.csv
 
 set_status "Samplesheet created: $HOME/$RUN/samplesheet.csv"
