@@ -2,7 +2,7 @@ library(odbc)
 library(tidyverse)
 library(lubridate)
 
-# Script version 1.1
+# Script version 1.2
 
 ## ==================================================
 ## Validate required environment variables
@@ -83,7 +83,17 @@ results <- tbl(con, "RESULT_VIEW") %>%
 
 # Hente metadata om prøver fra SAMPLE_VIEW.
 samples <- tbl(con, "SAMPLE_VIEW") %>%
-  select("X_AGENS", "SAMPLE_NUMBER", "SAMPLED_DATE", "X_PATIENT_AGE", "X_ZIPCODE", "ORDER_NUM", "X_GENDER", "BIRTH_DATE", "X_MEDICAL_REVIEW") %>% 
+  select("X_AGENS", 
+         "SAMPLE_NUMBER", 
+         "SAMPLED_DATE", 
+         "X_PATIENT_AGE", 
+         "X_ZIPCODE", 
+         "ORDER_NUM", 
+         "X_GENDER", 
+         "BIRTH_DATE", 
+         "X_MEDICAL_REVIEW",
+         "X_SPECIMEN_SOURCE",
+         "SAMPLE_TYPE") %>% 
   collect()
 
 # Hente info om hver enkelt test. For å kunne fjerne kansellerte tester
@@ -179,7 +189,9 @@ final <- gas_pk_res_long_metadata_region %>%
     X_GENDER,
     age_group,
     starts_with("REGION"),
-    starts_with("FYLKE")
+    starts_with("FYLKE"),
+    X_SPECIMEN_SOURCE,
+    SAMPLE_TYPE
   )
 
 # Write final data file
