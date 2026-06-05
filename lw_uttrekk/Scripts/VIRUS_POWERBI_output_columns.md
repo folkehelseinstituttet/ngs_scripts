@@ -83,6 +83,7 @@ Kun et utvalg av `(ANALYSIS, NAME)`-par med diagnostisk verdi er inkludert. Rene
 | `SAMPLE_NUMBER` | LabWare-nummer. Kobling til Fil 1. |
 | `TEST_NUMBER` | LabWare test-ID. |
 | `ANALYSIS` | Analysekode (f.eks. `INFA_TRICDC`, `MOGENZ`, `NGS`). |
+| `analysis_category` | Overordnet kategori for analysen. Verdier: `PCR`, `Serology`, `NGS_SEQ`, `NGS_PREP`, `Extraction`, `Culture`. Brukes til hierarkisk filtrering i Power BI. |
 | `NAME` | Navn på resultatparameter (f.eks. `Resultat`, `ct. INFA`, `Titer`, `Clade`). |
 | `value` | Resultaverdi. Tekst eller tall avhengig av analyse. |
 | `ENTERED_ON` | Tidspunkt da resultatet ble registrert. |
@@ -140,7 +141,7 @@ Bruk `Auth_*`-kolonnene som ja/nei-indikator: en prøve regnes som analysert der
 1. Last inn begge filer som separate tabeller i Power BI Desktop (hjem → Hent data → Tekst/CSV).
 2. Gå til **Modellvisning**.
 3. Dra `SAMPLE_NUMBER` fra `VIRUS_POWERBI_lw_uttrekk` til `SAMPLE_NUMBER` i `VIRUS_POWERBI_results`.
-4. Bekreft at relasjonen er **mange-til-én** (mange rader i resultatfilen → én rad i prøvefilen) og kardinalitet **mange til én (\*:1)**.
+4. I relasjons-dialogen som åpnes: sett **Kardinalitet** til **En til mange (1:\*)** — der `VIRUS_POWERBI_lw_uttrekk` er «Fra tabell» (1-siden) og `VIRUS_POWERBI_results` er «Til tabell» (\*-siden). Velg **ikke** «Mange til en (\*:1)», da dette gir feilmelding om duplikate verdier i resultatfilen.
 
 ### Anbefalte measures og visninger
 
