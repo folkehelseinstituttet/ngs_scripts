@@ -346,6 +346,19 @@ results_file2 <- tbl(con, "RESULT_VIEW") %>%
   filter(!is.na(value)) %>%
   select(SAMPLE_NUMBER, TEST_NUMBER, ANALYSIS, NAME, value, ENTERED_ON, CHANGED_ON)
 
+# Map each ANALYSIS code to a broad category so Power BI can offer
+# two-level filtering (category → analysis code) via separate slicers.
+category_lookup <- bind_rows(
+  tibble(ANALYSIS = "NGS_PREP",       analysis_category = "NGS_PREP"),
+  tibble(ANALYSIS = ngs_seq_codes,    analysis_category = "NGS_SEQ"),
+  tibble(ANALYSIS = extraction_codes, analysis_category = "Extraction"),
+  tibble(ANALYSIS = culture_codes,    analysis_category = "Culture"),
+  tibble(ANALYSIS = pcr_codes,        analysis_category = "PCR"),
+  tibble(ANALYSIS = serology_codes,   analysis_category = "Serology")
+)
+
+results_file2 <- left_join(results_file2, category_lookup, by = "ANALYSIS")
+
 # Write File 2: long-format results table
 write_tsv(results_file2, outfile2)
 
