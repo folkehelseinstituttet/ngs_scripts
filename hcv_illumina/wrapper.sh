@@ -7,8 +7,8 @@ set -euo pipefail
 # Send all stdout/stderr to the main wrapper log (and to the console when not detached)
 exec > >(tee -a /home/ngs/hcv_illumina_wrapper.log) 2>&1
 
-# Error/history log file
-LOGFILE="/home/ngs/hcv_illumina_wrapper_error.log"
+# Error/history log file (default before args are parsed)
+LOGFILE="/home/ngs/hcv_illumina_unknown_wrapper_error.log"
 
 # Provide a conservative default STATUS_FILE early so very early failures still write somewhere.
 # This will be overwritten with the run-specific file after argument parsing.
@@ -82,8 +82,10 @@ done
 
 # Now that arguments are parsed, set a run-specific status file and initialize it.
 if [ -n "${RUN:-}" ]; then
+    LOGFILE="/home/ngs/hcv_illumina_${RUN}_wrapper_error.log"
     STATUS_FILE="$HOME/hcv_illumina_${RUN}_status.txt"
 else
+    LOGFILE="/home/ngs/hcv_illumina_unknown_wrapper_error.log"
     STATUS_FILE="$HOME/hcv_illumina_unknown_status.txt"
 fi
 printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" >> "$STATUS_FILE"
@@ -149,23 +151,35 @@ fi
 mkdir -p "$TMP_DIR"
 
 ### Prepare the run ###
-set_status "Copying fastq files from the N drive (SMB_INPUT=$SMB_INPUT)"
+# Build an mget mask so we only copy the sample folders matching the requested
+# agens. With "recurse ON", smbclient applies the mget argument to *directory*
+# names, and each sample lives in a folder named like 111111-HCV / Sample111-HCV.
+# When AGENS is empty or ALL, copy everything (mask = *).
+if [ -z "${AGENS:-}" ] || [ "$(printf '%s' "$AGENS" | tr '[:lower:]' '[:upper:]')" = "ALL" ]; then
+    MGET_MASK="*"
+else
+    MGET_MASK="*${AGENS}*"
+fi
+
+set_status "Copying fastq files from the N drive (SMB_INPUT=$SMB_INPUT, mask=$MGET_MASK)"
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_INPUT <<EOF
 prompt OFF
 recurse ON
 lcd $TMP_DIR
-mget *
+mget $MGET_MASK
 EOF
 
 set_status "Fastq copy complete. Files are in $TMP_DIR"
     
 # Create a samplesheet by running the supplied Rscript in a docker container.
-set_status "Creating samplesheet"
+# Pass $AGENS as the third argument so only fastq files matching the agens
+# (case-insensitive match against the file path) are included in the samplesheet.
+set_status "Creating samplesheet (filtering on AGENS=$AGENS)"
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR/ \
     -v $HOME/$RUN:/out \
-    ghcr.io/jonbra/viralseq_utils:v1.0.2 \
-    $TMP_DIR /out/samplesheet.csv
+    ghcr.io/jonbra/viralseq_utils:v1.0.4 \
+    $TMP_DIR /out/samplesheet.csv "$AGENS"
 
 set_status "Samplesheet created: $HOME/$RUN/samplesheet.csv"
 
