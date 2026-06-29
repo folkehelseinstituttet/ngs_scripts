@@ -178,7 +178,7 @@ set_status "Creating samplesheet (filtering on AGENS=$AGENS)"
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR/ \
     -v $HOME/$RUN:/out \
-    ghcr.io/jonbra/viralseq_utils:v1.0.4 \
+    ghcr.io/jonbra/viralseq_utils:v1.0.5 \
     $TMP_DIR /out/samplesheet.csv "$AGENS"
 
 set_status "Samplesheet created: $HOME/$RUN/samplesheet.csv"
