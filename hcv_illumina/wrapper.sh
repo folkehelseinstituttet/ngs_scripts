@@ -162,12 +162,14 @@ EOF
 set_status "Fastq copy complete. Files are in $TMP_DIR"
     
 # Create a samplesheet by running the supplied Rscript in a docker container.
-set_status "Creating samplesheet"
+# Pass $AGENS as the third argument so only fastq files matching the agens
+# (case-insensitive match against the file path) are included in the samplesheet.
+set_status "Creating samplesheet (filtering on AGENS=$AGENS)"
 docker run --rm \
     -v $TMP_DIR/:$TMP_DIR/ \
     -v $HOME/$RUN:/out \
     ghcr.io/jonbra/viralseq_utils:v1.0.4 \
-    $TMP_DIR /out/samplesheet.csv
+    $TMP_DIR /out/samplesheet.csv "$AGENS"
 
 set_status "Samplesheet created: $HOME/$RUN/samplesheet.csv"
 
