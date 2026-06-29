@@ -151,12 +151,22 @@ fi
 mkdir -p "$TMP_DIR"
 
 ### Prepare the run ###
-set_status "Copying fastq files from the N drive (SMB_INPUT=$SMB_INPUT)"
+# Build an mget mask so we only copy the sample folders matching the requested
+# agens. With "recurse ON", smbclient applies the mget argument to *directory*
+# names, and each sample lives in a folder named like 111111-HCV / Sample111-HCV.
+# When AGENS is empty or ALL, copy everything (mask = *).
+if [ -z "${AGENS:-}" ] || [ "$(printf '%s' "$AGENS" | tr '[:lower:]' '[:upper:]')" = "ALL" ]; then
+    MGET_MASK="*"
+else
+    MGET_MASK="*${AGENS}*"
+fi
+
+set_status "Copying fastq files from the N drive (SMB_INPUT=$SMB_INPUT, mask=$MGET_MASK)"
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_INPUT <<EOF
 prompt OFF
 recurse ON
 lcd $TMP_DIR
-mget *
+mget $MGET_MASK
 EOF
 
 set_status "Fastq copy complete. Files are in $TMP_DIR"
