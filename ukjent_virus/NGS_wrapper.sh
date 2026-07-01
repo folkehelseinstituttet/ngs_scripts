@@ -71,7 +71,8 @@ usage() {
     echo "                    Available: ${VALID_DB_ALIASES[*]}"
     echo "  -H, --host        Host reference alias (default: human)"
     echo "                    Available: ${VALID_HOST_ALIASES[*]}"
-    echo "      --resume      Resume a previous Nextflow run (passes -resume to nextflow)"
+    echo "      --resume      Resume a previous Nextflow run (passes -resume to nextflow)
+      --sensitive-filter  Use high-sensitivity host filtering (slower; unpaired --very-sensitive-local)"
     exit 1
 }
 
@@ -82,6 +83,7 @@ YEAR=""
 DB="v3_2_4"
 HOST="human"
 RESUME=false
+SENSITIVE_FILTER=false
 
 # Pre-scan for --resume and --db (getopts only handles short options)
 filtered_args=()
@@ -89,6 +91,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --resume)
             RESUME=true
+            shift
+            ;;
+        --sensitive-filter)
+            SENSITIVE_FILTER=true
             shift
             ;;
         --db)
@@ -147,7 +153,7 @@ else
     STATUS_FILE="$HOME/esv_unknown_status.txt"
 fi
 printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" > "$STATUS_FILE"
-set_status "Started wrapper. RUN=$RUN AGENS=$AGENS YEAR=$YEAR DB=$DB HOST=$HOST RESUME=$RESUME"
+set_status "Started wrapper. RUN=$RUN AGENS=$AGENS YEAR=$YEAR DB=$DB HOST=$HOST RESUME=$RESUME SENSITIVE_FILTER=$SENSITIVE_FILTER"
 
 # Set working directory
 cd $HOME
@@ -323,11 +329,15 @@ set_status "Docker image built successfully"
 RESUME_FLAG=""
 $RESUME && RESUME_FLAG="-resume"
 
+SENSITIVE_FILTER_FLAG=""
+$SENSITIVE_FILTER && SENSITIVE_FILTER_FLAG="--sensitive_host_filter true"
+
 set_status "Using database profile: db_${DB}"
 set_status "Using host profile: host_${HOST}"
 
 nextflow run alexanderhes/Ukjent_virus -r $VERSION \
     $RESUME_FLAG \
+    $SENSITIVE_FILTER_FLAG \
     -profile "server,host_${HOST},db_${DB}" \
     --validate \
     --samplesheet "$FINAL_SAMPLESHEET" \
