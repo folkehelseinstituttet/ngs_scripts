@@ -12,12 +12,21 @@ Usage:
     --seq-len 1700 \
     [--clock-root least-squares] \
     [--display-columns auto] \
+    [--alignment-method mafft|nextclade] \
+    [--nextclade-dataset NAME_OR_PATH] \
+    [--nextclade-dataset-tag TAG] \
+    [--nextclade-reference reference.fasta] \
+    [--nextclade-annotation genome_annotation.gff3] \
+    [--nextclade-pathogen-json pathogen.json] \
+    [--influenza-type A|B|C|D] \
+    [--segment HA] \
+    [--include-nextclade-failed] \
     [--force-align]
 
 Description:
   Version 1 viral tip-dated phylogeny workflow using IQ-TREE and TreeTime.
   The workflow validates the FASTA and metadata, derives TreeTime-ready dates,
-  aligns sequences with MAFFT, infers a maximum-likelihood tree with IQ-TREE,
+  aligns sequences with the selected method, infers a maximum-likelihood tree with IQ-TREE,
   runs TreeTime clock analysis, runs TreeTime timetree inference, and enriches
   Auspice output with selected metadata when available.
 
@@ -37,10 +46,33 @@ Options:
   --display-columns VALUE   Metadata columns to add to visualization outputs.
                             Use 'auto' (default), 'none', or a comma-separated
                             list of metadata header names.
+  --alignment-method NAME   Alignment method: mafft or nextclade.
+                            Default: mafft.
+  --nextclade-dataset VALUE Nextclade dataset directory/zip or dataset name.
+                            Optional when using --nextclade-reference and
+                            --nextclade-annotation instead.
+  --nextclade-dataset-tag   Optional version tag when --nextclade-dataset is
+                            a dataset name rather than a local path.
+  --nextclade-reference     Custom Nextclade reference FASTA. Use together
+                            with --nextclade-annotation when no dataset exists.
+  --nextclade-annotation    Custom Nextclade genome annotation in GFF3.
+  --nextclade-pathogen-json Optional custom pathogen.json for custom reference
+                            mode.
+  --influenza-type VALUE    Optional influenza type hint for Nextclade
+                            reporting.
+  --segment VALUE           Optional influenza segment hint for Nextclade
+                            reporting.
+  --include-nextclade-failed
+                            Request inclusion of sequences that fail Nextclade
+                            QC. Default: disabled.
+  --aa-gene NAME            Protein/gene key for Auspice amino-acid branch
+                            mutations. Default: HA.
+  --aa-frame INT            Coding frame offset for amino-acid mutation calls:
+                            0, 1, or 2. Default: 0.
   --exclude-ngs-report-no   Exclude rows where metadata column NGS_Report is NO.
                             Default: disabled.
-  --force-align             Accepted for compatibility. The workflow now always
-                            runs MAFFT before IQ-TREE.
+  --force-align             Accepted for compatibility. The workflow always runs
+                            the selected aligner before IQ-TREE.
   --help                    Show this help message and exit.
 
 Notes:
@@ -51,6 +83,14 @@ Notes:
     naming issues in IQ-TREE and TreeTime.
   - Samples without a usable sampling date are skipped, reported, and excluded
     from alignment, IQ-TREE, and TreeTime.
+  - In Nextclade mode, the script supports three input styles: a downloaded
+    dataset directory/zip, a dataset name plus optional tag, or a custom
+    reference FASTA plus genome annotation.
+  - Optional influenza type/segment hints are accepted for reporting, but
+    dataset-target validation is not enforced automatically.
+  - In Nextclade mode, the date-qualified FASTA is analyzed with Nextclade,
+    optionally filtered by QC, and the accepted aligned FASTA is passed to
+    IQ-TREE and TreeTime.
   - When TreeTime writes an Auspice JSON, the workflow can enrich terminal
     nodes with retained metadata such as geography, age, host, HA subclade, or lab.
 EOF
@@ -607,6 +647,7 @@ AUTO_FIELDS = [
     ("host", "Host", ["host"]),
     ("segment", "Segment", ["segment"]),
     ("lab", "Lab", ["lab", "lab_name", "prove_innsender_navn", "prove_innsender_id"]),
+    ("ngs_run", "NGS Run", ["ngs_run", "ngs_run_id", "ngsrun", "ngsrunid", "run_id", "runid"]),
     ("lineage", "Lineage", ["lineage"]),
     ("clade", "Clade", ["clade", "ha_clade", "nc_ha_clade"]),
     ("ha_subclade", "HA Subclade", ["nc_ha_subclade"]),
@@ -1078,6 +1119,48 @@ with open(filter_report, "w", encoding="utf-8") as handle:
 PY
 }
 
+filter_dates_to_fasta() {
+  local dates_file=$1
+  local aligned_fasta=$2
+  local filtered_dates=$3
+
+  "$PYTHON_BIN" - "$dates_file" "$aligned_fasta" "$filtered_dates" <<'PY'
+import csv
+import sys
+from pathlib import Path
+
+dates_file, aligned_fasta, filtered_dates = sys.argv[1:]
+aligned_ids = {
+    line[1:].strip()
+    for line in Path(aligned_fasta).read_text(encoding="utf-8-sig").splitlines()
+    if line.startswith(">")
+}
+if not aligned_ids:
+    raise SystemExit(f"No sequence identifiers found in accepted alignment: {aligned_fasta}")
+
+with open(dates_file, "r", encoding="utf-8-sig", newline="") as source:
+    reader = csv.DictReader(source, delimiter="\t")
+    if reader.fieldnames != ["name", "date"]:
+        raise SystemExit(f"Unexpected TreeTime dates header in {dates_file}: {reader.fieldnames}")
+    rows = list(reader)
+by_name = {row.get("name", "").strip(): row for row in rows}
+missing = sorted(aligned_ids - set(by_name))
+if missing:
+    raise SystemExit(
+        "Accepted alignment contains identifiers missing from TreeTime dates: "
+        + ", ".join(missing[:10])
+    )
+
+Path(filtered_dates).parent.mkdir(parents=True, exist_ok=True)
+with open(filtered_dates, "w", encoding="utf-8", newline="") as output:
+    writer = csv.DictWriter(output, fieldnames=["name", "date"], delimiter="\t")
+    writer.writeheader()
+    for row in rows:
+        if row.get("name", "").strip() in aligned_ids:
+            writer.writerow({"name": row.get("name", ""), "date": row.get("date", "")})
+PY
+}
+
 fasta_appears_aligned() {
   local summary_file=$1
   awk -F '\t' '$1=="appears_aligned"{print $2}' "$summary_file"
@@ -1115,6 +1198,35 @@ EOF
 EOF
 }
 
+run_nextclade_qc_note() {
+  local aligned_fasta=$1
+  local qc_note=$2
+  local qc_masking_placeholder=$3
+  local nextclade_dir=$4
+  local nextclade_qc_dir=$5
+
+  cat >"$qc_note" <<EOF
+Nextclade alignment and QC were used for this run.
+
+Nextclade outputs:
+$nextclade_dir
+
+Nextclade QC filter outputs:
+$nextclade_qc_dir
+
+Accepted aligned FASTA used downstream:
+$aligned_fasta
+
+The accepted alignment is passed to IQ-TREE and TreeTime. The full Nextclade
+results, provenance metadata, and QC filter report are retained in the paths
+above.
+EOF
+
+  cat >"$qc_masking_placeholder" <<'EOF'
+No additional site-masking rules were applied after Nextclade QC.
+EOF
+}
+
 run_mafft_alignment() {
   local input_fasta=$1
   local aligned_fasta=$2
@@ -1122,6 +1234,158 @@ run_mafft_alignment() {
   command_exists mafft || die "Alignment is required but MAFFT is not available in PATH."
   log "Running MAFFT alignment."
   mafft --auto "$input_fasta" >"$aligned_fasta"
+}
+
+run_nextclade_alignment() {
+  local input_fasta=$1
+  local aligned_fasta=$2
+  local nextclade_dir="$QC_DIR/nextclade"
+  local nextclade_qc_dir="$QC_DIR/nextclade_qc"
+  local runner="$SCRIPT_DIR/run_nextclade.py"
+  local filter="$SCRIPT_DIR/filter_nextclade_qc.py"
+  local -a command=(
+    "$PYTHON_BIN" "$runner"
+    --fasta "$input_fasta"
+    --outdir "$nextclade_dir"
+  )
+
+  [[ -f "$runner" ]] || die "Nextclade runner was not found: $runner"
+  [[ -f "$filter" ]] || die "Nextclade QC filter was not found: $filter"
+
+  if [[ -n "$NEXTCLADE_DATASET" ]]; then
+    command+=(--nextclade-dataset "$NEXTCLADE_DATASET")
+  fi
+  if [[ -n "$NEXTCLADE_DATASET_TAG" ]]; then
+    command+=(--nextclade-dataset-tag "$NEXTCLADE_DATASET_TAG")
+  fi
+  if [[ -n "$NEXTCLADE_REFERENCE" ]]; then
+    command+=(--nextclade-reference "$NEXTCLADE_REFERENCE")
+  fi
+  if [[ -n "$NEXTCLADE_ANNOTATION" ]]; then
+    command+=(--nextclade-annotation "$NEXTCLADE_ANNOTATION")
+  fi
+  if [[ -n "$NEXTCLADE_PATHOGEN_JSON" ]]; then
+    command+=(--nextclade-pathogen-json "$NEXTCLADE_PATHOGEN_JSON")
+  fi
+  if [[ -n "$ANALYSIS_INFLUENZA_TYPE" ]]; then
+    command+=(--influenza-type "$ANALYSIS_INFLUENZA_TYPE")
+  fi
+  if [[ -n "$ANALYSIS_SEGMENT" ]]; then
+    command+=(--segment "$ANALYSIS_SEGMENT")
+  fi
+  if [[ "$INCLUDE_NEXTCLADE_FAILED" -eq 1 ]]; then
+    command+=(--include-failed)
+  fi
+
+  log "Running Nextclade alignment and reporting."
+  "${command[@]}"
+
+  local -a filter_command=(
+    "$PYTHON_BIN" "$filter"
+    --aligned-fasta "$nextclade_dir/aligned_nucleotide.fasta"
+    --qc "$nextclade_dir/qc.tsv"
+    --outdir "$nextclade_qc_dir"
+  )
+  if [[ "$INCLUDE_NEXTCLADE_FAILED" -eq 0 ]]; then
+    filter_command+=(--filter-qc)
+    log "Filtering Nextclade sequences with non-good QC status."
+  else
+    log "Keeping sequences with non-good Nextclade QC status by request."
+  fi
+  "${filter_command[@]}"
+
+  local accepted_fasta="$nextclade_qc_dir/accepted_aligned.fasta"
+  [[ -s "$accepted_fasta" ]] || die "Nextclade QC filter produced no accepted alignment: $accepted_fasta"
+  local accepted_count
+  accepted_count=$(awk '/^>/{count++} END{print count+0}' "$accepted_fasta")
+  [[ "$accepted_count" -ge 2 ]] || die "Fewer than 2 sequences remain after Nextclade QC filtering."
+  cp "$accepted_fasta" "$aligned_fasta"
+  log "Nextclade accepted $accepted_count sequence(s) for downstream phylogeny."
+  log "Nextclade outputs: $nextclade_dir"
+  log "Nextclade QC outputs: $nextclade_qc_dir"
+}
+
+prepare_nextclade_inputs() {
+  local report_out=$1
+  local helper="$SCRIPT_DIR/resolve_nextclade_inputs.py"
+  local output
+  local -a command=(
+    "$PYTHON_BIN" "$helper"
+    --fasta "$FASTA"
+    --metadata "$METADATA"
+    --metadata-format "$METADATA_FORMAT"
+    --report "$report_out"
+  )
+
+  [[ -f "$helper" ]] || die "Nextclade validation helper was not found: $helper"
+
+  if [[ -n "$NEXTCLADE_DATASET" ]]; then
+    command+=(--nextclade-dataset "$NEXTCLADE_DATASET")
+  fi
+  if [[ -n "$NEXTCLADE_DATASET_TAG" ]]; then
+    command+=(--nextclade-dataset-tag "$NEXTCLADE_DATASET_TAG")
+  fi
+  if [[ -n "$NEXTCLADE_REFERENCE" ]]; then
+    command+=(--nextclade-reference "$NEXTCLADE_REFERENCE")
+  fi
+  if [[ -n "$NEXTCLADE_ANNOTATION" ]]; then
+    command+=(--nextclade-annotation "$NEXTCLADE_ANNOTATION")
+  fi
+  if [[ -n "$NEXTCLADE_PATHOGEN_JSON" ]]; then
+    command+=(--nextclade-pathogen-json "$NEXTCLADE_PATHOGEN_JSON")
+  fi
+  if [[ -n "$ANALYSIS_INFLUENZA_TYPE" ]]; then
+    command+=(--influenza-type "$ANALYSIS_INFLUENZA_TYPE")
+  fi
+  if [[ -n "$ANALYSIS_SEGMENT" ]]; then
+    command+=(--segment "$ANALYSIS_SEGMENT")
+  fi
+
+  NEXTCLADE_INPUT_MODE=""
+  NEXTCLADE_RESOLVED_TYPE=""
+  NEXTCLADE_RESOLVED_SEGMENT=""
+  NEXTCLADE_RESOLVED_SUBTYPE=""
+  NEXTCLADE_DATASET_LABEL=""
+  NEXTCLADE_RESOLVED_DATASET_TYPE=""
+  NEXTCLADE_RESOLVED_DATASET_SEGMENT=""
+  NEXTCLADE_RESOLVED_DATASET_SUBTYPE=""
+  NEXTCLADE_MATCHED_RECORD_COUNT=""
+
+  if ! output=$("${command[@]}"); then
+    warn "Automatic Nextclade target summary was not resolved. Continuing without it because dataset validation is being handled manually."
+    return 0
+  fi
+
+  while IFS=$'\t' read -r key value; do
+    case "$key" in
+      nextclade_input_mode) NEXTCLADE_INPUT_MODE=$value ;;
+      analysis_influenza_type) NEXTCLADE_RESOLVED_TYPE=$value ;;
+      analysis_segment) NEXTCLADE_RESOLVED_SEGMENT=$value ;;
+      analysis_subtype_hint) NEXTCLADE_RESOLVED_SUBTYPE=$value ;;
+      dataset_label) NEXTCLADE_DATASET_LABEL=$value ;;
+      dataset_influenza_type) NEXTCLADE_RESOLVED_DATASET_TYPE=$value ;;
+      dataset_segment) NEXTCLADE_RESOLVED_DATASET_SEGMENT=$value ;;
+      dataset_subtype_hint) NEXTCLADE_RESOLVED_DATASET_SUBTYPE=$value ;;
+      matched_record_count) NEXTCLADE_MATCHED_RECORD_COUNT=$value ;;
+    esac
+  done <<<"$output"
+}
+
+run_selected_alignment() {
+  local input_fasta=$1
+  local aligned_fasta=$2
+
+  case "$ALIGNMENT_METHOD" in
+    mafft)
+      run_mafft_alignment "$input_fasta" "$aligned_fasta"
+      ;;
+    nextclade)
+      run_nextclade_alignment "$input_fasta" "$aligned_fasta"
+      ;;
+    *)
+      die "Internal error: unsupported alignment method '$ALIGNMENT_METHOD'."
+      ;;
+  esac
 }
 
 infer_alignment_length() {
@@ -1370,14 +1634,90 @@ Future downstream hooks reserved here:
 EOF
 }
 
+export_itol_bundle() {
+  local tree_file=$1
+  local metadata_tsv=$2
+  local field_summary_tsv=$3
+  local outdir=$4
+
+  local exporter
+  exporter="$(dirname "${BASH_SOURCE[0]}")/export_itol_annotations.py"
+  if [[ ! -f "$exporter" ]]; then
+    warn "iTOL exporter was not found, so no circular tree annotation bundle was written: $exporter"
+    return 0
+  fi
+  if [[ ! -s "$metadata_tsv" ]]; then
+    warn "Visualization metadata is missing, so no iTOL metadata rings were written: $metadata_tsv"
+    return 0
+  fi
+
+  log "Writing iTOL circular-tree annotation bundle."
+  "$PYTHON_BIN" "$exporter"     --tree "$tree_file"     --metadata "$metadata_tsv"     --fields "$field_summary_tsv"     --outdir "$outdir"
+}
+
+export_microreact_bundle() {
+  local tree_file=$1
+  local metadata_tsv=$2
+  local dates_audit_tsv=$3
+  local outdir=$4
+
+  local exporter
+  exporter="$(dirname "${BASH_SOURCE[0]}")/export_microreact.py"
+  if [[ ! -f "$exporter" ]]; then
+    warn "Microreact exporter was not found, so no Microreact bundle was written: $exporter"
+    return 0
+  fi
+  if [[ ! -s "$metadata_tsv" ]]; then
+    warn "Visualization metadata is missing, so no Microreact metadata CSV was written: $metadata_tsv"
+    return 0
+  fi
+
+  log "Writing Microreact upload bundle."
+  "$PYTHON_BIN" "$exporter"     --tree "$tree_file"     --metadata "$metadata_tsv"     --dates "$dates_audit_tsv"     --outdir "$outdir"
+}
+
+add_aa_mutations_to_auspice() {
+  local auspice_json=$1
+  local ancestral_sequences=$2
+  local gene=$3
+  local frame=$4
+  local report=$5
+
+  local mutator
+  mutator="$(dirname "${BASH_SOURCE[0]}")/add_aa_mutations_to_auspice.py"
+  if [[ ! -f "$mutator" ]]; then
+    warn "Auspice amino-acid mutation helper was not found: $mutator"
+    return 0
+  fi
+  if [[ ! -s "$auspice_json" || ! -s "$ancestral_sequences" ]]; then
+    warn "Auspice JSON or ancestral sequences are missing, so amino-acid branch mutations were not added."
+    return 0
+  fi
+
+  log "Adding $gene amino-acid branch mutations to Auspice JSON."
+  "$PYTHON_BIN" "$mutator"     --auspice "$auspice_json"     --ancestral-sequences "$ancestral_sequences"     --gene "$gene"     --frame "$frame"     --report "$report"
+}
+
 FASTA="data/sequences.fasta"
 METADATA="data/metadata.tsv"
 METADATA_FORMAT="default"
 OUTDIR="results"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 SEQ_LEN=""
 CLOCK_ROOT=""
 OUTGROUP=""
 DISPLAY_COLUMNS="auto"
+ALIGNMENT_METHOD="mafft"
+NEXTCLADE_DATASET=""
+NEXTCLADE_DATASET_TAG=""
+NEXTCLADE_REFERENCE=""
+NEXTCLADE_ANNOTATION=""
+NEXTCLADE_PATHOGEN_JSON=""
+INCLUDE_NEXTCLADE_FAILED=0
+ANALYSIS_INFLUENZA_TYPE=""
+ANALYSIS_SEGMENT=""
+AA_GENE="HA"
+AA_FRAME=0
 EXCLUDE_NGS_REPORT_NO=0
 FORCE_ALIGN=0
 
@@ -1423,6 +1763,60 @@ while [[ $# -gt 0 ]]; do
       DISPLAY_COLUMNS=$2
       shift 2
       ;;
+    --alignment-method)
+      [[ $# -ge 2 ]] || die "Missing value for --alignment-method"
+      ALIGNMENT_METHOD=$2
+      shift 2
+      ;;
+    --nextclade-dataset)
+      [[ $# -ge 2 ]] || die "Missing value for --nextclade-dataset"
+      NEXTCLADE_DATASET=$2
+      shift 2
+      ;;
+    --nextclade-dataset-tag)
+      [[ $# -ge 2 ]] || die "Missing value for --nextclade-dataset-tag"
+      NEXTCLADE_DATASET_TAG=$2
+      shift 2
+      ;;
+    --nextclade-reference)
+      [[ $# -ge 2 ]] || die "Missing value for --nextclade-reference"
+      NEXTCLADE_REFERENCE=$2
+      shift 2
+      ;;
+    --nextclade-annotation)
+      [[ $# -ge 2 ]] || die "Missing value for --nextclade-annotation"
+      NEXTCLADE_ANNOTATION=$2
+      shift 2
+      ;;
+    --nextclade-pathogen-json)
+      [[ $# -ge 2 ]] || die "Missing value for --nextclade-pathogen-json"
+      NEXTCLADE_PATHOGEN_JSON=$2
+      shift 2
+      ;;
+    --influenza-type)
+      [[ $# -ge 2 ]] || die "Missing value for --influenza-type"
+      ANALYSIS_INFLUENZA_TYPE=$2
+      shift 2
+      ;;
+    --segment)
+      [[ $# -ge 2 ]] || die "Missing value for --segment"
+      ANALYSIS_SEGMENT=$2
+      shift 2
+      ;;
+    --include-nextclade-failed)
+      INCLUDE_NEXTCLADE_FAILED=1
+      shift
+      ;;
+    --aa-gene)
+      [[ $# -ge 2 ]] || die "Missing value for --aa-gene"
+      AA_GENE=$2
+      shift 2
+      ;;
+    --aa-frame)
+      [[ $# -ge 2 ]] || die "Missing value for --aa-frame"
+      AA_FRAME=$2
+      shift 2
+      ;;
     --exclude-ngs-report-no)
       EXCLUDE_NGS_REPORT_NO=1
       shift
@@ -1443,9 +1837,56 @@ done
 
 [[ -n "$OUTDIR" ]] || die "--outdir must not be empty"
 [[ "$METADATA_FORMAT" =~ ^[A-Za-z0-9._-]+$ ]] || die "Unsupported --metadata-format value: $METADATA_FORMAT"
+case "$ALIGNMENT_METHOD" in
+  mafft)
+    if [[ -n "$NEXTCLADE_DATASET" ]]; then
+      die "--nextclade-dataset is only valid with --alignment-method nextclade."
+    fi
+    if [[ -n "$NEXTCLADE_DATASET_TAG" ]]; then
+      die "--nextclade-dataset-tag is only valid with --alignment-method nextclade."
+    fi
+    if [[ -n "$NEXTCLADE_REFERENCE" ]]; then
+      die "--nextclade-reference is only valid with --alignment-method nextclade."
+    fi
+    if [[ -n "$NEXTCLADE_ANNOTATION" ]]; then
+      die "--nextclade-annotation is only valid with --alignment-method nextclade."
+    fi
+    if [[ -n "$NEXTCLADE_PATHOGEN_JSON" ]]; then
+      die "--nextclade-pathogen-json is only valid with --alignment-method nextclade."
+    fi
+    if [[ "$INCLUDE_NEXTCLADE_FAILED" -eq 1 ]]; then
+      die "--include-nextclade-failed is only valid with --alignment-method nextclade."
+    fi
+    if [[ -n "$ANALYSIS_INFLUENZA_TYPE" ]]; then
+      die "--influenza-type is only valid with --alignment-method nextclade."
+    fi
+    if [[ -n "$ANALYSIS_SEGMENT" ]]; then
+      die "--segment is only valid with --alignment-method nextclade."
+    fi
+    ;;
+  nextclade)
+    if [[ -n "$NEXTCLADE_DATASET" ]]; then
+      if [[ -n "$NEXTCLADE_REFERENCE" || -n "$NEXTCLADE_ANNOTATION" ]]; then
+        die "Use either --nextclade-dataset or --nextclade-reference/--nextclade-annotation, not both."
+      fi
+      if [[ -n "$NEXTCLADE_PATHOGEN_JSON" ]]; then
+        die "--nextclade-pathogen-json is only supported with --nextclade-reference/--nextclade-annotation."
+      fi
+    else
+      [[ -n "$NEXTCLADE_REFERENCE" && -n "$NEXTCLADE_ANNOTATION" ]] || die "--alignment-method nextclade requires either --nextclade-dataset or both --nextclade-reference and --nextclade-annotation."
+    fi
+    ;;
+  *)
+    die "--alignment-method must be 'mafft' or 'nextclade', not '$ALIGNMENT_METHOD'."
+    ;;
+esac
 if [[ -n "$SEQ_LEN" ]] && ! [[ "$SEQ_LEN" =~ ^[0-9]+$ ]]; then
   die "--seq-len must be an integer."
 fi
+if ! [[ "$AA_FRAME" =~ ^[0-2]$ ]]; then
+  die "--aa-frame must be 0, 1, or 2."
+fi
+[[ -n "$AA_GENE" ]] || die "--aa-gene must not be empty."
 
 require_readable_file "$FASTA" "FASTA file"
 require_readable_file "$METADATA" "Metadata file"
@@ -1461,8 +1902,10 @@ DERIVED_DIR="$OUTDIR/derived_metadata"
 CLOCK_DIR="$OUTDIR/clock"
 TIMETREE_DIR="$OUTDIR/timetree"
 QC_DIR="$OUTDIR/qc"
+ITOL_DIR="$OUTDIR/itol"
+MICROREACT_DIR="$OUTDIR/microreact"
 
-mkdir -p "$OUTDIR" "$IQTREE_DIR" "$DERIVED_DIR" "$CLOCK_DIR" "$TIMETREE_DIR" "$QC_DIR"
+mkdir -p "$OUTDIR" "$IQTREE_DIR" "$DERIVED_DIR" "$CLOCK_DIR" "$TIMETREE_DIR" "$QC_DIR" "$ITOL_DIR" "$MICROREACT_DIR"
 
 FASTA_NAMES="$QC_DIR/fasta_names.txt"
 FASTA_SUMMARY="$QC_DIR/fasta_summary.tsv"
@@ -1490,6 +1933,9 @@ TIMETREE_LOG="$TIMETREE_DIR/timetree.stdout.log"
 AUSPICE_JSON="$TIMETREE_DIR/auspice_tree.json"
 AUSPICE_JSON_RAW="$TIMETREE_DIR/auspice_tree.treetime_raw.json"
 AUSPICE_AUGMENT_REPORT="$TIMETREE_DIR/auspice_metadata_report.tsv"
+ANCESTRAL_SEQUENCES="$TIMETREE_DIR/ancestral_sequences.fasta"
+AA_MUTATION_REPORT="$TIMETREE_DIR/amino_acid_branch_mutations.tsv"
+NEXTCLADE_INPUT_REPORT="$QC_DIR/nextclade_input_validation.tsv"
 
 log "Starting viral phylogeny workflow."
 log "FASTA: $FASTA"
@@ -1498,10 +1944,59 @@ log "Metadata format: $METADATA_FORMAT"
 log "Output directory: $OUTDIR"
 log "TreeTime rooting mode: $TREETIME_ROOT_DESC"
 log "Visualization metadata columns: $DISPLAY_COLUMNS"
+log "Alignment method: $ALIGNMENT_METHOD"
+if [[ "$ALIGNMENT_METHOD" == "nextclade" ]]; then
+  if [[ -n "$NEXTCLADE_DATASET" ]]; then
+    log "Nextclade dataset selector: $NEXTCLADE_DATASET"
+  else
+    log "Nextclade custom reference: $NEXTCLADE_REFERENCE"
+    log "Nextclade custom annotation: $NEXTCLADE_ANNOTATION"
+  fi
+  if [[ -n "$NEXTCLADE_DATASET_TAG" ]]; then
+    log "Nextclade dataset tag: $NEXTCLADE_DATASET_TAG"
+  fi
+  if [[ -n "$NEXTCLADE_PATHOGEN_JSON" ]]; then
+    log "Nextclade pathogen JSON: $NEXTCLADE_PATHOGEN_JSON"
+  fi
+  if [[ -n "$ANALYSIS_INFLUENZA_TYPE" ]]; then
+    log "Requested influenza type override: $ANALYSIS_INFLUENZA_TYPE"
+  fi
+  if [[ -n "$ANALYSIS_SEGMENT" ]]; then
+    log "Requested segment override: $ANALYSIS_SEGMENT"
+  fi
+  log "Include Nextclade-failed sequences: $INCLUDE_NEXTCLADE_FAILED"
+fi
+log "Auspice amino-acid mutation gene/frame: $AA_GENE / $AA_FRAME"
 log "Exclude NGS_Report=NO: $EXCLUDE_NGS_REPORT_NO"
 log "Detected IQ-TREE executable: $IQTREE_BIN"
 log "Detected Python executable: $PYTHON_BIN"
 log "Detected CPU count: $CPU_COUNT"
+
+if [[ "$ALIGNMENT_METHOD" == "nextclade" ]]; then
+  log "Attempting a non-blocking Nextclade target summary from the matched metadata rows."
+  prepare_nextclade_inputs "$NEXTCLADE_INPUT_REPORT"
+  if [[ -n "$NEXTCLADE_INPUT_MODE" ]]; then
+    log "Nextclade input mode: $NEXTCLADE_INPUT_MODE"
+  fi
+  if [[ -n "$NEXTCLADE_RESOLVED_TYPE" || -n "$NEXTCLADE_RESOLVED_SEGMENT" ]]; then
+    log "Resolved influenza target hint: type=${NEXTCLADE_RESOLVED_TYPE:-unknown} segment=${NEXTCLADE_RESOLVED_SEGMENT:-unknown}"
+  fi
+  if [[ -n "$NEXTCLADE_RESOLVED_SUBTYPE" ]]; then
+    log "Resolved subtype hint: $NEXTCLADE_RESOLVED_SUBTYPE"
+  fi
+  if [[ -n "$NEXTCLADE_DATASET_LABEL" ]]; then
+    log "Resolved Nextclade source hint: $NEXTCLADE_DATASET_LABEL"
+  fi
+  if [[ -n "$NEXTCLADE_RESOLVED_DATASET_TYPE" || -n "$NEXTCLADE_RESOLVED_DATASET_SEGMENT" ]]; then
+    log "Resolved Nextclade source target hint: type=${NEXTCLADE_RESOLVED_DATASET_TYPE:-unknown} segment=${NEXTCLADE_RESOLVED_DATASET_SEGMENT:-unknown}"
+  fi
+  if [[ -n "$NEXTCLADE_MATCHED_RECORD_COUNT" ]]; then
+    log "Matched metadata rows used for the summary: $NEXTCLADE_MATCHED_RECORD_COUNT"
+  fi
+  if [[ -s "$NEXTCLADE_INPUT_REPORT" ]]; then
+    log "Nextclade input summary report: $NEXTCLADE_INPUT_REPORT"
+  fi
+fi
 
 log "Validating FASTA and collecting sequence statistics."
 validate_fasta_and_collect_stats "$FASTA" "$FASTA_NAMES" "$FASTA_SUMMARY"
@@ -1553,9 +2048,21 @@ if [[ "$appears_aligned" == "true" ]]; then
 else
   log "Input FASTA does not appear aligned. MAFFT will be run."
 fi
-run_mafft_alignment "$FASTA_FILTERED_TO_DATED" "$ALIGNMENT_PATH"
+run_selected_alignment "$FASTA_FILTERED_TO_DATED" "$ALIGNMENT_PATH"
 
-run_qc_placeholder "$ALIGNMENT_PATH" "$QC_NOTE" "$MASKING_PLACEHOLDER"
+if [[ "$ALIGNMENT_METHOD" == "nextclade" ]]; then
+  NEXTCLADE_DATES_FILE="$DERIVED_DIR/dates_for_treetime.nextclade.tsv"
+  filter_dates_to_fasta "$DATES_FILE" "$ALIGNMENT_PATH" "$NEXTCLADE_DATES_FILE"
+  DATES_FILE="$NEXTCLADE_DATES_FILE"
+  run_nextclade_qc_note \
+    "$ALIGNMENT_PATH" \
+    "$QC_NOTE" \
+    "$MASKING_PLACEHOLDER" \
+    "$QC_DIR/nextclade" \
+    "$QC_DIR/nextclade_qc"
+else
+  run_qc_placeholder "$ALIGNMENT_PATH" "$QC_NOTE" "$MASKING_PLACEHOLDER"
+fi
 write_downstream_placeholder "$DOWNSTREAM_PLACEHOLDER"
 
 if [[ -z "$SEQ_LEN" ]]; then
@@ -1590,12 +2097,21 @@ else
   warn "TreeTime did not produce an Auspice JSON, so no metadata augmentation was performed."
 fi
 
+if [[ -f "$AUSPICE_JSON" ]]; then
+  add_aa_mutations_to_auspice "$AUSPICE_JSON" "$ANCESTRAL_SEQUENCES" "$AA_GENE" "$AA_FRAME" "$AA_MUTATION_REPORT"
+fi
+
+export_itol_bundle "$IQTREE_TREE" "$VISUALIZATION_METADATA_TSV" "$VISUALIZATION_FIELDS_SUMMARY" "$ITOL_DIR"
+export_microreact_bundle "$IQTREE_TREE" "$VISUALIZATION_METADATA_TSV" "$DATES_AUDIT" "$MICROREACT_DIR"
+
 log "Workflow completed successfully."
 log "Key outputs:"
 log "  IQ-TREE results: $IQTREE_DIR"
 log "  Derived metadata: $DERIVED_DIR"
 log "  Clock analysis: $CLOCK_DIR"
 log "  Timetree analysis: $TIMETREE_DIR"
+log "  iTOL circular tree bundle: $ITOL_DIR"
+log "  Microreact upload bundle: $MICROREACT_DIR"
 if [[ -f "$AUSPICE_JSON" ]]; then
   log "  Enriched Auspice JSON: $AUSPICE_JSON"
 fi

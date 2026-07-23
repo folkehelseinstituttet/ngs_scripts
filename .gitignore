@@ -1,3 +1,8 @@
 
 .Rproj.user
 .claude/
+
+# Generated phylogeny outputs and Python bytecode
+/respiratory-virus-surveillance/IQ-tree-analysis/results/
+__pycache__/
+*.py[cod]

@@ -73,6 +73,37 @@ Required tools:
 - `mafft`
 - `python3` for metadata/date parsing and FASTA validation
 
+## Alignment method configuration
+
+Both shell entrypoints accept the alignment configuration options:
+
+```text
+--alignment-method mafft|nextclade
+--nextclade-dataset <dataset-name-or-path>
+--nextclade-dataset-tag <tag>
+--nextclade-reference <reference-fasta>
+--nextclade-annotation <annotation-gff3>
+--nextclade-pathogen-json <pathogen-json>
+--influenza-type <A|B|C|D>
+--segment <segment>
+--include-nextclade-failed
+```
+
+`--alignment-method` defaults to `mafft`, so commands that do not use the new
+options retain the existing MAFFT behavior. In `nextclade` mode you can now use
+either a local dataset directory/zip, a dataset name with an optional tag, or a
+custom reference FASTA plus genome annotation. `--include-nextclade-failed` is
+still an explicit opt-in. Nextclade-specific options are rejected when the
+selected method is `mafft` to catch configuration mistakes.
+
+In `nextclade` mode, `run_phylo.sh` runs the standalone Nextclade stage on the
+date-qualified FASTA, writes its provenance and QC outputs under
+`qc/nextclade/`, applies the optional QC filter under `qc/nextclade_qc/`, and
+passes `accepted_aligned.fasta` to the existing IQ-TREE and TreeTime stages.
+`--include-nextclade-failed` disables the QC-status exclusion while retaining
+the full filter report. The wrapper accepts these options and forwards them to
+`run_phylo.sh`.
+
 ## Test data
 
 An anonymized H3N2 HA fixture is available under `test-data/`. It uses sequence
@@ -91,6 +122,33 @@ bash scripts/run_phylo.sh \
   --display-columns auto \
   --seq-len 1700
 ```
+
+
+## Wrapper: Standalone Alignments Plus Established Phylogeny
+
+Use `scripts/run_alignments_and_phylo.sh` when you want both standalone alignment
+files and the established `scripts/run_phylo.sh` IQ-TREE/TreeTime workflow in one
+run. The wrapper does not replace `run_phylo.sh`; it calls it after writing the
+extra nucleotide and amino-acid alignment outputs.
+
+```bash
+bash scripts/run_alignments_and_phylo.sh \
+  --fasta-dir /home/rasmuskopperud.riis/Coding/CODEX-projects/IQ-tree_tree_time/FASTA \
+  --metadata-dir /home/rasmuskopperud.riis/Coding/CODEX-projects/IQ-tree_tree_time/META \
+  --outdir results/h3n2
+```
+
+For a single FASTA and metadata file:
+
+```bash
+bash scripts/run_alignments_and_phylo.sh \
+  --fasta test-data/sequences.fasta \
+  --metadata test-data/metadata.csv \
+  --outdir results/test-wrapper
+```
+
+The wrapper writes standalone alignments under `OUTDIR/alignments/<sample>/` and
+writes the established phylogeny workflow outputs under `OUTDIR/phylo/<sample>/`.
 
 ## Example command
 
@@ -145,6 +203,55 @@ bash scripts/run_phylo.sh \
   --outdir results \
   --exclude-ngs-report-no
 ```
+
+
+## Circular Tree With Metadata Rings
+
+`run_phylo.sh` also writes an iTOL upload bundle under `results/itol/` for a
+circular tree with branch support labels and metadata rings.
+
+The bundle contains:
+
+- `iqtree_with_branch_supports.tree`: the IQ-TREE Newick tree, including branch support labels such as `97.6/100`
+- `itol_colorstrip_*.txt`: one iTOL metadata ring file per retained metadata column, for example county, lab, NGS run, clade, or HA subclade
+- `README.txt`: upload instructions
+- `manifest.tsv`: file index
+
+To view it:
+
+1. Open https://itol.embl.de/
+2. Upload `results/itol/iqtree_with_branch_supports.tree`
+3. Set the iTOL display mode to circular
+4. Enable internal node labels / bootstrap labels to show the support numbers on branches
+5. Drag one or more `itol_colorstrip_*.txt` files onto the tree to add metadata rings
+
+For wrapper runs, the same files are under `OUTDIR/phylo/<sample>/itol/`.
+
+
+## Microreact Upload Bundle
+
+`run_phylo.sh` writes a Microreact-ready bundle under `results/microreact/`.
+For wrapper runs, the files are under `OUTDIR/phylo/<sample>/microreact/`.
+
+The bundle contains:
+
+- `microreact_tree.nwk`: the IQ-TREE Newick tree
+- `microreact_metadata.csv`: metadata rows keyed by `id`, matching the tree leaf labels
+- `README.txt`: upload instructions
+- `manifest.tsv`: file index
+
+The metadata CSV includes retained metadata fields, date columns (`date`, `year`,
+`month`, `day`, `decimal_date`), and colour helper columns such as
+`ngs_run__colour`, `clade__colour`, or `county__colour` when those fields are
+present.
+
+To view it:
+
+1. Open https://microreact.org/upload
+2. Upload `microreact_tree.nwk` and `microreact_metadata.csv`
+3. In the tree panel, select `id` as the labels column
+4. Choose fields such as `ngs_run`, `clade`, `county`, or `lab` for colouring
+5. Use the date columns for timeline filtering when needed
 
 ## Expected FASTA format
 
@@ -203,6 +310,7 @@ The workflow can also derive visualization metadata for retained samples and add
 - host
 - segment
 - lab
+- NGS run (`NGS_Run`, `NGS_Run_ID`, `run_id`)
 - lineage
 - clade
 - HA subclade (`NC_HA_Subclade`)
