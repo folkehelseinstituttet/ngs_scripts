@@ -50,6 +50,37 @@ Outputs are written under `results/` in these subfolders:
 - `results/timetree`
 - `results/qc`
 
+- `results/master` — curated tree files for routine inspection and comparison
+
+The curated master folder contains the primary nucleotide tree and its clearly
+named TreeTime Auspice file:
+
+```text
+results/master/
+├── nucleotide/
+│   ├── nucleotide_iqtree.treefile
+│   ├── nucleotide_treetime_auspice.json
+│   ├── nucleotide_treetime.nexus
+│   ├── nucleotide_alignment.fasta
+│   └── nucleotide_dates.tsv
+├── amino_acid/<CDS>/
+│   ├── <CDS>_amino_acid_iqtree.treefile
+│   └── <CDS>_amino_acid_alignment.fasta
+├── amino_acid/amino_acid_tree_summary.tsv
+├── manifest.tsv
+└── README.txt
+```
+
+The detailed output directories remain available for provenance and diagnostics.
+The current Auspice file is explicitly the nucleotide TreeTime result; the
+per-CDS amino-acid IQ-TREEs do not yet have dated amino-acid Auspice files.
+
+Auspice amino-acid branch labels are disabled by default. Use `--aa-gene` only
+when the input is a single-CDS/gene alignment and the coding frame is known,
+for example `--aa-gene HA --aa-frame 0`. Do not enable this option for a whole
+genome or multi-CDS alignment; the nucleotide tree and nucleotide Auspice file
+remain valid without it.
+
 ## Installation
 
 Use `mamba` or `conda` on Linux.
@@ -103,6 +134,16 @@ passes `accepted_aligned.fasta` to the existing IQ-TREE and TreeTime stages.
 `--include-nextclade-failed` disables the QC-status exclusion while retaining
 the full filter report. The wrapper accepts these options and forwards them to
 `run_phylo.sh`.
+For Nextclade runs, the same accepted sequence IDs are also used to build one
+amino-acid IQ-TREE per CDS translation found in the raw Nextclade output. These
+parallel trees are written under `amino_acid_iqtree/<CDS>/` and curated copies
+are written under `master/amino_acid/<CDS>/`. Each directory contains the
+accepted amino-acid alignment and IQ-TREE tree. The
+`amino_acid_tree_summary.tsv` file records the CDS, paths, command, IQ-TREE
+version, sequence counts, alignment length, and whether branch-support
+replicates were available. The nucleotide IQ-TREE remains the primary
+backbone; amino-acid trees are supplementary and are not used by TreeTime.
+
 
 ## Test data
 
@@ -149,6 +190,42 @@ bash scripts/run_alignments_and_phylo.sh \
 
 The wrapper writes standalone alignments under `OUTDIR/alignments/<sample>/` and
 writes the established phylogeny workflow outputs under `OUTDIR/phylo/<sample>/`.
+
+
+### Production SMB wrapper
+
+The repository-root `wrapper.sh` runs the routine analysis using the same
+operational pattern as the influenza Nextstrain wrapper. It expects this layout
+under
+`N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\13-IQtree`:
+
+```text
+13-IQtree/
+|-- H1/
+|   |-- metadata.csv|tsv|txt|xlsx|xls
+|   `-- *.fasta
+|-- H3/
+|   |-- metadata.csv|tsv|txt|xlsx|xls
+|   `-- *.fasta
+`-- VIC/
+    |-- metadata.csv|tsv|txt|xlsx|xls
+    `-- *.fasta
+```
+
+All FASTA files within a lineage use the corresponding metadata file. The wrapper
+downloads only `H1`, `H3`, and `VIC`, runs each lineage independently, and
+uploads the complete results, including an `input_data/` archive, to
+`13-IQtree/YYYY-MM-DD_IQtree_Build/`. Only after that upload succeeds, the
+processed source files are deleted from the H1/H3/VIC input folders. Same-day
+reruns reuse the dated result folder. A `run_manifest.tsv` records the date,
+source, destination, Conda environment, and exact `ngs_scripts` commit.
+
+Excel metadata uses the existing influenza converter. Create or update the
+dedicated environment before deploying the wrapper:
+
+```bash
+conda env update -f respiratory-virus-surveillance/IQ-tree-analysis/envs/environment.yml --prune
+```
 
 ## Example command
 

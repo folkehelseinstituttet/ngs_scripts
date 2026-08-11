@@ -1,17 +1,19 @@
 # Current workflow inventory
 
-This document records the workflow as implemented before adding a Nextclade or
-Nextalign path. It describes current inputs, processing steps, outputs, and the
-places in the code responsible for each step. It does not propose or implement
-behavior changes.
+This document records the current workflow, including the optional Nextclade
+alignment/QC path and its per-CDS amino-acid IQ-TREE outputs. It describes
+current inputs, processing steps, outputs, and the places in the code
+responsible for each step.
 
 ## Entrypoints
 
 There are two shell entrypoints:
 
-1. [`scripts/run_phylo.sh`](scripts/run_phylo.sh) is the main nucleotide
-   phylogeny workflow. It validates and filters the inputs, runs MAFFT,
-   IQ-TREE, and TreeTime, then enriches TreeTime's Auspice JSON.
+1. [`scripts/run_phylo.sh`](scripts/run_phylo.sh) is the main phylogeny
+   workflow. It validates and filters the inputs, runs MAFFT or Nextclade,
+   builds the primary nucleotide IQ-TREE, runs TreeTime, and enriches
+   TreeTime's Auspice JSON. Nextclade mode also builds supplementary per-CDS
+   amino-acid IQ-TREEs.
 2. [`scripts/run_alignments_and_phylo.sh`](scripts/run_alignments_and_phylo.sh)
    is a batch/single-file wrapper. It creates additional standalone nucleotide
    and amino-acid alignments, runs a separate amino-acid IQ-TREE analysis, and
@@ -28,22 +30,16 @@ Input nucleotide FASTA + metadata
 |
 |  scripts/run_alignments_and_phylo.sh (optional wrapper)
 |
-+---> MAFFT on original nucleotides
-|       `alignments/<sample>/<sample>.nucleotide.aligned.fasta`
-|       (standalone output; not consumed by run_phylo.sh)
-|
-+---> choose one of reading frames 0, 1, or 2 independently per sequence
-|       -> translate original, unaligned nucleotide sequence
-|       -> MAFFT amino-acid alignment
-|       -> separate amino-acid IQ-TREE analysis
-|
-`---> scripts/run_phylo.sh, receiving the original nucleotide FASTA
++---> scripts/run_phylo.sh
         |
         +-- validate FASTA and parse metadata/dates
         +-- reconcile identifiers and remove sequences without retained dates
-        +-- MAFFT nucleotide alignment
-        +-- IQ-TREE nucleotide maximum-likelihood tree
-        +-- TreeTime clock analysis
+        +-- MAFFT alignment (default) OR Nextclade alignment plus QC filtering
+        |     `qc/aligned_sequences.fasta` is the accepted nucleotide alignment
+        +-- IQ-TREE nucleotide maximum-likelihood tree (primary backbone)
+        +-- [Nextclade only] filter each CDS translation to the same accepted IDs
+        |     and build one supplementary amino-acid IQ-TREE per CDS
+        +-- TreeTime clock analysis using the IQ-TREE nucleotide tree and dates
         +-- TreeTime timetree, nucleotide reconstruction, and Auspice JSON
         +-- add retained metadata to Auspice tips
         `-- translate reconstructed branch states in one user-selected frame
@@ -68,9 +64,11 @@ Required runtime inputs are:
 | Output directory | `--outdir PATH` | Contains the QC, IQ-TREE, TreeTime, and visualization products. |
 
 Important optional inputs include `--seq-len`, `--clock-root` or `--outgroup`,
-`--display-columns`, `--aa-gene`, `--aa-frame`, and
-`--exclude-ngs-report-no`. Only the `default` metadata parser is currently
-implemented.
+`--display-columns`, `--aa-gene`/`--aa-frame`, `--exclude-ngs-report-no`, and
+`--alignment-method mafft|nextclade` with the Nextclade dataset/reference
+options. `--include-nextclade-failed` is an explicit opt-in to retain sequences
+with non-good Nextclade QC status. Only the `default` metadata parser is
+currently implemented.
 
 The workflow requires at least two sequences after metadata/date filtering.
 FASTA identifiers must match retained metadata identifiers exactly. A
@@ -109,9 +107,15 @@ Processing:
 6. Write a new nucleotide FASTA containing only date-qualified sequences.
 7. Retain selected metadata fields for later visualization.
 
-Principal outputs under `OUTDIR`:
+Principal outputs under `OUTDIR` include the curated master tree folder:
 
 ```text
+master/README.txt
+master/manifest.tsv
+master/nucleotide/nucleotide_iqtree.treefile
+master/nucleotide/nucleotide_treetime_auspice.json
+master/amino_acid/<CDS>/<CDS>_amino_acid_iqtree.treefile  # Nextclade mode
+
 qc/fasta_names.txt
 qc/fasta_summary.tsv
 qc/id_match_report.tsv
@@ -129,8 +133,9 @@ derived_metadata/visualization_fields.tsv
 
 The current `qc/qc_notes.txt` and
 `qc/masking_rules.placeholder.txt` files explicitly reserve future QC and
-masking behavior. No virus-specific sequence-quality filtering, trimming, or
-site masking is currently implemented.
+masking behavior. In Nextclade mode, Nextclade QC is the only sequence-status
+filter unless `--include-nextclade-failed` is supplied; no additional virus-
+specific trimming or site masking is currently implemented.
 
 ### 2. Nucleotide MAFFT alignment used by the phylogeny
 
@@ -158,7 +163,33 @@ qc/aligned_sequences.fasta
 MAFFT is always run, even when the input FASTA appears aligned. This output is
 the aligned nucleotide FASTA consumed by both nucleotide IQ-TREE and TreeTime.
 
-### 3. Nucleotide IQ-TREE analysis
+### 3. Nextclade alignment, QC, and amino-acid IQ-TREEs (optional)
+
+Location: `run_nextclade_alignment` and `run_nextclade_amino_acid_iqtree` in
+[`scripts/run_phylo.sh`](scripts/run_phylo.sh), with the amino-acid runner in
+[`scripts/run_nextclade_amino_acid_iqtree.py`](scripts/run_nextclade_amino_acid_iqtree.py).
+
+When `--alignment-method nextclade` is selected, Nextclade runs on the
+date-qualified nucleotide FASTA. Its aligned nucleotide output is filtered by
+QC unless `--include-nextclade-failed` is set, then copied to
+`qc/aligned_sequences.fasta`. The matching dates are written to
+`derived_metadata/dates_for_treetime.nextclade.tsv`.
+
+Nextclade translations are read from `.nextclade_raw/`, sorted deterministically,
+and filtered to the exact accepted nucleotide IDs. One IQ-TREE is built per CDS
+under `amino_acid_iqtree/<CDS>/`; `amino_acid_tree_summary.tsv` records commands,
+versions, paths, counts, lengths, and support mode. The nucleotide IQ-TREE remains
+the primary backbone, and these amino-acid trees are not passed to TreeTime.
+
+After the nucleotide and (when applicable) amino-acid analyses finish,
+`publish_master_results` writes curated copies under `OUTDIR/master/`. The
+master folder contains `nucleotide/nucleotide_iqtree.treefile`,
+`nucleotide/nucleotide_treetime_auspice.json`, the accepted nucleotide
+alignment and dates, plus per-CDS amino-acid IQ-TREEs and alignments under
+`amino_acid/<CDS>/`. `manifest.tsv` maps each curated file to its detailed
+source. AA IQ-TREEs do not currently have dated amino-acid Auspice outputs.
+
+### 4. Nucleotide IQ-TREE analysis
 
 Location: `run_iqtree` in
 [`scripts/run_phylo.sh`](scripts/run_phylo.sh)
@@ -194,7 +225,7 @@ IQ-TREE also produces its normal log, report, checkpoint, consensus tree,
 distance, model, split, and intermediate files under `iqtree/`. The exact
 command is recorded in `iqtree/run_notes.txt`.
 
-### 4. TreeTime clock analysis
+### 5. TreeTime clock analysis
 
 Location: `run_treetime_clock`, `summarize_clock_outputs`, and
 `choose_treetime_input_tree` in
@@ -234,7 +265,7 @@ clock/clock_warnings.txt
 The rerooted tree is preferred for the full timetree step. If it cannot be
 found, the IQ-TREE tree is used instead.
 
-### 5. TreeTime timetree, nucleotide mutations, and initial Auspice JSON
+### 6. TreeTime timetree, nucleotide mutations, and initial Auspice JSON
 
 Location: `run_treetime_timetree` in
 [`scripts/run_phylo.sh`](scripts/run_phylo.sh)
@@ -277,7 +308,7 @@ TreeTime performs ancestral nucleotide reconstruction and supplies the
 nucleotide branch mutations in the initial Auspice JSON. The workflow does not
 run a separate custom nucleotide-mutation annotator.
 
-### 6. Metadata enrichment of the Auspice JSON
+### 7. Metadata enrichment of the Auspice JSON
 
 Location: `export_retained_visualization_metadata` and
 `augment_auspice_json_with_metadata` in
@@ -307,7 +338,7 @@ timetree/auspice_metadata_report.tsv
 The raw backup is created only when visualization fields are selected and the
 JSON is actually augmented.
 
-### 7. Custom amino-acid branch-mutation annotation
+### 8. Custom amino-acid branch-mutation annotation
 
 Locations:
 
@@ -320,8 +351,8 @@ Inputs:
 
 - the metadata-enriched `timetree/auspice_tree.json`
 - `timetree/ancestral_sequences.fasta`
-- `--aa-gene` (default `HA`)
-- `--aa-frame` (one fixed frame, default `0`)
+- `--aa-gene` (explicit opt-in; disabled by default)
+- `--aa-frame` (one fixed frame, default `0`, used only with `--aa-gene`)
 
 Behavior:
 
@@ -348,7 +379,7 @@ out-of-range positions are omitted or counted in the report. This annotator
 does not use a reference sequence, a feature annotation, or codon-aware
 alignment. Its `--aa-frame` is one global frame for the run.
 
-### 8. Standalone wrapper alignments and amino-acid IQ-TREE
+### 9. Amino-acid IQ-TREE analyses
 
 Location: `write_translated_fasta`, `run_alignment_outputs`, and
 `run_amino_acid_iqtree` in
@@ -384,7 +415,7 @@ amino-acid alignment and amino-acid IQ-TREE tree. It is not reused by the
 custom Auspice amino-acid mutation annotator, which instead uses TreeTime's
 reconstructed nucleotide states and the one global `--aa-frame` value.
 
-### 9. Additional visualization exports
+### 10. Additional visualization exports
 
 After the main tree is complete, `run_phylo.sh` also calls:
 
@@ -422,21 +453,22 @@ these result directories.
 
 ## Current alignment and translation assumptions
 
-The inspection confirms the assumptions that motivate the planned Nextclade
-work:
+The inspection confirms these alignment and translation assumptions:
 
 - Both nucleotide alignments are plain de novo MAFFT alignments.
 - No reference genome or genome annotation is supplied to alignment.
 - No codon-aware nucleotide alignment is performed.
 - The standalone protein path chooses a frame independently per sequence after
   removing nucleotide gaps.
-- The Auspice amino-acid path assumes one global coding offset over the entire
-  TreeTime nucleotide alignment.
+- When explicitly enabled, the Auspice amino-acid path assumes one global coding
+  offset over a single-CDS TreeTime nucleotide alignment; it is disabled by
+  default for whole-genome or multi-CDS alignments.
 - The standalone protein alignment/tree does not feed IQ-TREE's nucleotide
   tree, TreeTime, or the Auspice amino-acid calls.
 - Current sequence QC is validation- and metadata-focused; it does not identify
   biological frameshifts, partial coding regions, UTRs, or incompatible segment
   references.
 
-These are observations about the existing implementation only; no workflow
-behavior was changed while producing this inventory.
+The nucleotide IQ-TREE remains the primary backbone for both alignment modes;
+Nextclade per-CDS amino-acid trees are supplementary and are not used by
+TreeTime.

@@ -65,9 +65,9 @@ Options:
   --include-nextclade-failed
                             Request inclusion of sequences that fail Nextclade
                             QC. Default: disabled.
-  --aa-gene NAME            Protein/gene key for Auspice amino-acid branch
-                            mutations. Default: HA.
-  --aa-frame INT            Coding frame offset for amino-acid mutation calls:
+  --aa-gene NAME            Enable Auspice amino-acid branch mutations for one
+                            explicitly selected CDS/gene. Default: disabled.
+  --aa-frame INT            Coding frame offset used with --aa-gene:
                             0, 1, or 2. Default: 0.
   --exclude-ngs-report-no   Exclude rows where metadata column NGS_Report is NO.
                             Default: disabled.
@@ -91,6 +91,13 @@ Notes:
   - In Nextclade mode, the date-qualified FASTA is analyzed with Nextclade,
     optionally filtered by QC, and the accepted aligned FASTA is passed to
     IQ-TREE and TreeTime.
+  - In Nextclade mode, one supplementary amino-acid IQ-TREE is built per CDS
+    translation using the same accepted sequence IDs; these outputs are under
+    OUTDIR/amino_acid_iqtree and are not used by TreeTime.
+  - Curated tree files are copied to OUTDIR/master, including explicitly named
+    nucleotide_iqtree.treefile and nucleotide_treetime_auspice.json outputs.
+  - Auspice amino-acid branch annotations are disabled unless --aa-gene is
+    explicitly supplied for a single-CDS alignment with a known frame.
   - When TreeTime writes an Auspice JSON, the workflow can enrich terminal
     nodes with retained metadata such as geography, age, host, HA subclade, or lab.
 EOF
@@ -1305,6 +1312,22 @@ run_nextclade_alignment() {
   log "Nextclade QC outputs: $nextclade_qc_dir"
 }
 
+run_nextclade_amino_acid_iqtree() {
+  local accepted_fasta=$1
+  local nextclade_dir="$QC_DIR/nextclade"
+  local aa_outdir="$OUTDIR/amino_acid_iqtree"
+  local runner="$SCRIPT_DIR/run_nextclade_amino_acid_iqtree.py"
+
+  [[ -f "$runner" ]] || die "Nextclade amino-acid IQ-TREE runner was not found: $runner"
+  log "Running one amino-acid IQ-TREE per Nextclade CDS translation."
+  "$PYTHON_BIN" "$runner" \
+    --nextclade-dir "$nextclade_dir" \
+    --accepted-aligned-fasta "$accepted_fasta" \
+    --outdir "$aa_outdir" \
+    --iqtree-bin "$IQTREE_BIN"
+  log "Amino-acid IQ-TREE outputs: $aa_outdir"
+}
+
 prepare_nextclade_inputs() {
   local report_out=$1
   local helper="$SCRIPT_DIR/resolve_nextclade_inputs.py"
@@ -1676,6 +1699,76 @@ export_microreact_bundle() {
   "$PYTHON_BIN" "$exporter"     --tree "$tree_file"     --metadata "$metadata_tsv"     --dates "$dates_audit_tsv"     --outdir "$outdir"
 }
 
+publish_master_results() {
+  local master_dir=$1
+  local manifest="$master_dir/manifest.tsv"
+  local master_readme="$master_dir/README.txt"
+  local nucleotide_dir="$master_dir/nucleotide"
+  local amino_acid_dir="$master_dir/amino_acid"
+
+  mkdir -p "$nucleotide_dir" "$amino_acid_dir"
+  {
+    printf 'role\tsource\tmaster_path\n'
+    cp "$IQTREE_TREE" "$nucleotide_dir/nucleotide_iqtree.treefile"
+    printf 'nucleotide_iqtree\t%s\t%s\n' "$IQTREE_TREE" "$nucleotide_dir/nucleotide_iqtree.treefile"
+    if [[ -s "$AUSPICE_JSON" ]]; then
+      cp "$AUSPICE_JSON" "$nucleotide_dir/nucleotide_treetime_auspice.json"
+      printf 'nucleotide_treetime_auspice\t%s\t%s\n' "$AUSPICE_JSON" "$nucleotide_dir/nucleotide_treetime_auspice.json"
+    else
+      warn "TreeTime Auspice JSON is missing; it was not published to the master folder: $AUSPICE_JSON"
+    fi
+    if [[ -s "$TIMETREE_DIR/timetree.nexus" ]]; then
+      cp "$TIMETREE_DIR/timetree.nexus" "$nucleotide_dir/nucleotide_treetime.nexus"
+      printf 'nucleotide_treetime_nexus\t%s\t%s\n' "$TIMETREE_DIR/timetree.nexus" "$nucleotide_dir/nucleotide_treetime.nexus"
+    fi
+    cp "$ALIGNED_FASTA" "$nucleotide_dir/nucleotide_alignment.fasta"
+    printf 'nucleotide_alignment\t%s\t%s\n' "$ALIGNED_FASTA" "$nucleotide_dir/nucleotide_alignment.fasta"
+    cp "$DATES_FILE" "$nucleotide_dir/nucleotide_dates.tsv"
+    printf 'nucleotide_dates\t%s\t%s\n' "$DATES_FILE" "$nucleotide_dir/nucleotide_dates.tsv"
+
+    if [[ "$ALIGNMENT_METHOD" == "nextclade" && -d "$OUTDIR/amino_acid_iqtree" ]]; then
+      while IFS= read -r treefile; do
+        local cds
+        cds=$(basename "$(dirname "$treefile")")
+        local cds_dir="$amino_acid_dir/$cds"
+        mkdir -p "$cds_dir"
+        cp "$treefile" "$cds_dir/${cds}_amino_acid_iqtree.treefile"
+        printf 'amino_acid_iqtree\t%s\t%s\n' "$treefile" "$cds_dir/${cds}_amino_acid_iqtree.treefile"
+        local aa_alignment="$OUTDIR/amino_acid_iqtree/$cds/${cds}.amino_acid.aligned.fasta"
+        if [[ -s "$aa_alignment" ]]; then
+          cp "$aa_alignment" "$cds_dir/${cds}_amino_acid_alignment.fasta"
+          printf 'amino_acid_alignment\t%s\t%s\n' "$aa_alignment" "$cds_dir/${cds}_amino_acid_alignment.fasta"
+        fi
+      done < <(find "$OUTDIR/amino_acid_iqtree" -mindepth 2 -maxdepth 2 -type f -name '*.amino_acid.treefile' | sort)
+      if [[ -s "$OUTDIR/amino_acid_iqtree/amino_acid_tree_summary.tsv" ]]; then
+        cp "$OUTDIR/amino_acid_iqtree/amino_acid_tree_summary.tsv" "$amino_acid_dir/amino_acid_tree_summary.tsv"
+        printf 'amino_acid_summary\t%s\t%s\n' "$OUTDIR/amino_acid_iqtree/amino_acid_tree_summary.tsv" "$amino_acid_dir/amino_acid_tree_summary.tsv"
+      fi
+    fi
+  } >"$manifest"
+
+  cat >"$master_readme" <<EOF
+Master tree results
+
+Nucleotide backbone:
+  nucleotide/nucleotide_iqtree.treefile
+  nucleotide/nucleotide_treetime_auspice.json
+  nucleotide/nucleotide_treetime.nexus
+  nucleotide/nucleotide_alignment.fasta
+  nucleotide/nucleotide_dates.tsv
+
+Supplementary amino-acid trees (Nextclade mode only):
+  amino_acid/<CDS>/<CDS>_amino_acid_iqtree.treefile
+  amino_acid/<CDS>/<CDS>_amino_acid_alignment.fasta
+
+The full workflow outputs remain in their detailed directories. The manifest.tsv
+file maps each curated master file to its source. The Auspice JSON currently
+represents the nucleotide TreeTime analysis; AA IQ-TREEs do not yet have dated
+amino-acid Auspice outputs.
+EOF
+  log "Master tree results: $master_dir"
+}
+
 add_aa_mutations_to_auspice() {
   local auspice_json=$1
   local ancestral_sequences=$2
@@ -1716,7 +1809,7 @@ NEXTCLADE_PATHOGEN_JSON=""
 INCLUDE_NEXTCLADE_FAILED=0
 ANALYSIS_INFLUENZA_TYPE=""
 ANALYSIS_SEGMENT=""
-AA_GENE="HA"
+AA_GENE=""
 AA_FRAME=0
 EXCLUDE_NGS_REPORT_NO=0
 FORCE_ALIGN=0
@@ -1886,8 +1979,6 @@ fi
 if ! [[ "$AA_FRAME" =~ ^[0-2]$ ]]; then
   die "--aa-frame must be 0, 1, or 2."
 fi
-[[ -n "$AA_GENE" ]] || die "--aa-gene must not be empty."
-
 require_readable_file "$FASTA" "FASTA file"
 require_readable_file "$METADATA" "Metadata file"
 
@@ -1904,8 +1995,9 @@ TIMETREE_DIR="$OUTDIR/timetree"
 QC_DIR="$OUTDIR/qc"
 ITOL_DIR="$OUTDIR/itol"
 MICROREACT_DIR="$OUTDIR/microreact"
+MASTER_DIR="$OUTDIR/master"
 
-mkdir -p "$OUTDIR" "$IQTREE_DIR" "$DERIVED_DIR" "$CLOCK_DIR" "$TIMETREE_DIR" "$QC_DIR" "$ITOL_DIR" "$MICROREACT_DIR"
+mkdir -p "$OUTDIR" "$IQTREE_DIR" "$DERIVED_DIR" "$CLOCK_DIR" "$TIMETREE_DIR" "$QC_DIR" "$ITOL_DIR" "$MICROREACT_DIR" "$MASTER_DIR"
 
 FASTA_NAMES="$QC_DIR/fasta_names.txt"
 FASTA_SUMMARY="$QC_DIR/fasta_summary.tsv"
@@ -1966,7 +2058,11 @@ if [[ "$ALIGNMENT_METHOD" == "nextclade" ]]; then
   fi
   log "Include Nextclade-failed sequences: $INCLUDE_NEXTCLADE_FAILED"
 fi
-log "Auspice amino-acid mutation gene/frame: $AA_GENE / $AA_FRAME"
+if [[ -n "$AA_GENE" ]]; then
+  log "Auspice amino-acid mutation gene/frame: $AA_GENE / $AA_FRAME"
+else
+  log "Auspice amino-acid branch annotation: disabled (use --aa-gene for a validated single-CDS alignment)."
+fi
 log "Exclude NGS_Report=NO: $EXCLUDE_NGS_REPORT_NO"
 log "Detected IQ-TREE executable: $IQTREE_BIN"
 log "Detected Python executable: $PYTHON_BIN"
@@ -2060,6 +2156,7 @@ if [[ "$ALIGNMENT_METHOD" == "nextclade" ]]; then
     "$MASKING_PLACEHOLDER" \
     "$QC_DIR/nextclade" \
     "$QC_DIR/nextclade_qc"
+  run_nextclade_amino_acid_iqtree "$ALIGNMENT_PATH"
 else
   run_qc_placeholder "$ALIGNMENT_PATH" "$QC_NOTE" "$MASKING_PLACEHOLDER"
 fi
@@ -2097,12 +2194,15 @@ else
   warn "TreeTime did not produce an Auspice JSON, so no metadata augmentation was performed."
 fi
 
-if [[ -f "$AUSPICE_JSON" ]]; then
+if [[ -f "$AUSPICE_JSON" && -n "$AA_GENE" ]]; then
   add_aa_mutations_to_auspice "$AUSPICE_JSON" "$ANCESTRAL_SEQUENCES" "$AA_GENE" "$AA_FRAME" "$AA_MUTATION_REPORT"
+elif [[ -f "$AUSPICE_JSON" ]]; then
+  log "Skipping Auspice amino-acid branch annotation because --aa-gene was not supplied."
 fi
 
 export_itol_bundle "$IQTREE_TREE" "$VISUALIZATION_METADATA_TSV" "$VISUALIZATION_FIELDS_SUMMARY" "$ITOL_DIR"
 export_microreact_bundle "$IQTREE_TREE" "$VISUALIZATION_METADATA_TSV" "$DATES_AUDIT" "$MICROREACT_DIR"
+publish_master_results "$MASTER_DIR"
 
 log "Workflow completed successfully."
 log "Key outputs:"
@@ -2116,3 +2216,7 @@ if [[ -f "$AUSPICE_JSON" ]]; then
   log "  Enriched Auspice JSON: $AUSPICE_JSON"
 fi
 log "  QC notes: $QC_DIR"
+if [[ "$ALIGNMENT_METHOD" == "nextclade" ]]; then
+  log "  Amino-acid IQ-TREE results: $OUTDIR/amino_acid_iqtree"
+fi
+log "  Master tree results: $MASTER_DIR"

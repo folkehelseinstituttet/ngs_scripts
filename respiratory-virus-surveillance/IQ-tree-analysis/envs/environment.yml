@@ -4,6 +4,9 @@ channels:
   - bioconda
 dependencies:
   - python=3.11
+  - pandas
+  - openpyxl
+  - xlrd
   - iqtree
   - treetime
   - mafft

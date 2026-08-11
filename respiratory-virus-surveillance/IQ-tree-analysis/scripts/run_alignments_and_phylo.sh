@@ -46,7 +46,7 @@ Options:
   --outgroup LIST           Passed to run_phylo.sh when supplied.
   --display-columns VALUE   Passed to run_phylo.sh. Default: auto
   --aa-gene NAME            Passed to run_phylo.sh for Auspice amino-acid branch
-                            mutations. Default: HA
+                            mutations. Default: disabled
   --aa-frame INT            Passed to run_phylo.sh for Auspice amino-acid branch
                             mutations. Default: 0
   --exclude-ngs-report-no   Passed to run_phylo.sh.
@@ -143,7 +143,7 @@ SEQ_LEN=""
 CLOCK_ROOT=""
 OUTGROUP=""
 DISPLAY_COLUMNS="auto"
-AA_GENE="HA"
+AA_GENE=""
 AA_FRAME=0
 EXCLUDE_NGS_REPORT_NO=0
 RECURSIVE=0
@@ -371,8 +371,6 @@ esac
 if ! [[ "$AA_FRAME" =~ ^[0-2]$ ]]; then
   die "--aa-frame must be 0, 1, or 2."
 fi
-[[ -n "$AA_GENE" ]] || die "--aa-gene must not be empty."
-
 RESOLVED_IQTREE_BIN=""
 if [[ "$SKIP_AA_IQTREE" -ne 1 && "$DRY_RUN" -ne 1 ]]; then
   RESOLVED_IQTREE_BIN=$(detect_iqtree "$IQTREE_BIN")
@@ -554,9 +552,10 @@ run_phylo_for_fasta() {
     --outdir "$phylo_outdir"
     --display-columns "$DISPLAY_COLUMNS"
     --alignment-method "$ALIGNMENT_METHOD"
-    --aa-gene "$AA_GENE"
-    --aa-frame "$AA_FRAME"
   )
+  if [[ -n "$AA_GENE" ]]; then
+    command+=(--aa-gene "$AA_GENE" --aa-frame "$AA_FRAME")
+  fi
   if [[ -n "$NEXTCLADE_DATASET" ]]; then
     command+=(--nextclade-dataset "$NEXTCLADE_DATASET")
   fi
