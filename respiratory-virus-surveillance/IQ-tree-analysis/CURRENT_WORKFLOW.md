@@ -71,8 +71,10 @@ with non-good Nextclade QC status. Only the `default` metadata parser is
 currently implemented.
 
 The workflow requires at least two sequences after metadata/date filtering.
-FASTA identifiers must match retained metadata identifiers exactly. A
-conservative `prefix|metadata_id` suffix reconciliation is also supported.
+FASTA identifiers are matched to retained metadata identifiers exactly or by a
+conservative `prefix|metadata_id` suffix reconciliation. Individual identifiers
+present on only one side are filtered without stopping the workflow and are
+recorded with their reason in `qc/id_exclusion_report.tsv`.
 
 ### Wrapper: `run_alignments_and_phylo.sh`
 
@@ -119,6 +121,7 @@ master/amino_acid/<CDS>/<CDS>_amino_acid_iqtree.treefile  # Nextclade mode
 qc/fasta_names.txt
 qc/fasta_summary.tsv
 qc/id_match_report.tsv
+qc/id_exclusion_report.tsv
 qc/sequences_with_dates.fasta
 qc/sequence_filter_report.tsv
 derived_metadata/dates_for_treetime.raw.tsv

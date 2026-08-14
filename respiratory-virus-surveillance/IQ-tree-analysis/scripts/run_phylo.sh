@@ -78,9 +78,11 @@ Options:
 Notes:
   - The default metadata parser currently supports tab-, comma-, and semicolon-
     delimited text files.
-  - FASTA headers are matched exactly against the selected metadata identifier
-    column. Headers containing whitespace are rejected to avoid downstream
-    naming issues in IQ-TREE and TreeTime.
+  - FASTA headers are matched against the selected metadata identifier column
+    exactly or by a unique final pipe-delimited suffix. Unmatched FASTA records
+    and metadata rows are excluded individually and written to a detailed report.
+    Headers containing whitespace are rejected to avoid downstream naming issues
+    in IQ-TREE and TreeTime.
   - Samples without a usable sampling date are skipped, reported, and excluded
     from alignment, IQ-TREE, and TreeTime.
   - In Nextclade mode, the script supports three input styles: a downloaded
@@ -929,136 +931,214 @@ reconcile_fasta_and_metadata_ids() {
   local dates_out=$5
   local audit_out=$6
   local report_out=$7
+  local exclusion_out=$8
 
-  "$PYTHON_BIN" - "$fasta_names" "$raw_dates_file" "$raw_audit_file" "$skipped_metadata_file" "$dates_out" "$audit_out" "$report_out" <<'PY'
+  "$PYTHON_BIN" - "$fasta_names" "$raw_dates_file" "$raw_audit_file" "$skipped_metadata_file" "$dates_out" "$audit_out" "$report_out" "$exclusion_out" <<'PY'
 import csv
 import sys
 from pathlib import Path
 
-fasta_names_path, raw_dates_path, raw_audit_path, skipped_metadata_path, dates_out, audit_out, report_out = sys.argv[1:8]
+(
+    fasta_path,
+    dates_path,
+    audit_path,
+    skipped_path,
+    dates_out,
+    audit_out,
+    report_out,
+    exclusion_out,
+) = sys.argv[1:9]
 
-with open(fasta_names_path, "r", encoding="utf-8") as handle:
-    fasta_names = [line.strip() for line in handle if line.strip()]
 
-with open(raw_dates_path, "r", encoding="utf-8") as handle:
-    reader = csv.DictReader(handle, delimiter="\t")
-    raw_dates = [row for row in reader if row.get("name", "").strip()]
+def read_tsv(path):
+    with open(path, encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
 
-with open(raw_audit_path, "r", encoding="utf-8") as handle:
-    reader = csv.DictReader(handle, delimiter="\t")
-    raw_audit = [row for row in reader if row.get("name", "").strip()]
 
-with open(skipped_metadata_path, "r", encoding="utf-8") as handle:
-    reader = csv.DictReader(handle, delimiter="\t")
-    skipped_metadata_rows = [row for row in reader if row.get("name", "").strip()]
+fasta_names = [
+    value.strip()
+    for value in Path(fasta_path).read_text(encoding="utf-8").splitlines()
+    if value.strip()
+]
+raw_dates = [row for row in read_tsv(dates_path) if row.get("name", "").strip()]
+raw_audit = [row for row in read_tsv(audit_path) if row.get("name", "").strip()]
+skipped_rows = [row for row in read_tsv(skipped_path) if row.get("name", "").strip()]
 
-metadata_names = [row["name"].strip() for row in raw_dates]
-skipped_metadata_names = [row["name"].strip() for row in skipped_metadata_rows]
-fasta_set = set(fasta_names)
-metadata_set = set(metadata_names)
-skipped_metadata_set = set(skipped_metadata_names)
+metadata_names = {row["name"].strip() for row in raw_dates}
+skipped_by_id = {row["name"].strip(): row for row in skipped_rows}
+skipped_names = set(skipped_by_id)
+allowed_metadata_names = metadata_names | skipped_names
+date_by_id = {row["name"].strip(): row["date"] for row in raw_dates}
+audit_by_id = {row["name"].strip(): row for row in raw_audit}
 
-def write_outputs(date_rows, audit_rows, strategy, missing_in_metadata, missing_in_fasta, skipped_sequences):
-    Path(dates_out).parent.mkdir(parents=True, exist_ok=True)
-    Path(audit_out).parent.mkdir(parents=True, exist_ok=True)
-    Path(report_out).parent.mkdir(parents=True, exist_ok=True)
-
-    with open(dates_out, "w", encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle, delimiter="\t")
-        writer.writerow(["name", "date"])
-        for row in date_rows:
-            writer.writerow([row["name"], row["date"]])
-
-    fieldnames = []
-    if audit_rows:
-        fieldnames = list(audit_rows[0].keys())
-    else:
-        fieldnames = ["name", "original_date", "normalized_decimal_date", "date_interpretation", "id_mapping_strategy"]
-
-    with open(audit_out, "w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
-        writer.writeheader()
-        for row in audit_rows:
-            writer.writerow(row)
-
-    with open(report_out, "w", encoding="utf-8") as handle:
-        handle.write(f"fasta_sequence_count\t{len(fasta_names)}\n")
-        handle.write(f"metadata_name_count\t{len(metadata_names)}\n")
-        handle.write(f"skipped_metadata_name_count\t{len(skipped_metadata_names)}\n")
-        handle.write(f"id_mapping_strategy\t{strategy}\n")
-        handle.write(f"missing_in_metadata_count\t{len(missing_in_metadata)}\n")
-        handle.write(f"missing_in_fasta_count\t{len(missing_in_fasta)}\n")
-        handle.write(f"excluded_metadata_rows_count\t{len(skipped_metadata_names)}\n")
-        handle.write(f"excluded_sequence_count\t{len(skipped_sequences)}\n")
-        if missing_in_metadata:
-            handle.write("missing_in_metadata_examples\t" + ", ".join(missing_in_metadata[:10]) + "\n")
-        if missing_in_fasta:
-            handle.write("missing_in_fasta_examples\t" + ", ".join(missing_in_fasta[:10]) + "\n")
-        if skipped_sequences:
-            handle.write("excluded_sequence_examples\t" + ", ".join(skipped_sequences[:10]) + "\n")
-
-allowed_metadata_set = metadata_set | skipped_metadata_set
-missing_in_metadata = sorted(fasta_set - allowed_metadata_set)
-missing_in_fasta = sorted(metadata_set - fasta_set)
-
-if not missing_in_metadata and not missing_in_fasta:
-    exact_audit = []
-    for row in raw_audit:
-        updated = dict(row)
-        updated["id_mapping_strategy"] = "exact"
-        exact_audit.append(updated)
-    skipped_sequences = sorted(fasta_set & skipped_metadata_set)
-    write_outputs(raw_dates, exact_audit, "exact", missing_in_metadata, missing_in_fasta, skipped_sequences)
-    raise SystemExit(0)
-
-suffix_to_fasta = {}
-ambiguous_suffixes = set()
+suffix_to_fasta_names = {}
 for fasta_name in fasta_names:
-    if "|" not in fasta_name:
-        continue
-    suffix = fasta_name.rsplit("|", 1)[1]
-    if suffix in suffix_to_fasta:
-        ambiguous_suffixes.add(suffix)
-    suffix_to_fasta[suffix] = fasta_name
+    if "|" in fasta_name:
+        suffix_to_fasta_names.setdefault(fasta_name.rsplit("|", 1)[1], []).append(fasta_name)
+ambiguous_suffixes = {
+    suffix for suffix, names in suffix_to_fasta_names.items() if len(names) > 1
+}
 
-suffix_set = set(suffix_to_fasta.keys())
-missing_suffixes_in_metadata = sorted(suffix_set - allowed_metadata_set)
-missing_suffixes_in_fasta = sorted(metadata_set - suffix_set)
+exclusions = []
+dates = []
+audits = []
+matched_metadata_ids = set()
+strategies = set()
 
-if not ambiguous_suffixes and not missing_suffixes_in_metadata and not missing_suffixes_in_fasta and len(suffix_to_fasta) == len(fasta_names):
-    date_by_metadata_id = {row["name"]: row["date"] for row in raw_dates}
-    audit_by_metadata_id = {row["name"]: row for row in raw_audit}
-    reconciled_dates = []
-    reconciled_audit = []
-    skipped_sequences = []
-    for fasta_name in fasta_names:
-        metadata_id = fasta_name.rsplit("|", 1)[1]
-        if metadata_id in skipped_metadata_set:
-            skipped_sequences.append(fasta_name)
+for fasta_name in fasta_names:
+    metadata_id = None
+    strategy = None
+
+    if fasta_name in allowed_metadata_names:
+        metadata_id = fasta_name
+        strategy = "exact"
+    elif "|" in fasta_name:
+        suffix = fasta_name.rsplit("|", 1)[1]
+        if suffix in ambiguous_suffixes and suffix in allowed_metadata_names:
+            exclusions.append(
+                {
+                    "identifier": fasta_name,
+                    "reason": "ambiguous_pipe_suffix",
+                    "metadata_id": suffix,
+                    "details": "multiple FASTA identifiers have the same metadata-ID suffix",
+                }
+            )
             continue
-        reconciled_dates.append({"name": fasta_name, "date": date_by_metadata_id[metadata_id]})
-        source_audit = dict(audit_by_metadata_id[metadata_id])
-        source_audit["metadata_id"] = source_audit["name"]
-        source_audit["name"] = fasta_name
-        source_audit["id_mapping_strategy"] = "pipe_suffix_to_metadata_id"
-        reconciled_audit.append(source_audit)
-    write_outputs(reconciled_dates, reconciled_audit, "pipe_suffix_to_metadata_id", [], [], sorted(skipped_sequences))
-    raise SystemExit(0)
+        if suffix in allowed_metadata_names:
+            metadata_id = suffix
+            strategy = "pipe_suffix_to_metadata_id"
 
-parts = ["FASTA headers and metadata identifiers do not match exactly."]
-if missing_in_metadata:
-    parts.append(
-        "Present in FASTA but missing from metadata: " + ", ".join(missing_in_metadata[:10])
+    if metadata_id is None:
+        exclusions.append(
+            {
+                "identifier": fasta_name,
+                "reason": "fasta_without_matching_metadata",
+                "metadata_id": "",
+                "details": "no exact metadata identifier or unique matching pipe suffix",
+            }
+        )
+        continue
+
+    matched_metadata_ids.add(metadata_id)
+
+    if metadata_id in skipped_names:
+        skipped_row = skipped_by_id[metadata_id]
+        raw_reason = (skipped_row.get("reason") or "metadata row was excluded").strip()
+        if raw_reason == "missing or NA-like date value":
+            reason = "missing_or_invalid_sampling_date"
+        elif raw_reason == "excluded by --exclude-ngs-report-no":
+            reason = "excluded_by_ngs_report_flag"
+        else:
+            reason = "excluded_by_metadata_filter"
+        exclusions.append(
+            {
+                "identifier": fasta_name,
+                "reason": reason,
+                "metadata_id": metadata_id,
+                "details": raw_reason,
+            }
+        )
+        continue
+
+    audit_row = dict(audit_by_id[metadata_id])
+    audit_row["metadata_id"] = metadata_id
+    audit_row["name"] = fasta_name
+    audit_row["id_mapping_strategy"] = strategy
+    dates.append({"name": fasta_name, "date": date_by_id[metadata_id]})
+    audits.append(audit_row)
+    strategies.add(strategy)
+
+for metadata_id in sorted(allowed_metadata_names - matched_metadata_ids):
+    exclusions.append(
+        {
+            "identifier": metadata_id,
+            "reason": "metadata_without_matching_fasta",
+            "metadata_id": metadata_id,
+            "details": "metadata identifier has no matching FASTA record",
+        }
     )
-if missing_in_fasta:
-    parts.append(
-        "Present in metadata but missing from FASTA: " + ", ".join(missing_in_fasta[:10])
-    )
-parts.append(
-    "Fix the identifiers so the FASTA headers match the selected metadata identifier column exactly, "
-    "or use a consistent 'prefix|metadata_id' FASTA naming pattern that can be reconciled automatically."
+
+if strategies == {"exact"}:
+    overall_strategy = "exact"
+elif strategies == {"pipe_suffix_to_metadata_id"}:
+    overall_strategy = "pipe_suffix_to_metadata_id"
+elif strategies:
+    overall_strategy = "mixed"
+else:
+    overall_strategy = "none"
+
+sequence_exclusion_count = len(fasta_names) - len(dates)
+metadata_without_fasta_count = sum(
+    row["reason"] == "metadata_without_matching_fasta" for row in exclusions
 )
-raise SystemExit("\n".join(parts))
+missing_in_metadata = [
+    row["identifier"]
+    for row in exclusions
+    if row["reason"] in {"fasta_without_matching_metadata", "ambiguous_pipe_suffix"}
+]
+missing_in_fasta = [
+    row["identifier"]
+    for row in exclusions
+    if row["reason"] == "metadata_without_matching_fasta"
+]
+
+Path(dates_out).parent.mkdir(parents=True, exist_ok=True)
+Path(audit_out).parent.mkdir(parents=True, exist_ok=True)
+Path(report_out).parent.mkdir(parents=True, exist_ok=True)
+Path(exclusion_out).parent.mkdir(parents=True, exist_ok=True)
+
+with open(dates_out, "w", encoding="utf-8", newline="") as handle:
+    writer = csv.DictWriter(handle, fieldnames=["name", "date"], delimiter="\t")
+    writer.writeheader()
+    writer.writerows(dates)
+
+audit_fields = (
+    list(audits[0])
+    if audits
+    else [
+        "name",
+        "original_date",
+        "normalized_decimal_date",
+        "date_interpretation",
+        "metadata_id",
+        "id_mapping_strategy",
+    ]
+)
+with open(audit_out, "w", encoding="utf-8", newline="") as handle:
+    writer = csv.DictWriter(handle, fieldnames=audit_fields, delimiter="\t")
+    writer.writeheader()
+    writer.writerows(audits)
+
+with open(exclusion_out, "w", encoding="utf-8", newline="") as handle:
+    writer = csv.DictWriter(
+        handle,
+        fieldnames=["identifier", "reason", "metadata_id", "details"],
+        delimiter="\t",
+    )
+    writer.writeheader()
+    writer.writerows(exclusions)
+
+with open(report_out, "w", encoding="utf-8") as handle:
+    handle.write(f"fasta_sequence_count\t{len(fasta_names)}\n")
+    handle.write(f"metadata_name_count\t{len(metadata_names)}\n")
+    handle.write(f"skipped_metadata_name_count\t{len(skipped_names)}\n")
+    handle.write(f"id_mapping_strategy\t{overall_strategy}\n")
+    handle.write(f"missing_in_metadata_count\t{len(missing_in_metadata)}\n")
+    handle.write(f"missing_in_fasta_count\t{len(missing_in_fasta)}\n")
+    handle.write(f"excluded_metadata_rows_count\t{len(skipped_names)}\n")
+    handle.write(f"excluded_sequence_count\t{sequence_exclusion_count}\n")
+    handle.write(f"metadata_without_fasta_count\t{metadata_without_fasta_count}\n")
+    handle.write(f"total_exclusion_report_rows\t{len(exclusions)}\n")
+    if missing_in_metadata:
+        handle.write("missing_in_metadata_examples\t" + ", ".join(missing_in_metadata[:10]) + "\n")
+    if missing_in_fasta:
+        handle.write("missing_in_fasta_examples\t" + ", ".join(missing_in_fasta[:10]) + "\n")
+
+if not dates:
+    raise SystemExit(
+        "No FASTA sequences could be matched to usable metadata identifiers; "
+        f"see {exclusion_out}."
+    )
 PY
 }
 
@@ -2011,6 +2091,7 @@ SKIPPED_SAMPLES_REPORT="$DERIVED_DIR/skipped_samples_missing_dates.tsv"
 VISUALIZATION_METADATA_TSV="$DERIVED_DIR/retained_visualization_metadata.tsv"
 VISUALIZATION_FIELDS_SUMMARY="$DERIVED_DIR/visualization_fields.tsv"
 ID_MATCH_REPORT="$QC_DIR/id_match_report.tsv"
+ID_EXCLUSION_REPORT="$QC_DIR/id_exclusion_report.tsv"
 FASTA_FILTERED_TO_DATED="$QC_DIR/sequences_with_dates.fasta"
 FASTA_FILTER_REPORT="$QC_DIR/sequence_filter_report.tsv"
 QC_NOTE="$QC_DIR/qc_notes.txt"
@@ -2117,14 +2198,22 @@ if [[ "${excluded_ngs_report_no_count:-0}" -gt 0 ]]; then
 fi
 
 log "Checking that FASTA headers match derived metadata identifiers."
-reconcile_fasta_and_metadata_ids "$FASTA_NAMES" "$RAW_DATES_FILE" "$RAW_DATES_AUDIT" "$SKIPPED_SAMPLES_REPORT" "$DATES_FILE" "$DATES_AUDIT" "$ID_MATCH_REPORT"
+reconcile_fasta_and_metadata_ids "$FASTA_NAMES" "$RAW_DATES_FILE" "$RAW_DATES_AUDIT" "$SKIPPED_SAMPLES_REPORT" "$DATES_FILE" "$DATES_AUDIT" "$ID_MATCH_REPORT" "$ID_EXCLUSION_REPORT"
 
 log "Exporting retained metadata for visualization outputs."
 export_retained_visualization_metadata "$METADATA" "$METADATA_FORMAT" "$selected_id_column" "$DATES_AUDIT" "$VISUALIZATION_METADATA_TSV" "$VISUALIZATION_FIELDS_SUMMARY" "$DISPLAY_COLUMNS"
 
 excluded_sequences_count=$(awk -F '\t' '$1=="excluded_sequence_count"{print $2}' "$ID_MATCH_REPORT")
+metadata_without_fasta_count=$(awk -F '\t' '$1=="metadata_without_fasta_count"{print $2}' "$ID_MATCH_REPORT")
+total_exclusion_report_rows=$(awk -F '\t' '$1=="total_exclusion_report_rows"{print $2}' "$ID_MATCH_REPORT")
 if [[ "${excluded_sequences_count:-0}" -gt 0 ]]; then
-  warn "Excluding $excluded_sequences_count sequence(s) from phylogeny because they were removed during metadata filtering."
+  warn "Excluding $excluded_sequences_count FASTA sequence(s) without usable matching metadata."
+fi
+if [[ "${metadata_without_fasta_count:-0}" -gt 0 ]]; then
+  warn "Ignoring $metadata_without_fasta_count metadata row(s) without a matching FASTA sequence."
+fi
+if [[ "${total_exclusion_report_rows:-0}" -gt 0 ]]; then
+  warn "Detailed identifier exclusion report: $ID_EXCLUSION_REPORT"
 fi
 
 log "Filtering FASTA down to sequences with usable dates."

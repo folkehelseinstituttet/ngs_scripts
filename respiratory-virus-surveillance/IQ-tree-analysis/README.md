@@ -343,11 +343,13 @@ ATGG...
 
 Important behavior:
 
-- Headers are matched exactly against the chosen metadata identifier column.
+- Headers are matched exactly against the chosen metadata identifier column when possible.
 - Headers containing whitespace are rejected.
 - Duplicate FASTA identifiers are rejected.
-- If exact matching fails, the workflow supports one conservative fallback:
+- For individual records without an exact match, the workflow supports one conservative fallback:
   - FASTA headers of the form `prefix|metadata_id` are reconciled automatically when the suffix after the final `|` matches the selected metadata identifier column exactly and unambiguously
+- FASTA records without usable matching metadata and metadata rows without a matching FASTA record are filtered individually instead of stopping the workflow.
+- Every filtered identifier and reason is written to `results/qc/id_exclusion_report.tsv`.
 - The workflow records whether the input appears aligned in `results/qc/fasta_summary.tsv`
 - The workflow always runs MAFFT on the date-qualified input sequences so downstream steps always use a fresh aligned FASTA
 
