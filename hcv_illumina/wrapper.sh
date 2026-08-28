@@ -129,7 +129,7 @@ printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" >> "$STATUS_FILE"
 # Banner so the user can see straight away that the script really started
 console ""
 console "=============================================="
-console " HCV Illumina wrapper started"
+console " HCV Illumina script har startet! (trykk Enter før du logger ut)"
 console "   Run:        ${RUN:-<NOT SET>}"
 console "   Agens:      ${AGENS:-<NOT SET>}"
 console "   Year:       ${YEAR:-<NOT SET>}"
