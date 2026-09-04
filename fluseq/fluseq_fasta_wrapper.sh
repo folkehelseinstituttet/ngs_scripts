@@ -3,9 +3,11 @@
 set -euo pipefail
 shopt -s nullglob
 
+export NXF_SYNTAX_PARSER="${NXF_SYNTAX_PARSER:-v1}"
+
 # Activate conda safely
 export JAVA_HOME="${JAVA_HOME:-}"
-source ~/miniconda3/etc/profile.d/conda.sh
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
 
 # Maintained by: Rasmus Kopperud Riis (rasmuskopperud.riis@fhi.no)
 # Version: dev
@@ -22,7 +24,7 @@ usage() {
     echo "  -y YEAR            Specify the year directory of the fasta export"
     echo "  -v VALIDATION      Specify validation flag (e.g., VER)"
     echo "  -b BRANCH          Pipeline branch/tag to use (default: master)"
-    exit 1
+    exit "${1:-1}"
 }
 
 RUN=""
@@ -34,7 +36,7 @@ PIPELINE_BRANCH="master"
 
 while getopts "hr:a:s:y:v:b:" opt; do
     case "$opt" in
-        h) usage ;;
+        h) usage 0 ;;
         r) RUN="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
         s) SEASON="$OPTARG" ;;
@@ -48,6 +50,29 @@ done
 [ -z "$RUN" ] && { echo "ERROR: -r RUN is required"; usage; }
 [ -z "$SEASON" ] && { echo "ERROR: -s SEASON is required"; usage; }
 [ -z "$YEAR" ] && { echo "ERROR: -y YEAR is required"; usage; }
+
+if [[ ! "$RUN" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+    echo "ERROR: RUN may contain only letters, numbers, dot, underscore, and hyphen."
+    exit 1
+fi
+if [[ ! "$SEASON" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+    echo "ERROR: SEASON may contain only letters, numbers, dot, underscore, and hyphen."
+    exit 1
+fi
+if [[ ! "$YEAR" =~ ^[0-9]{4}$ ]]; then
+    echo "ERROR: YEAR must contain exactly four digits."
+    exit 1
+fi
+if [[ ! "$PIPELINE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ || "$PIPELINE_BRANCH" == *..* ]]; then
+    echo "ERROR: Invalid pipeline branch or tag: $PIPELINE_BRANCH"
+    exit 1
+fi
+
+if [ -e "$HOME/$RUN" ]; then
+    echo "ERROR: Working output already exists: $HOME/$RUN"
+    echo "Move or remove it before starting a new run."
+    exit 1
+fi
 
 echo "Run: $RUN"
 echo "Agens: $AGENS"
@@ -206,10 +231,18 @@ fi
 
 cd "$HOME"
 
-rm -rf "$HOME/fluseq"
-
-export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
-export TOWER_WORKSPACE_ID=150755685543204
+# Load the Seqera/Tower credential from a private file when it is not inherited.
+TOWER_ENV_FILE="${FLUSEQ_TOWER_ENV:-$HOME/.config/fluseq/tower.env}"
+if [ -f "$TOWER_ENV_FILE" ]; then
+    # shellcheck disable=SC1090
+    source "$TOWER_ENV_FILE"
+fi
+if [ -n "${TOWER_ACCESS_TOKEN:-}" ]; then
+    export TOWER_ACCESS_TOKEN
+else
+    echo "WARNING: TOWER_ACCESS_TOKEN is not set; continuing without Seqera/Tower monitoring."
+fi
+export TOWER_WORKSPACE_ID="${TOWER_WORKSPACE_ID:-150755685543204}"
 
 BASE_DIR=/mnt/tempdata
 TMP_DIR=/mnt/tempdata/fasta_fluseq
@@ -236,7 +269,6 @@ else
     exit 1
 fi
 
-mkdir -p "$HOME/$RUN"
 mkdir -p "$TMP_DIR"
 rm -rf "$TMP_DIR/$RUN"
 
@@ -330,6 +362,19 @@ if [ ! -s "${RUN}.fasta" ]; then
     exit 1
 fi
 
+for required_file in "$SAMPLEDIR/$RUN.fasta" "$HA_DATABASE" "$NA_DATABASE" "$GENOTYPE_DATABASE" "$INHIBTION_MUTATION_DATABASE" "$REASSORTMENT_DATABASE"; do
+    if [ ! -f "$required_file" ]; then
+        echo "ERROR: Required pipeline input is missing: $required_file"
+        exit 1
+    fi
+done
+for required_dir in "$SEQUENCE_REFERENCES" "$NEXTCLADE_DATASET"; do
+    if [ ! -d "$required_dir" ]; then
+        echo "ERROR: Required pipeline directory is missing: $required_dir"
+        exit 1
+    fi
+done
+
 cd "$HOME"
 
 set +u
@@ -359,7 +404,11 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
 
 echo "Moving results to the N: drive"
 mkdir -p "$HOME/out_fluseq"
-rm -rf "$HOME/out_fluseq/$RUN"
+if [ -e "$HOME/out_fluseq/$RUN" ]; then
+    PREVIOUS_RESULTS="$HOME/out_fluseq/${RUN}.previous.$(date +%Y%m%dT%H%M%S)"
+    echo "Archiving previous local results to $PREVIOUS_RESULTS"
+    mv "$HOME/out_fluseq/$RUN" "$PREVIOUS_RESULTS"
+fi
 mv "$HOME/$RUN" "$HOME/out_fluseq/"
 
 if [ "$SKIP_RESULTS_MOVE" = false ]; then

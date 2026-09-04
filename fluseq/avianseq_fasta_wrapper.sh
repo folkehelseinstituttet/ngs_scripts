@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
+shopt -s nullglob
+
+export NXF_SYNTAX_PARSER="${NXF_SYNTAX_PARSER:-v1}"
 
 # Activate conda
-source ~/miniconda3/etc/profile.d/conda.sh
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
 
 # TODO
 
@@ -24,7 +27,7 @@ usage() {
     echo "  -v, --validation  Specify validation flag (e.g., VER)"
     echo "  -b, --source      Specify source (e.g., bn)"
     echo "  -g, --branch      Specify pipeline branch/tag to use (default: master)"
-    exit 1
+    exit "${1:-1}"
 }
 
 # Initialize variables
@@ -38,7 +41,7 @@ PIPELINE_BRANCH="master"
 
 while getopts "hr:a:s:y:v:b:g:" opt; do
     case "$opt" in
-        h) usage ;;
+        h) usage 0 ;;
         r) RUN="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
         s) SEASON="$OPTARG" ;;
@@ -49,6 +52,33 @@ while getopts "hr:a:s:y:v:b:g:" opt; do
         ?) usage ;;
     esac
 done
+
+[ -z "$RUN" ] && { echo "ERROR: -r RUN is required"; usage; }
+[ -z "$SEASON" ] && { echo "ERROR: -s SEASON is required"; usage; }
+[ -z "$YEAR" ] && { echo "ERROR: -y YEAR is required"; usage; }
+
+if [[ ! "$RUN" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+    echo "ERROR: RUN may contain only letters, numbers, dot, underscore, and hyphen."
+    exit 1
+fi
+if [[ ! "$SEASON" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+    echo "ERROR: SEASON may contain only letters, numbers, dot, underscore, and hyphen."
+    exit 1
+fi
+if [[ ! "$YEAR" =~ ^[0-9]{4}$ ]]; then
+    echo "ERROR: YEAR must contain exactly four digits."
+    exit 1
+fi
+if [[ ! "$PIPELINE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ || "$PIPELINE_BRANCH" == *..* ]]; then
+    echo "ERROR: Invalid pipeline branch or tag: $PIPELINE_BRANCH"
+    exit 1
+fi
+
+if [ -e "$HOME/$RUN" ]; then
+    echo "ERROR: Working output already exists: $HOME/$RUN"
+    echo "Move or remove it before starting a new run."
+    exit 1
+fi
 
 echo "Run: $RUN"
 echo "Agens: $AGENS"
@@ -76,13 +106,18 @@ fi
 
 cd "$HOME"
 
-# Sometimes the pipeline has been cloned locally. Remove it to avoid version conflicts
-rm -rf "$HOME/fluseq"
-
-# Export the access token for web monitoring with tower
-export TOWER_ACCESS_TOKEN=eyJ0aWQiOiA4ODYzfS5mZDM1MjRkYTMwNjkyOWE5ZjdmZjdhOTVkODk3YjI5YTdjYzNlM2Zm
-# Add workspace ID for Virus_NGS
-export TOWER_WORKSPACE_ID=150755685543204
+# Load the Seqera/Tower credential from a private file when it is not inherited.
+TOWER_ENV_FILE="${FLUSEQ_TOWER_ENV:-$HOME/.config/fluseq/tower.env}"
+if [ -f "$TOWER_ENV_FILE" ]; then
+    # shellcheck disable=SC1090
+    source "$TOWER_ENV_FILE"
+fi
+if [ -n "${TOWER_ACCESS_TOKEN:-}" ]; then
+    export TOWER_ACCESS_TOKEN
+else
+    echo "WARNING: TOWER_ACCESS_TOKEN is not set; continuing without Seqera/Tower monitoring."
+fi
+export TOWER_WORKSPACE_ID="${TOWER_WORKSPACE_ID:-150755685543204}"
 
 ## Set up environment
 BASE_DIR=/mnt/tempdata/
@@ -109,8 +144,7 @@ else
     exit 1
 fi
 
-# Create directory to hold the output of the analysis
-mkdir -p "$HOME/$RUN"
+# Create the temporary input root. Nextflow creates the output after preflight.
 mkdir -p "$TMP_DIR"
 
 # Optional: avoid mixing old/new
@@ -125,7 +159,7 @@ mget $RUN
 EOF
 
 ## Set up databases
-SAMPLEDIR=$TMP_DIR/$RUN
+SAMPLEDIR="$TMP_DIR/$RUN"
 SAMPLESHEET=/mnt/tempdata/influensa_db/flu_seq_db/samplesheet.csv
 FLU_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db
 HA_DATABASE=/mnt/tempdata/influensa_db/flu_seq_db/human_HA.fasta
@@ -141,7 +175,7 @@ REASSORTMENT_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Se
 GENOTYPE_H5_LITS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/H5_genotype_database.fasta
 
 echo "Updateing mutation lists"
-smbclient $SMB_HOST -A $SMB_AUTH -D $MUTATION_LITS <<EOF
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$MUTATION_LITS" <<EOF
 prompt OFF
 recurse ON
 lcd $FLU_DATABASE
@@ -165,15 +199,46 @@ EOF
 # FASTA CONTROL POINT
 cd "$SAMPLEDIR"
 
+input_fastas=( *.fasta )
+if [ ${#input_fastas[@]} -eq 0 ]; then
+    echo "ERROR: No .fasta files found in $SAMPLEDIR"
+    exit 1
+fi
+
 # Removes duplicated sequences and renames headers for downstream analysis
 if [[ "$SOURCE" == "bn" ]]; then
-  for f in *.fasta; do
+  for f in "${input_fastas[@]}"; do
     tr -d '\r' < "$f" | perl -pe 's/^>([^|]+)\|(.*)$/>$2|$1/' > "$f.tmp" && mv "$f.tmp" "$f"
   done
 fi
 
-python3 "$HOME/ngs_scripts/fluseq/dedup_rename_fasta_avianseq.py" *fasta
-cat *dedup*.fasta > "$RUN.fasta"
+rm -f ./*dedup*.fasta "./${RUN}.fasta"
+python3 "$HOME/ngs_scripts/fluseq/dedup_rename_fasta_avianseq.py" "${input_fastas[@]}"
+
+dedup_fastas=( *dedup*.fasta )
+if [ ${#dedup_fastas[@]} -eq 0 ]; then
+    echo "ERROR: dedup_rename_fasta_avianseq.py did not create any *dedup*.fasta files"
+    exit 1
+fi
+cat "${dedup_fastas[@]}" > "$RUN.fasta"
+
+if [ ! -s "$RUN.fasta" ]; then
+    echo "ERROR: Combined FASTA file was not created correctly: $SAMPLEDIR/$RUN.fasta"
+    exit 1
+fi
+
+for required_file in "$SAMPLEDIR/$RUN.fasta" "$HA_DATABASE" "$NA_DATABASE" "$GENOTYPE_DATABASE" "$MAMMALIAN_MUTATION_DATABASE" "$INHIBTION_MUTATION_DATABASE" "$REASSORTMENT_DATABASE"; do
+    if [ ! -f "$required_file" ]; then
+        echo "ERROR: Required pipeline input is missing: $required_file"
+        exit 1
+    fi
+done
+for required_dir in "$SEQUENCE_REFERENCES" "$NEXTCLADE_DATASET"; do
+    if [ ! -d "$required_dir" ]; then
+        echo "ERROR: Required pipeline directory is missing: $required_dir"
+        exit 1
+    fi
+done
 
 # Create a samplesheet by running the supplied Rscript in a docker container.
 # ADD CODE FOR HANDLING OF SAMPLESHEET
@@ -213,10 +278,15 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
 
 echo "Moving results to the N: drive"
 mkdir -p "$HOME/out_fluseq"
-mv "$RUN/" out_fluseq/
+if [ -e "$HOME/out_fluseq/$RUN" ]; then
+    PREVIOUS_RESULTS="$HOME/out_fluseq/${RUN}.previous.$(date +%Y%m%dT%H%M%S)"
+    echo "Archiving previous local results to $PREVIOUS_RESULTS"
+    mv "$HOME/out_fluseq/$RUN" "$PREVIOUS_RESULTS"
+fi
+mv "$HOME/$RUN" "$HOME/out_fluseq/"
 
 if [ "$SKIP_RESULTS_MOVE" = false ]; then
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" <<EOF
 prompt OFF
 recurse ON
 lcd $HOME/out_fluseq/
@@ -224,7 +294,7 @@ mput *
 EOF
 fi
 
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_ANALYSIS <<EOF
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
 prompt OFF
 lcd $HOME/out_fluseq/${RUN}/reporthuman/
 cd ${SMB_DIR_ANALYSIS}
