@@ -358,6 +358,6 @@ mput *.csv
 EOF
 
 ## Clean up
-# nextflow clean -f
-# rm -rf $HOME/out
+nextflow clean -f
+rm -rf $HOME/out_fluseq/$RUN
 # rm -rf $TMP_DIR
