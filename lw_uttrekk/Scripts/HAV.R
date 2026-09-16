@@ -2,9 +2,11 @@ library(odbc)
 library(tidyverse)
 library(lubridate)
 
-# Script version 1.1
+# Script version 1.2
 # Extracts HAV (Hepatitt A Virus) PCR/genotyping data from LabWare.
-# Includes sample metadata, HAGEN analyses, and results.
+# Includes sample metadata, HAGEN analyses, results, and order-level
+# contamination fields (X_CONTAM_LOC, X_CONTAM_LOC_COM,
+# X_CONTAMINATED_THROUGH, X_CONTAM_TH).
 # Not WGS/NGS - covers all HAGEN (Hepatitt A genotyping) analyses.
 
 ## ==================================================
@@ -115,6 +117,13 @@ results <- tbl(con, "RESULT_VIEW") %>%
   filter(ANALYSIS %like% "%HAGEN%") %>%
   collect()
 
+# Pull order-level contamination fields from ORDERS_VIEW.
+# These live on the order, not the sample, and are joined back in via ORDER_NUM.
+orders <- tbl(con, "ORDERS_VIEW") %>%
+  select(ORDER_NUM, X_CONTAM_LOC, X_CONTAM_LOC_COM, X_CONTAMINATED_THROUGH, X_CONTAM_TH) %>%
+  collect() %>%
+  distinct()
+
 # Close database connection
 odbc::dbDisconnect(con)
 
@@ -152,6 +161,7 @@ hav_results <- results %>%
 # Extract sequence ID by joining tests to results via TEST_NUMBER,
 # mirroring the HCV WGS pattern in HCV.R.
 # The sequence ID is stored in result rows where NAME == "SekvensID".
+# Builds a one-row-per-sample SAMPLE_NUMBER -> SEQ_ID lookup for the final join.
 hav_seq_id <- hav_tests %>%
   filter(SAMPLE_NUMBER %in% hav_sample_numbers_cleaned) %>%
   select(TEST_NUMBER, SAMPLE_NUMBER) %>%
@@ -161,6 +171,7 @@ hav_seq_id <- hav_tests %>%
   ) %>%
   filter(NAME == "SekvensID") %>%
   group_by(SAMPLE_NUMBER) %>%
+  # If a sample has multiple tests with differing SekvensID entries, they are concatenated (e.g. "SEQ123; SEQ456") rather than picked from.
   summarise(SEQ_ID = paste(unique(na.omit(ENTRY)), collapse = "; "), .groups = "drop")
 
 ## ==================================================
@@ -205,16 +216,37 @@ hav_results_wide <- hav_results %>%
 ## Join into final dataset
 ## ==================================================
 
-final <- samples_cleaned %>%
-  left_join(test_summary,     by = "SAMPLE_NUMBER") %>%
-  left_join(hav_seq_id,       by = "SAMPLE_NUMBER") %>%
-  left_join(hav_results_wide, by = "SAMPLE_NUMBER") %>%
-  # Parse dates
-  mutate(
-    SAMPLED_DATE = as.Date(SAMPLED_DATE),
-    RECD_DATE    = as.Date(RECD_DATE),
-    BIRTH_DATE   = as.Date(BIRTH_DATE)
-  )
+# Kept for later use: this is the extended, sample-level join (all metadata,
+# HAGEN results, and contamination fields) and can be used to build a
+# "human readable" output in the future.
+# final <- samples_cleaned %>%
+#   left_join(test_summary,     by = "SAMPLE_NUMBER") %>%
+#   left_join(hav_seq_id,       by = "SAMPLE_NUMBER") %>%
+#   left_join(hav_results_wide, by = "SAMPLE_NUMBER") %>%
+#   left_join(orders,           by = "ORDER_NUM") %>%
+#   # Parse dates
+#   mutate(
+#     SAMPLED_DATE = as.Date(SAMPLED_DATE),
+#     RECD_DATE    = as.Date(RECD_DATE),
+#     BIRTH_DATE   = as.Date(BIRTH_DATE)
+#   )
+
+# Minimal output: one row per SekvensID rather than per SAMPLE_NUMBER, so a
+# sample with multiple tests/SekvensID values gets one row per SekvensID,
+# each carrying the Resultat and Outbreak_variant recorded on that same test.
+final <- hav_results %>%
+  filter(NAME %in% c("SekvensID", "Resultat", "Outbreak_variant")) %>%
+  mutate(entry_value = if_else(
+    !is.na(FORMATTED_ENTRY) & FORMATTED_ENTRY != "",
+    FORMATTED_ENTRY,
+    ENTRY
+  )) %>%
+  group_by(SAMPLE_NUMBER, TEST_NUMBER, NAME) %>%
+  summarise(entry_value = paste(unique(na.omit(entry_value)), collapse = "; "),
+            .groups = "drop") %>%
+  pivot_wider(names_from = NAME, values_from = entry_value, values_fill = NA_character_) %>%
+  filter(!is.na(SekvensID)) %>%
+  select(SAMPLE_NUMBER, SekvensID, Resultat, Outbreak_variant)
 
 ## ==================================================
 ## Write output
