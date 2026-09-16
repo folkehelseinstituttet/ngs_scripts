@@ -5,7 +5,7 @@
   2) Log in on ngs4 and naviagte to $HOME, logged in as ngs-user.
 	
 	Log in to ngs4:
-	az ssh arc --subscription "19b353ae-492d-43cb-bcf0-3ecc642c55da" --resource-group "rg-fhi-fts-arc-onboarding" --name "up-ngs-4"
+	az ssh arc --subscription "FILL IN" --resource-group "FILL IN" --name "up-ngs-4"
 	
 	Change user to ngs:
 	sudo -u ngs /bin/bash
