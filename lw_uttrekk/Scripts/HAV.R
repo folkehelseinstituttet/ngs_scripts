@@ -2,7 +2,7 @@ library(odbc)
 library(tidyverse)
 library(lubridate)
 
-# Script version 1.2
+# Script version 1.3
 # Extracts HAV (Hepatitt A Virus) PCR/genotyping data from LabWare.
 # Includes sample metadata, HAGEN analyses, results, and order-level
 # contamination fields (X_CONTAM_LOC, X_CONTAM_LOC_COM,
@@ -52,14 +52,6 @@ if (!dir.exists(outdir)) {
 
 # Name output file
 outfile <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/HAV_lw_uttrekk.tsv"))
-
-# Define the semaphore file
-readyfile <- sub("\\.tsv$", ".ready", outfile)
-
-# Remove the semaphore file if it exists
-if (file.exists(readyfile)) {
-  unlink(readyfile)
-}
 
 ## ==================================================
 ## Establish connection to LabWare
@@ -253,6 +245,3 @@ final <- hav_results %>%
 ## ==================================================
 
 write_tsv(final, outfile)
-
-# Create semaphore file to signal that the output file is complete
-writeLines("done", readyfile)
