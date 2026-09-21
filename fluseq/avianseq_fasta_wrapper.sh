@@ -108,9 +108,15 @@ fi
 TMP_DIR=/mnt/tempdata/fasta_fluseq
 command -v flock >/dev/null 2>&1 || { echo "ERROR: flock is required." >&2; exit 1; }
 mkdir -p "$TMP_DIR"
-exec 9> "$TMP_DIR/.avianseq_fasta_wrapper.lock"
+LOCK_FILE="$TMP_DIR/.avianseq_fasta_wrapper.lock"
+exec 9> "$LOCK_FILE"
 if ! flock -n 9; then
     echo "ERROR: Another avian FASTA wrapper is running; no input was changed." >&2
+    echo "Wait for that run to finish, then rerun this command." >&2
+    echo "If no run should be active, find the process holding the lock with:" >&2
+    echo "  fuser -v $LOCK_FILE" >&2
+    echo "After confirming that the listed process is stale or stuck, stop that process and rerun." >&2
+    echo "Do not delete $LOCK_FILE; flock releases the lock automatically when the process exits." >&2
     exit 1
 fi
 if [ -e "$TMP_DIR/$RUN" ] || [ -L "$TMP_DIR/$RUN" ]; then
