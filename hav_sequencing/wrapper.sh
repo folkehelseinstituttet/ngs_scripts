@@ -2,6 +2,26 @@
 set -euo pipefail # Exit on error, unset variables, and pipefail
 
 
+
+# Small helper to write status; STATUS_FILE will be updated after args are parsed.
+# Writes to LOGFILE (append), wrapper log (append) and updates STATUS_FILE atomically.
+set_status() {
+    msg="[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    # history
+    echo "$msg" >> "$LOGFILE"
+    # Append status line to STATUS_FILE if it's defined
+    if [ -n "${STATUS_FILE:-}" ]; then
+        if ! printf '%s\n' "$msg" >> "$STATUS_FILE"; then
+            echo "[$(date)] Failed to append status to $STATUS_FILE" >> "$LOGFILE"
+        fi
+    fi
+    # Show it to the human: stdout -> tee -> the main wrapper log and the
+    # screen window, plus $CONSOLE_TTY when launched detached.
+    console "$msg"
+}
+
+
+
 # ── Argument parsing ──────────────────────────────────────────────────────────
 MODE=""
 BATCH_NAME=""
