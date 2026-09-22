@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail # Exit on error, unset variables, and pipefail
 
-
+# Error/history log file (default before args are parsed)
+LOGFILE="/home/ngs/hav_sequencing_wrapper_error.log"
 
 # Small helper to write status; STATUS_FILE will be updated after args are parsed.
 # Writes to LOGFILE (append), wrapper log (append) and updates STATUS_FILE atomically.
