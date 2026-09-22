@@ -18,22 +18,6 @@ set -euo pipefail # Exit on error, unset variables, and pipefail
 #
 # After logout that pty is destroyed and the mirror silently stops; the run
 # keeps going and the log files remain the durable record.
-CONSOLE_EXTRA=0
-if [ -n "${CONSOLE_TTY:-}" ] && ( : >>"$CONSOLE_TTY" ) 2>/dev/null; then
-    exec 3>>"$CONSOLE_TTY"
-    CONSOLE_EXTRA=1
-fi
-
-console() {
-    printf '%s\n' "$*"
-    if [ "$CONSOLE_EXTRA" = 1 ]; then
-        # Never fail the run if that terminal has gone away (user logged out).
-        printf '%s\n' "$*" >&3 2>/dev/null || true
-    fi
-}
-
-# Send all stdout/stderr to the main wrapper log (and to the console when not detached)
-exec > >(tee -a /home/ngs/hav_sequencing_wrapper.log) 2>&1
 
 # Error/history log file (default before args are parsed)
 LOGFILE="/home/ngs/hav_sequencing_wrapper_error.log"
@@ -50,9 +34,7 @@ set_status() {
             echo "[$(date)] Failed to append status to $STATUS_FILE" >> "$LOGFILE"
         fi
     fi
-    # Show it to the human: stdout -> tee -> the main wrapper log and the
-    # screen window, plus $CONSOLE_TTY when launched detached.
-    console "$msg"
+    
 }
 
 
