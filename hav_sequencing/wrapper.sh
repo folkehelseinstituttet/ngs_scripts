@@ -1,6 +1,40 @@
 #!/usr/bin/env bash
 set -euo pipefail # Exit on error, unset variables, and pipefail
 
+# --- Console channel -------------------------------------------------------
+# Progress messages should be visible to a human, not just buried in the logs.
+# They go to stdout, which the "exec | tee" below sends to the main wrapper log
+# *and* to this script's own terminal. Under "screen" that terminal is the
+# screen window, so the messages are live while attached and still sitting in
+# the scrollback when you reattach later with "screen -r hcv".
+#
+# That alone is not enough for a fully detached launch
+# ("screen -dmS hcv wrapper.sh ..."), because screen gives the script a brand
+# new pty: nothing reaches the terminal the user actually typed in. Export
+# CONSOLE_TTY at launch to mirror the messages there too, so the user gets
+# immediate confirmation that the run really started before they log out:
+#
+#   CONSOLE_TTY=$(tty) screen -dmS hcv ~/ngs_scripts/hcv_illumina/wrapper.sh -r RUN -a HCV -y 2026
+#
+# After logout that pty is destroyed and the mirror silently stops; the run
+# keeps going and the log files remain the durable record.
+CONSOLE_EXTRA=0
+if [ -n "${CONSOLE_TTY:-}" ] && ( : >>"$CONSOLE_TTY" ) 2>/dev/null; then
+    exec 3>>"$CONSOLE_TTY"
+    CONSOLE_EXTRA=1
+fi
+
+console() {
+    printf '%s\n' "$*"
+    if [ "$CONSOLE_EXTRA" = 1 ]; then
+        # Never fail the run if that terminal has gone away (user logged out).
+        printf '%s\n' "$*" >&3 2>/dev/null || true
+    fi
+}
+
+# Send all stdout/stderr to the main wrapper log (and to the console when not detached)
+exec > >(tee -a /home/ngs/hav_sequencing_wrapper.log) 2>&1
+
 # Error/history log file (default before args are parsed)
 LOGFILE="/home/ngs/hav_sequencing_wrapper_error.log"
 
