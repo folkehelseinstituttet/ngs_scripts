@@ -15,8 +15,7 @@ while [[ $# -gt 0 ]]; do
       shift 2 ;;
     --help)
       usage; exit 0 ;;
-    lp)
-    -*)
+     -*)
       echo "ERROR: Unknown option: $1" >&2; usage; exit 1 ;;
     *)
       POSITIONAL+=("$1"); shift ;;
