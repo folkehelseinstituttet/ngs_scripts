@@ -38,7 +38,6 @@ set_status() {
 }
 
 
-
 # ── Argument parsing ──────────────────────────────────────────────────────────
 MODE=""
 BATCH_NAME=""
@@ -78,30 +77,19 @@ SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
 SMB_DIR="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/${YEAR}/${BATCH_NAME}"
 SMB_DIR_DATASET="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/local_datasets"
+SMB_DIR_METADATA="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/local_datasets/Metadata"
+SMB_DIR_METAREQUEST="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Requests"
 
 echo "SMB_DIR: $SMB_DIR"
 echo "SMB_DIR_DATASET: $SMB_DIR_DATASET"
-
-LATEST_DATASET=$(
-  smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_DATASET" -c "ls" \
-    | awk '{print $1}' \
-    | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' \
-    | sort \
-    | tail -n 1
-)
-
-echo "Latest dataset: $LATEST_DATASET"
-
-#LATEST_DATASET=$(basename "$(printf '%s\n' '/mnt/n/Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/local_datasets'/* | sort | tail -n 1)")
-DEFAULT_DATASET_DATE="$LATEST_DATASET"
-
-
 
 # Ensure $TMP_DIR exists and is clean
 if [ -d "$TMP_DIR" ]; then
     rm -rf "$TMP_DIR"
 fi
 mkdir -p "$TMP_DIR"
+mkdir -p "$TMP_DIR/Fasta"
+mkdir -p "$TMP_DIR/local_dataset"
 
 echo "Temporary directory: $TMP_DIR"
 
@@ -141,6 +129,60 @@ else
     echo "Directory 'hav_seq' does not exist. Cloning repository..."
     git clone "$HAV_SEQ_REPO_URL" "$HAV_SEQ_REPO"
 fi
+
+
+set_status "Copying fasta files from the N drive (SMB_DIR=$SMB_DIR/Fasta)"
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR/Fasta <<EOF
+prompt OFF
+recurse ON
+lcd $TMP_DIR/Fasta
+mget *
+EOF
+set_status "Fasta copy complete. Files are in $TMP_DIR/Fasta"
+
+set_status "Copying metadata.tsv from the N drive (SMB_DIR=$SMB_DIR_METADATA)"
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_METADATA <<EOF
+prompt OFF
+recurse ON
+lcd $TMP_DIR
+mget HAV_lw_uttrekk.tsv
+EOF
+set_status "Metadata copy complete. File is in $TMP_DIR/HAV_lw_uttrekk.tsv"
+
+set_status "Copying meta-data for requests from the N drive (SMB_DIR=$SMB_DIR_METAREQUEST)"
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_METAREQUEST <<EOF
+prompt OFF
+recurse ON
+lcd $TMP_DIR
+mget Requests.xlsx
+EOF
+set_status "Requests copy complete. Files are in $TMP_DIR"
+
+LATEST_DATASET=$(
+  smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_DATASET" -c "ls" \
+    | awk '{print $1}' \
+    | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' \
+    | sort \
+    | tail -n 1
+)
+
+echo "Latest dataset: $LATEST_DATASET"
+DEFAULT_DATASET_DATE="$LATEST_DATASET"
+
+set_status "Copying database files from the N drive (SMB_DIR=$SMB_DIR_DATASET/$LATEST_DATASET)"
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_DATASET/$LATEST_DATASET <<EOF
+prompt OFF
+recurse ON
+lcd $TMP_DIR/local_dataset
+mget *
+EOF
+set_status "Database copy complete. Files are in $TMP_DIR/local_dataset" 
+
+
+#########
+# Vurdere om man bare skal kopiere over 2PA.fa og kun jobbe med local_dataset i TMP_DIR
+#########
+
 
 # Run the HAV sequencing wrapper script with the specified arguments
 bash ~/hav_seq/scripts/hav_wrapper.sh --mode "$MODE" "$BATCH_NAME" "$YEAR"
