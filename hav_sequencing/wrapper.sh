@@ -39,8 +39,8 @@ BASE_DIR=/mnt/tempdata/
 TMP_DIR=/mnt/tempdata/hav_input # Fasta, lokal database
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
-SMB_DIR="/mnt/n/Virologi/Hepatitt/Hepatitt A/HAV genteknologi/${YEAR}/${BATCH_NAME}"
-SMB_DIR_DATASET="/mnt/n/Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/local_datasets"
+SMB_DIR="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/${YEAR}/${BATCH_NAME}"
+SMB_DIR_DATASET="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/local_datasets"
 
 echo "SMB_DIR: $SMB_DIR"
 echo "SMB_DIR_DATASET: $SMB_DIR_DATASET"
