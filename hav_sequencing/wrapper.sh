@@ -6,16 +6,6 @@ set -euo pipefail # Exit on error, unset variables, and pipefail
 MODE=""
 BATCH_NAME=""
 YEAR=""
-DATASET_DATE="$DEFAULT_DATASET_DATE"
-THREADS="$DEFAULT_THREADS"
-N_NEIGHBORS="$DEFAULT_N_NEIGHBORS"
-SKIP_TREES=0
-SKIP_REPORT=0
-PRIMER_NAMES=""
-PRIMERS_FILE=""
-SAMPLESHEET=""
-SKIP_ASSEMBLY=0
-BATCH_FA=""
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
@@ -23,32 +13,9 @@ while [[ $# -gt 0 ]]; do
     --mode)
       MODE="${2:?--mode requires a value (sanger or wgs)}"
       shift 2 ;;
-    --dataset-date)
-      DATASET_DATE="${2:?--dataset-date requires a value}"
-      shift 2 ;;
-    --threads)
-      THREADS="${2:?--threads requires a value}"
-      shift 2 ;;
-    --n-neighbors)
-      N_NEIGHBORS="${2:?--n-neighbors requires a value}"
-      shift 2 ;;
-    --skip-trees)
-      SKIP_TREES=1; shift ;;
-    --skip-report)
-      SKIP_REPORT=1; shift ;;
-    --primer-names)
-      PRIMER_NAMES="${2:?--primer-names requires a value}"
-      shift 2 ;;
-    --primers-file)
-      PRIMERS_FILE="${2:?--primers-file requires a value}"
-      shift 2 ;;
-    --samplesheet)
-      SAMPLESHEET="${2:?--samplesheet requires a value}"
-      shift 2 ;;
-    --skip-assembly)
-      SKIP_ASSEMBLY=1; shift ;;
-    -h|--help)
+    --help)
       usage; exit 0 ;;
+    lp)
     -*)
       echo "ERROR: Unknown option: $1" >&2; usage; exit 1 ;;
     *)
@@ -64,13 +31,33 @@ if [[ -z "$MODE" || -z "$BATCH_NAME" || -z "$YEAR" ]]; then
     exit 1
 fi
 
+echo Mode: "$MODE"
+echo Batch name: "$BATCH_NAME"
+echo Year: "$YEAR"
 
 # ── Resolve paths ─────────────────────────────────────────────────────────────
 BASE_DIR=/mnt/tempdata/
-TMP_DIR=/mnt/tempdata/hav_input
+TMP_DIR=/mnt/tempdata/hav_input # Fasta, lokal database
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
-SMB_DIR="/mnt/n/Virologi/Hepatitt/Hepatitt A/HAV genteknologi/$YEAR/$BATCH_NAME"
+SMB_DIR="/mnt/n/Virologi/Hepatitt/Hepatitt A/HAV genteknologi/${YEAR}/${BATCH_NAME}"
+SMB_DIR_DATASET="/mnt/n/Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/local_datasets"
+
+echo "SMB_DIR: $SMB_DIR"
+echo "SMB_DIR_DATASET: $SMB_DIR_DATASET"
+
+LATEST_DATASET=$(
+  smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_DATASET" -c "ls" \
+    | awk '{print $1}' \
+    | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' \
+    | sort \
+    | tail -n 1
+)
+
+echo "Latest dataset: $LATEST_DATASET"
+
+#LATEST_DATASET=$(basename "$(printf '%s\n' '/mnt/n/Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/local_datasets'/* | sort | tail -n 1)")
+DEFAULT_DATASET_DATE="$LATEST_DATASET"
 
 
 
