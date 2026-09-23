@@ -19,8 +19,12 @@ set -euo pipefail # Exit on error, unset variables, and pipefail
 # After logout that pty is destroyed and the mirror silently stops; the run
 # keeps going and the log files remain the durable record.
 
-# Error/history log file (default before args are parsed)
-LOGFILE="/home/ngs/hav_sequencing_wrapper_error.log"
+# History log file (default before args are parsed)
+LOGFILE="/home/ngs/hav_sequencing_wrapper.log"
+ERRORLOG="/home/ngs/hav_sequencing_wrapper.error.log"
+
+exec > >(tee -a "$LOGFILE") \
+     2> >(tee -a "$LOGFILE" >> "$ERRORLOG")
 
 # Small helper to write status; STATUS_FILE will be updated after args are parsed.
 # Writes to LOGFILE (append), wrapper log (append) and updates STATUS_FILE atomically.
@@ -76,8 +80,8 @@ TMP_DIR=/mnt/tempdata/hav_input # Fasta, lokal database
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
 SMB_DIR="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/${YEAR}/${BATCH_NAME}"
-SMB_DIR_DATASET="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/local_datasets"
-SMB_DIR_METADATA="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/local_datasets/Metadata"
+SMB_DIR_DATASET="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/"
+SMB_DIR_METADATA="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/Metadata"
 SMB_DIR_METAREQUEST="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Requests"
 
 echo "SMB_DIR: $SMB_DIR"
@@ -158,30 +162,16 @@ mget Requests.xlsx
 EOF
 set_status "Requests copy complete. Files are in $TMP_DIR"
 
-LATEST_DATASET=$(
-  smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_DATASET" -c "ls" \
-    | awk '{print $1}' \
-    | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' \
-    | sort \
-    | tail -n 1
-)
 
-echo "Latest dataset: $LATEST_DATASET"
-DEFAULT_DATASET_DATE="$LATEST_DATASET"
-
-set_status "Copying database files from the N drive (SMB_DIR=$SMB_DIR_DATASET/$LATEST_DATASET)"
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_DATASET/$LATEST_DATASET <<EOF
+set_status "Copying database file from the N drive (SMB_DIR=$SMB_DIR_DATASET)"
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_DATASET <<EOF
 prompt OFF
 recurse ON
 lcd $TMP_DIR/local_dataset
-mget *
+mget 2PA.fa
 EOF
-set_status "Database copy complete. Files are in $TMP_DIR/local_dataset" 
+set_status "Database copy complete. File is in $TMP_DIR/local_dataset" 
 
-
-#########
-# Vurdere om man bare skal kopiere over 2PA.fa og kun jobbe med local_dataset i TMP_DIR
-#########
 
 
 # Run the HAV sequencing wrapper script with the specified arguments
