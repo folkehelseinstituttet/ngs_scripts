@@ -136,7 +136,7 @@ fi
 
 
 set_status "Copying fasta files from the N drive (SMB_DIR=$SMB_DIR/Fasta)"
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR/Fasta <<EOF
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR/Fasta" <<EOF
 prompt OFF
 recurse ON
 lcd $TMP_DIR/Fasta
@@ -145,7 +145,7 @@ EOF
 set_status "Fasta copy complete. Files are in $TMP_DIR/Fasta"
 
 set_status "Copying metadata.tsv from the N drive (SMB_DIR=$SMB_DIR_METADATA)"
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_METADATA <<EOF
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_METADATA" <<EOF
 prompt OFF
 recurse ON
 lcd $TMP_DIR
@@ -154,7 +154,7 @@ EOF
 set_status "Metadata copy complete. File is in $TMP_DIR/HAV_lw_uttrekk.tsv"
 
 set_status "Copying meta-data for requests from the N drive (SMB_DIR=$SMB_DIR_METAREQUEST)"
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_METAREQUEST <<EOF
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_METAREQUEST" <<EOF
 prompt OFF
 recurse ON
 lcd $TMP_DIR
@@ -164,7 +164,7 @@ set_status "Requests copy complete. Files are in $TMP_DIR"
 
 
 set_status "Copying database file from the N drive (SMB_DIR=$SMB_DIR_DATASET)"
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_DATASET <<EOF
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_DATASET" <<EOF
 prompt OFF
 recurse ON
 lcd $TMP_DIR/local_dataset
