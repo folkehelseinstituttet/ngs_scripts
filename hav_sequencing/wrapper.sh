@@ -74,6 +74,11 @@ echo Mode: "$MODE"
 echo Batch name: "$BATCH_NAME"
 echo Year: "$YEAR"
 
+export MODE="$MODE"
+export BATCH_NAME="$BATCH_NAME"
+export YEAR="$YEAR"
+
+
 # ── Resolve paths ─────────────────────────────────────────────────────────────
 export BASE_DIR=/mnt/tempdata/
 export TMP_DIR=/mnt/tempdata/hav_input # Fasta, lokal database
@@ -106,7 +111,7 @@ mkdir -p "$HOME/$BATCH_NAME"
 echo "Output directory: $HOME/$BATCH_NAME"
 
 # Make sure the latest version of the ngs_scripts repo is present locally
-REPO="$HOME/ngs_scripts"
+export REPO="$HOME/ngs_scripts"
 REPO_URL="https://github.com/folkehelseinstituttet/ngs_scripts.git"
 
 set_status "Ensuring local copy of ngs_scripts (pull/clone)"
@@ -144,7 +149,7 @@ mget *
 EOF
 set_status "Fasta copy complete. Files are in $TMP_DIR/Fasta"
 
-set_status "Copying metadata.tsv from the N drive (SMB_DIR=$SMB_DIR_METADATA)"
+set_status "Copying HAV_lw_uttrekk.tsv from the N drive (SMB_DIR=$SMB_DIR_METADATA)"
 smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_METADATA" <<EOF
 prompt OFF
 recurse ON
@@ -160,7 +165,7 @@ recurse ON
 lcd $TMP_DIR
 mget Requests.xlsx
 EOF
-set_status "Requests copy complete. Files are in $TMP_DIR"
+set_status "Requests-meta copy complete. Files are in $TMP_DIR"
 
 
 set_status "Copying database file from the N drive (SMB_DIR=$SMB_DIR_DATASET)"
