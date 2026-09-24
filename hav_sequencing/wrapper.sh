@@ -20,8 +20,8 @@ set -euo pipefail # Exit on error, unset variables, and pipefail
 # keeps going and the log files remain the durable record.
 
 # History log file (default before args are parsed)
-LOGFILE="/home/ngs/hav_sequencing_wrapper.log"
-ERRORLOG="/home/ngs/hav_sequencing_wrapper.error.log"
+export LOGFILE="/home/ngs/hav_sequencing_wrapper.log"
+export ERRORLOG="/home/ngs/hav_sequencing_wrapper.error.log"
 
 exec > >(tee -a "$LOGFILE") \
      2> >(tee -a "$LOGFILE" >> "$ERRORLOG")
@@ -75,14 +75,14 @@ echo Batch name: "$BATCH_NAME"
 echo Year: "$YEAR"
 
 # ── Resolve paths ─────────────────────────────────────────────────────────────
-BASE_DIR=/mnt/tempdata/
-TMP_DIR=/mnt/tempdata/hav_input # Fasta, lokal database
-SMB_AUTH=/home/ngs/.smbcreds
-SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
-SMB_DIR="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/${YEAR}/${BATCH_NAME}"
-SMB_DIR_DATASET="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/"
-SMB_DIR_METADATA="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/Metadata"
-SMB_DIR_METAREQUEST="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Requests"
+export BASE_DIR=/mnt/tempdata/
+export TMP_DIR=/mnt/tempdata/hav_input # Fasta, lokal database
+export SMB_AUTH=/home/ngs/.smbcreds
+export SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
+export SMB_DIR="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/${YEAR}/${BATCH_NAME}"
+export SMB_DIR_DATASET="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/"
+export SMB_DIR_METADATA="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/Metadata"
+export SMB_DIR_METAREQUEST="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Requests"
 
 echo "SMB_DIR: $SMB_DIR"
 echo "SMB_DIR_DATASET: $SMB_DIR_DATASET"
@@ -122,8 +122,8 @@ fi
 
 set_status "Ensuring local copy of hav_seq (pull/clone)"
 # Check if the directory exists
-HAV_SEQ_REPO="$HOME/hav_seq"
-HAV_SEQ_REPO_URL="https://github.com/folkehelseinstituttet/hav_seq.git"
+export HAV_SEQ_REPO="$HOME/hav_seq"
+export HAV_SEQ_REPO_URL="https://github.com/folkehelseinstituttet/hav_seq.git"
 
 if [ -d "$HAV_SEQ_REPO" ]; then
     echo "Directory 'hav_seq' exists. Pulling latest changes..."
