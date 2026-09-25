@@ -100,6 +100,12 @@ mkdir -p "$TMP_DIR"
 mkdir -p "$TMP_DIR/Fasta"
 mkdir -p "$TMP_DIR/local_dataset"
 
+# Opprett mappe for ny database
+HAV_DB_DIR="$HOME/hav_database"
+mkdir -p "$HAV_DB_DIR"
+export HAV_DB_DIR="$HAV_DB_DIR"
+
+
 echo "Temporary directory: $TMP_DIR"
 
 # Create directory to hold the output of the analysis
@@ -181,6 +187,52 @@ set_status "Database copy complete. File is in $TMP_DIR/local_dataset"
 
 # Run the HAV sequencing wrapper script with the specified arguments
 bash ~/hav_seq/scripts/hav_wrapper.sh --mode "$MODE" "$BATCH_NAME" "$YEAR"
+
+
+## Move the results to the N: drive
+set_status "Moving results to the N: drive"
+mkdir $HOME/out_hav
+cp -r $HOME/$BATCH_NAME/ $HOME/out_hav/
+
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+prompt OFF
+recurse ON
+lcd $HOME/out_hav/
+mput *
+EOF
+
+set_status "Results copied to N: drive"
+
+
+## Move the updated database to the N: drive
+set_status "Moving updated database to the N: drive"
+mkdir $HOME/out_hav_database
+cp -r $HAV_DB_DIR/ $HOME/out_hav_database/
+
+smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_DATASET <<EOF
+prompt OFF
+recurse ON
+lcd $HOME/out_hav_database/
+mput *
+EOF
+
+set_status "Updated database copied to N: drive"
+
+
+
+## Clean up
+#rm -rf $HOME/out_hav
+#rm -rf $HOME/out_hav_database
+#rm -rf $HOME/$BATCH_NAME
+#rm -rf $TMP_DIR
+#nextflow clean -f
+
+#set_status "Cleanup complete"
+
+# End of script
+
+
+
 
 # Sette opp variabler
 # Sjekke evt. filer tilstede
