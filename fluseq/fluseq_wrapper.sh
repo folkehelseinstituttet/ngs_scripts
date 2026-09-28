@@ -5,6 +5,176 @@ shopt -s nullglob
 
 export NXF_SYNTAX_PARSER="${NXF_SYNTAX_PARSER:-v1}"
 
+# Standalone reference validation runs before conda, downloads, or pipeline work.
+# Header format: STRAIN|EPI_ISL_<digits>_<segment>
+validate_reference_type() {
+    python3 - "$@" <<'PY_REFERENCE_VALIDATOR'
+"""Validate reference header names and EPI identifiers against a seasonal table."""
+
+import csv
+from pathlib import Path
+import re
+import sys
+
+
+EPI_PATTERN = re.compile(r"EPI_ISL_[0-9]+")
+REQUIRED_COLUMNS = {"Subtype", "Reference", "Type", "GISAID_EPI"}
+
+
+def normalize_reference_name(value):
+    return re.sub(r"_+", "_", re.sub(r"[^A-Za-z0-9._-]", "_", value.strip()))
+
+
+def load_reference_table(path, reference_type):
+    rows = {}
+    with Path(path).open(encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter=";")
+        reader.fieldnames = [name.strip() for name in (reader.fieldnames or [])]
+        missing = REQUIRED_COLUMNS - set(reader.fieldnames)
+        if missing:
+            raise ValueError("Reference table is missing columns: " + ", ".join(sorted(missing)))
+        for line_number, row in enumerate(reader, start=2):
+            if None in row or any(value is None for value in row.values()):
+                raise ValueError(f"Malformed reference-table row {line_number}")
+            row = {key: value.strip() for key, value in row.items()}
+            if row["Type"] != reference_type:
+                continue
+            if not all(row[column] for column in REQUIRED_COLUMNS):
+                raise ValueError(f"Missing value in reference-table row {line_number}")
+            subtype = row["Subtype"]
+            if not re.fullmatch(r"[A-Za-z0-9._-]+", subtype) or subtype in {".", ".."}:
+                raise ValueError(f"Invalid subtype in reference-table row {line_number}: {subtype!r}")
+            if not EPI_PATTERN.fullmatch(row["GISAID_EPI"]):
+                raise ValueError(f"Invalid GISAID_EPI for {reference_type}/{subtype}: {row['GISAID_EPI']!r}")
+            if "|" in row["Reference"]:
+                raise ValueError(f"Reference name contains a reserved pipe character: {row['Reference']!r}")
+            if subtype in rows:
+                raise ValueError(f"Duplicate reference-table entry for {reference_type}/{subtype}")
+            rows[subtype] = row
+    if not rows:
+        raise ValueError(f"No reference-table entries for Type={reference_type}")
+    return rows
+
+
+def parse_reference_header(header, fasta_path, allow_legacy=False):
+    name_and_epi, separator, segment = header.strip().rpartition("_")
+    if not separator or not segment:
+        raise ValueError(f"Missing terminal segment suffix in {fasta_path}: {header!r}")
+    if "|" in name_and_epi:
+        fields = name_and_epi.split("|")
+        if len(fields) != 2 or not EPI_PATTERN.fullmatch(fields[1]):
+            raise ValueError(f"Invalid EPI header in {fasta_path}: {header!r}")
+        name, epi = fields
+    elif allow_legacy:
+        name, epi = name_and_epi, None
+    else:
+        raise ValueError(f"Missing EPI identifier in {fasta_path}; expected STRAIN|EPI_ISL_<digits>_<segment>")
+
+    protein = Path(fasta_path).stem.upper()
+    aliases = {
+        "HA1": {"HA1", "HA"},
+        "HA2": {"HA2", "HA"},
+        "NS1": {"NS1", "NS"},
+        "NS2": {"NS2", "NS"},
+        "M1": {"M1", "M", "MP"},
+        "M2": {"M2", "M", "MP"},
+        "SIGPEP": {"SIGPEP", "SIG"},
+    }
+    if segment.upper() not in aliases.get(protein, {protein}):
+        raise ValueError(f"Wrong segment suffix in {fasta_path}: {segment!r}")
+    if not name.strip():
+        raise ValueError(f"Empty reference name in {fasta_path}")
+    return name.strip(), epi, segment
+
+
+def check_reference_header(header, fasta_path, expected, allow_legacy=False):
+    name, epi, segment = parse_reference_header(header, fasta_path, allow_legacy=allow_legacy)
+    if normalize_reference_name(name) != normalize_reference_name(expected["Reference"]):
+        raise ValueError(
+            f"Wrong reference in {fasta_path}: expected {expected['Reference']!r}, found {name!r}"
+        )
+    if epi is not None and epi != expected["GISAID_EPI"]:
+        raise ValueError(
+            f"Wrong EPI in {fasta_path}: expected {expected['GISAID_EPI']}, found {epi}"
+        )
+    return segment
+
+
+def validate_reference_type(reference_root, reference_type, table_path):
+    root = Path(reference_root)
+    if not root.is_dir():
+        raise ValueError(f"Reference directory not found: {root}")
+    expected_rows = load_reference_table(table_path, reference_type)
+    total_files = 0
+    for subtype, expected in expected_rows.items():
+        subtype_dir = root / subtype
+        if not subtype_dir.is_dir():
+            raise ValueError(f"Missing subtype directory: {subtype_dir}")
+        fasta_files = sorted(subtype_dir.glob("*.fasta"))
+        if not fasta_files:
+            raise ValueError(f"No FASTA files found in {subtype_dir}")
+        records = 0
+        for fasta in fasta_files:
+            header = None
+            has_sequence = False
+            with fasta.open(encoding="utf-8-sig") as handle:
+                for line in handle:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if line.startswith(">"):
+                        if header is not None and not has_sequence:
+                            raise ValueError(f"Empty FASTA record in {fasta}: {header!r}")
+                        header = line[1:]
+                        check_reference_header(header, fasta, expected)
+                        has_sequence = False
+                        records += 1
+                    else:
+                        if header is None:
+                            raise ValueError(f"Sequence appears before a FASTA header in {fasta}")
+                        has_sequence = True
+            if header is None or not has_sequence:
+                raise ValueError(f"Missing header or empty FASTA record in {fasta}")
+        total_files += len(fasta_files)
+        print(
+            f"OK: {reference_type}/{subtype} -> {expected['Reference']} | "
+            f"{expected['GISAID_EPI']} ({len(fasta_files)} FASTA files, {records} records)"
+        )
+    print(f"Validated {total_files} {reference_type} FASTA files against {table_path}")
+    print("Validation checks reference headers, not sequence identity or segment completeness.")
+
+
+def main():
+    if len(sys.argv) != 4:
+        print("Usage: validator REFERENCE_TYPE_DIRECTORY TYPE REFERENCE_TABLE", file=sys.stderr)
+        return 2
+    try:
+        validate_reference_type(*sys.argv[1:])
+    except (OSError, ValueError, csv.Error, UnicodeError) as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+PY_REFERENCE_VALIDATOR
+}
+
+if [[ "${1:-}" == "--check-references" ]]; then
+    if [[ $# -lt 3 || $# -gt 4 ]]; then
+        echo "Usage: $0 --check-references REFERENCE_ROOT REFERENCE_TABLE [human|human_vaccine]" >&2
+        exit 2
+    fi
+    reference_type="${4:-human}"
+    if [[ "$reference_type" != "human" && "$reference_type" != "human_vaccine" ]]; then
+        echo "ERROR: Reference type must be human or human_vaccine" >&2
+        exit 2
+    fi
+    validate_reference_type "$2/$reference_type" "$reference_type" "$3"
+    exit $?
+fi
+
 # Activate conda
 export JAVA_HOME="${JAVA_HOME:-}"
 source "$HOME/miniconda3/etc/profile.d/conda.sh"
@@ -17,6 +187,7 @@ SCRIPT_NAME=$(basename "$0")
 
 usage() {
     echo "Usage: $SCRIPT_NAME [OPTIONS]"
+    echo "       $SCRIPT_NAME --check-references REFERENCE_ROOT REFERENCE_TABLE [human|human_vaccine]"
     echo "Options:"
     echo "  -h                 Display this help message"
     echo "  -r RUN             Specify the run name (e.g., INF077)"
@@ -25,6 +196,7 @@ usage() {
     echo "  -y YEAR            Specify the year directory of the fastq files on the N-drive"
     echo "  -v VALIDATION      Specify validation flag (e.g., VER)"
     echo "  -b BRANCH          Pipeline branch/tag to use (default: master)"
+    echo "  -P PATH            PCR JSON file or directory (default: /mnt/tempdata/influensa_db/flu_seq_db/pcr-primers)"
     exit "${1:-1}"
 }
 
@@ -35,8 +207,11 @@ SEASON=""
 YEAR=""
 VALIDATION_FLAG=""
 PIPELINE_BRANCH="master"
+PRIMER_CHECK_PCR="${PRIMER_CHECK_PCR:-/mnt/tempdata/influensa_db/flu_seq_db/pcr-primers}"
+PRIMER_CHECK_CONTAINER="${PRIMER_CHECK_CONTAINER:-ghcr.io/rasmuskoriis/primer-checker:latest}"
+PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
 
-while getopts "hr:a:s:y:v:b:" opt; do
+while getopts "hr:a:s:y:v:b:P:" opt; do
     case "$opt" in
         h) usage 0 ;;
         r) RUN="$OPTARG" ;;
@@ -45,6 +220,7 @@ while getopts "hr:a:s:y:v:b:" opt; do
         y) YEAR="$OPTARG" ;;
         v) VALIDATION_FLAG="$OPTARG" ;;
         b) PIPELINE_BRANCH="$OPTARG" ;;
+        P) PRIMER_CHECK_PCR="$OPTARG" ;;
         ?) usage ;;
     esac
 done
@@ -83,130 +259,6 @@ echo "Season: $SEASON"
 echo "Year: $YEAR"
 echo "Validation Flag: $VALIDATION_FLAG"
 echo "Pipeline branch: $PIPELINE_BRANCH"
-
-# -----------------------------
-# Helper functions
-# -----------------------------
-
-clean_field() {
-    printf '%s' "$1" | sed 's/\r//g; s/^[[:space:]]*//; s/[[:space:]]*$//'
-}
-
-normalize_reference_name() {
-    # Example:
-    # A/Victoria/2570/2019 -> A_Victoria_2570_2019
-    # A_Victoria_2570_2019 -> A_Victoria_2570_2019
-    printf '%s' "$1" \
-        | sed 's/\r//g; s/^[[:space:]]*//; s/[[:space:]]*$//' \
-        | sed 's#/#_#g; s#[[:space:]]#_#g; s/[^A-Za-z0-9._-]/_/g; s/__\+/_/g'
-}
-
-extract_reference_from_fasta_header() {
-    local fasta_file="$1"
-    local header
-
-    header=$(grep -m1 '^>' "$fasta_file" | sed 's/^>//')
-
-    if [ -z "$header" ]; then
-        echo "ERROR: No FASTA header found in $fasta_file"
-        exit 1
-    fi
-
-    # Remove only the final segment suffix
-    # Example:
-    # A_Victoria_2570_2019_HA1 -> A_Victoria_2570_2019
-    # A_Victoria_2570_2019_PB2 -> A_Victoria_2570_2019
-    header="${header%_*}"
-
-    normalize_reference_name "$header"
-}
-
-validate_reference_type() {
-    local ref_root="$1"     # e.g. /.../sequence_references/human
-    local ref_type="$2"     # e.g. human
-    local table_file="$3"
-
-    echo "Validating references for type: $ref_type"
-
-    if [ ! -d "$ref_root" ]; then
-        echo "ERROR: Reference directory not found: $ref_root"
-        exit 1
-    fi
-
-    if [ ! -f "$table_file" ]; then
-        echo "ERROR: Reference table not found: $table_file"
-        exit 1
-    fi
-
-    local found_any=false
-
-    while IFS=';' read -r subtype reference type gisaid; do
-        subtype=$(clean_field "$subtype")
-        reference=$(clean_field "$reference")
-        type=$(clean_field "$type")
-        gisaid=$(clean_field "${gisaid:-}")
-
-        # Skip header and empty lines
-        [ -z "$subtype" ] && continue
-        [ "$subtype" = "Subtype" ] && continue
-
-        # Only validate requested type
-        [ "$type" != "$ref_type" ] && continue
-
-        found_any=true
-
-        local subtype_dir="$ref_root/$subtype"
-        if [ ! -d "$subtype_dir" ]; then
-            echo "ERROR: Missing subtype directory for $ref_type/$subtype"
-            echo "       Expected directory: $subtype_dir"
-            exit 1
-        fi
-
-        local expected_norm
-        expected_norm=$(normalize_reference_name "$reference")
-
-        local actual_refs=()
-        local fasta
-
-        for fasta in "$subtype_dir"/*.fasta; do
-            actual_refs+=("$(extract_reference_from_fasta_header "$fasta")")
-        done
-
-        if [ ${#actual_refs[@]} -eq 0 ]; then
-            echo "ERROR: No FASTA files found in $subtype_dir"
-            exit 1
-        fi
-
-        mapfile -t unique_actual_refs < <(printf '%s\n' "${actual_refs[@]}" | sort -u)
-
-        if [ ${#unique_actual_refs[@]} -ne 1 ]; then
-            echo "ERROR: Multiple different references found inside $subtype_dir"
-            echo "       Found:"
-            printf '       - %s\n' "${unique_actual_refs[@]}"
-            echo "       Expected: $reference"
-            exit 1
-        fi
-
-        local actual_norm="${unique_actual_refs[0]}"
-
-        if [ "$actual_norm" != "$expected_norm" ]; then
-            echo "ERROR: Wrong reference used for subtype '$subtype' [$ref_type]"
-            echo "       Correct reference: $reference"
-            echo "       Used reference:    $actual_norm"
-            echo "       Directory:         $subtype_dir"
-            echo "       FASTA files checked:"
-            printf '       - %s\n' "$subtype_dir"/*.fasta
-            exit 1
-        fi
-
-        echo "OK: $ref_type / $subtype -> $reference"
-    done < "$table_file"
-
-    if [ "$found_any" = false ]; then
-        echo "ERROR: No entries found in $table_file for Type=$ref_type"
-        exit 1
-    fi
-}
 
 # -----------------------------
 # Make sure the latest version of the ngs_scripts repo is present locally
@@ -355,7 +407,7 @@ echo "Checking that downloaded references match reference_table.csv"
 
 validate_reference_type "$SEQUENCE_REFERENCES/human" "human" "$REFERENCE_TABLE_LOCAL_FILE"
 
-# Easy extension later:
+# Enable vaccine validation once a populated EPI-annotated vaccine bundle is available.
 # validate_reference_type "$SEQUENCE_REFERENCES/human_vaccine" "human_vaccine" "$REFERENCE_TABLE_LOCAL_FILE"
 
 # Create a samplesheet by running the supplied Rscript in a docker container.
@@ -399,6 +451,9 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   --nextclade_dataset "$NEXTCLADE_DATASET" \
   --reassortment_database "$REASSORTMENT_DATABASE" \
   --runid "$RUN" \
+  --primer_check "$PRIMER_CHECK_ENABLED" \
+  --primer_check_pcr "$PRIMER_CHECK_PCR" \
+  --primer_check_container "$PRIMER_CHECK_CONTAINER" \
   --release_version "v1.0.2"
 
 echo "Moving results to the N: drive"
@@ -424,6 +479,14 @@ prompt OFF
 lcd $HOME/out_fluseq/${RUN}/reporthuman
 mput *.csv
 EOF
+
+if [ -d "$HOME/out_fluseq/$RUN/primer_check" ]; then
+    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
+prompt OFF
+lcd "$HOME/out_fluseq/$RUN/primer_check"
+mput *.csv
+EOF
+fi
 
 ## Clean up
 # nextflow clean -f

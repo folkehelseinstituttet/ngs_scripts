@@ -30,6 +30,8 @@ usage() {
     echo "  -y <year>          Specify the year directory of the fastq files on the N-drive (required)"
     echo "  -v <validation>    Specify validation flag (e.g., VER)"
     echo "  -b <branch>        Pipeline branch/tag to use (default: master)"
+    echo "  -P <path>          PCR JSON file or directory (default: /mnt/tempdata/sars_db/pcr-primers)"
+    echo "  -N <dir>           NGS primer assets (default: the sequencing scheme selected with -p)"
     echo "  -o                 Run in offline mode using local cached pipeline/resources"
     echo "  --local-fastq-dir <dir>"
     echo "                     Use a local FASTQ samples directory instead of copying from the N-drive"
@@ -70,6 +72,10 @@ LOCAL_SAMPLESHEET="${LOCAL_SAMPLESHEET:-}"
 LOCAL_FASTA="${LOCAL_FASTA:-}"
 OUTPUT_DIR="${OUTPUT_DIR:-}"
 NEXTFLOW_WORKDIR="${NEXTFLOW_WORKDIR:-${WORK_DIR:-}}"
+PRIMER_CHECK_PCR="${PRIMER_CHECK_PCR:-/mnt/tempdata/sars_db/pcr-primers}"
+PRIMER_CHECK_NGS_DIR="${PRIMER_CHECK_NGS_DIR:-}"
+PRIMER_CHECK_CONTAINER="${PRIMER_CHECK_CONTAINER:-ghcr.io/rasmuskoriis/primer-checker:latest}"
+PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
 
 # Parse options
 while [ "$#" -gt 0 ]; do
@@ -82,6 +88,8 @@ while [ "$#" -gt 0 ]; do
         -y|--year) YEAR="${2:?Missing value for $1}"; shift 2 ;;
         -v|--validation) VALIDATION_FLAG="${2:?Missing value for $1}"; shift 2 ;;
         -b|--branch) PIPELINE_BRANCH="${2:?Missing value for $1}"; shift 2 ;;
+        -P|--pcr-primers) PRIMER_CHECK_PCR="${2:?Missing value for $1}"; shift 2 ;;
+        -N|--ngs-primers) PRIMER_CHECK_NGS_DIR="${2:?Missing value for $1}"; shift 2 ;;
         -o|--offline) OFFLINE_MODE=true; shift ;;
         --local-fastq-dir) LOCAL_FASTQ_DIR="${2:?Missing value for $1}"; shift 2 ;;
         --local-samplesheet) LOCAL_SAMPLESHEET="${2:?Missing value for $1}"; shift 2 ;;
@@ -609,6 +617,9 @@ if [ "$OFFLINE_MODE" = true ]; then
     preflight_offline_mode
 fi
 
+# Reuse the selected sequencing scheme; FASTA-only runs can supply -N.
+PRIMER_CHECK_NGS_DIR="${PRIMER_CHECK_NGS_DIR:-$PRIMER_DIR}"
+
 ################################################################################
 # Run Nextflow pipeline
 ################################################################################
@@ -671,6 +682,10 @@ nextflow run "$NEXTFLOW_SOURCE" \
     "${NEXTFLOW_INPUT_ARGS[@]}" \
     --outdir "$NEXTFLOW_OUTDIR" \
     --runid "$RUN" \
+    --primer_check "$PRIMER_CHECK_ENABLED" \
+    --primer_check_pcr "$PRIMER_CHECK_PCR" \
+    --primer_check_ngs_dir "$PRIMER_CHECK_NGS_DIR" \
+    --primer_check_container "$PRIMER_CHECK_CONTAINER" \
     --spike "$SPIKE_TABLE" \
     --rdrp "$RDRP_TABLE" \
     --clpro "$CLPRO_TABLE" \
@@ -774,6 +789,13 @@ lcd "$HOME/out_sarsseq/$RUN/report/"
 cd ${SMB_DIR_ANALYSIS}
 mput *.csv
 EOF
+    if [ -d "$RUN_OUT/primer_check" ]; then
+        smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
+prompt OFF
+lcd "$RUN_OUT/primer_check"
+mput *.csv
+EOF
+    fi
 fi
 
 echo "Done."

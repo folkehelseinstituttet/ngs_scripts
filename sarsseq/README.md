@@ -30,3 +30,15 @@ If running a verification of script add -v VER flag nad run with -p V4.1
 
   The wrapper automatically clones/pulls ~/nf-core-sars (override with -W /path/to/repo if needed) and uploads the merged insilisco_primer_experiments.csv back to N:\…\6-
   SARS-CoV-2_NGS_Dashboard_DB\Insilisco_primer_experiements.
+
+## Primer checks
+
+The routine wrapper enables primer-checker (PCR for influenza, PCR and NGS for
+SARS/RSV). Use `-P` to override the PCR JSON file/directory and `-N` in SARS/RSV
+to override the NGS primer-assets directory. The PCR defaults are defined near
+the wrapper's argument parsing. `PRIMER_CHECK_ENABLED=false` disables the check.
+
+CSV and HTML reports are written to `primer_check/`; `task_status.csv` identifies
+any ignored failures. Online Docker tasks explicitly pull the latest published
+CLI image. See the [deployment and input guide](https://github.com/RasmusKoRiis/primer-checker/blob/main/docs/PIPELINE_INTEGRATION.md)
+before the first run.

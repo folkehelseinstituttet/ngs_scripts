@@ -18,6 +18,8 @@ usage() {
     echo "  -v <validation>    Specify validation flag (e.g., VER)"
     echo "  -p <scheme>        Primer scheme version (default: V1)"
     echo "  -b <branch>        Pipeline branch/tag to use (default: master)"
+    echo "  -P <path>          PCR JSON file or directory (default: /mnt/tempdata/rsv_db/pcr-primers)"
+    echo "  -N <dir>           NGS schemes root containing RSVA/<scheme> and RSVB/<scheme>"
     exit 1
 }
 
@@ -29,9 +31,13 @@ YEAR=""
 VALIDATION_FLAG=""
 PRIMER_SCHEME="V1"
 PIPELINE_BRANCH="master"
+PRIMER_CHECK_PCR="${PRIMER_CHECK_PCR:-/mnt/tempdata/rsv_db/pcr-primers}"
+PRIMER_CHECK_NGS_DIR="${PRIMER_CHECK_NGS_DIR:-}"
+PRIMER_CHECK_CONTAINER="${PRIMER_CHECK_CONTAINER:-ghcr.io/rasmuskoriis/primer-checker:latest}"
+PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
 
 # Parse options
-while getopts "hr:a:s:y:v:p:b:" opt; do
+while getopts "hr:a:s:y:v:p:b:P:N:" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
@@ -41,6 +47,8 @@ while getopts "hr:a:s:y:v:p:b:" opt; do
         v) VALIDATION_FLAG="$OPTARG" ;;
         p) PRIMER_SCHEME="$OPTARG" ;;
         b) PIPELINE_BRANCH="$OPTARG" ;;
+        P) PRIMER_CHECK_PCR="$OPTARG" ;;
+        N) PRIMER_CHECK_NGS_DIR="$OPTARG" ;;
         *) usage ;;
     esac
 done
@@ -124,6 +132,7 @@ smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_INPUT" \
 SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit)
 SAMPLESHEET="$TMP_DIR/${RUN}.csv"
 RSV_DATABASE="/mnt/tempdata/rsv_db/assets"
+PRIMER_CHECK_NGS_DIR="${PRIMER_CHECK_NGS_DIR:-$RSV_DATABASE/primer_schemes}"
 
 if [[ -z "${SAMPLEDIR:-}" ]]; then
     echo "Error: Could not find sample directory under $TMP_DIR/$RUN"
@@ -176,6 +185,10 @@ nextflow run RasmusKoRiis/nf-core-rsvseq \
     --primer_scheme "$PRIMER_SCHEME" \
     --outdir "$HOME/$RUN" \
     --runid "$RUN" \
+    --primer_check "$PRIMER_CHECK_ENABLED" \
+    --primer_check_pcr "$PRIMER_CHECK_PCR" \
+    --primer_check_ngs_dir "$PRIMER_CHECK_NGS_DIR" \
+    --primer_check_container "$PRIMER_CHECK_CONTAINER" \
     --release_version "v1.0.0"
 
 echo "Preparing results for upload"
@@ -196,6 +209,10 @@ else
 
     smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" \
       -c "prompt OFF; lcd $HOME/out_rsvseq/$RUN/report; mput *.csv"
+    if [[ -d "$HOME/out_rsvseq/$RUN/primer_check" ]]; then
+        smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" \
+          -c "prompt OFF; lcd $HOME/out_rsvseq/$RUN/primer_check; mput *.csv"
+    fi
 fi
 
 echo "Run completed successfully."
