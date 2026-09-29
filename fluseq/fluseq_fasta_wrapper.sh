@@ -24,6 +24,7 @@ usage() {
     echo "  -y YEAR            Specify the year directory of the fasta export"
     echo "  -v VALIDATION      Specify validation flag (e.g., VER)"
     echo "  -b BRANCH          Pipeline branch/tag to use (default: master)"
+    echo "  -P PATH            PCR JSON file or directory (default: /mnt/tempdata/influensa_db/flu_seq_db/pcr-primers)"
     exit "${1:-1}"
 }
 
@@ -33,8 +34,11 @@ SEASON=""
 YEAR=""
 VALIDATION_FLAG=""
 PIPELINE_BRANCH="master"
+PRIMER_CHECK_PCR="${PRIMER_CHECK_PCR:-/mnt/tempdata/influensa_db/flu_seq_db/pcr-primers}"
+PRIMER_CHECK_CONTAINER="${PRIMER_CHECK_CONTAINER:-ghcr.io/rasmuskoriis/primer-checker:latest}"
+PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
 
-while getopts "hr:a:s:y:v:b:" opt; do
+while getopts "hr:a:s:y:v:b:P:" opt; do
     case "$opt" in
         h) usage 0 ;;
         r) RUN="$OPTARG" ;;
@@ -43,6 +47,7 @@ while getopts "hr:a:s:y:v:b:" opt; do
         y) YEAR="$OPTARG" ;;
         v) VALIDATION_FLAG="$OPTARG" ;;
         b) PIPELINE_BRANCH="$OPTARG" ;;
+        P) PRIMER_CHECK_PCR="$OPTARG" ;;
         ?) usage ;;
     esac
 done
@@ -400,6 +405,9 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   --nextclade_dataset "$NEXTCLADE_DATASET" \
   --reassortment_database "$REASSORTMENT_DATABASE" \
   --runid "$RUN" \
+  --primer_check "$PRIMER_CHECK_ENABLED" \
+  --primer_check_pcr "$PRIMER_CHECK_PCR" \
+  --primer_check_container "$PRIMER_CHECK_CONTAINER" \
   --release_version "v1.0.2"
 
 echo "Moving results to the N: drive"
