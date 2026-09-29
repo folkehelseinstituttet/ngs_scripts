@@ -194,7 +194,7 @@ set_status "Moving results to the N: drive"
 mkdir $HOME/out_hav
 cp -r $HOME/$BATCH_NAME/ $HOME/out_hav/
 
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
+smbclient $SMB_HOST -A $SMB_AUTH -D "$SMB_DIR" <<EOF
 prompt OFF
 recurse ON
 lcd $HOME/out_hav/
@@ -209,7 +209,7 @@ set_status "Moving updated database to the N: drive"
 mkdir $HOME/out_hav_database
 cp -r $HAV_DB_DIR/ $HOME/out_hav_database/
 
-smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR_DATASET <<EOF
+smbclient $SMB_HOST -A $SMB_AUTH -D "$SMB_DIR_DATASET" <<EOF
 prompt OFF
 recurse ON
 lcd $HOME/out_hav_database/
