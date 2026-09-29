@@ -191,7 +191,7 @@ bash ~/hav_seq/scripts/hav_wrapper.sh --mode "$MODE" "$BATCH_NAME" "$YEAR"
 
 ## Move the results to the N: drive
 set_status "Moving results to the N: drive"
-mkdir $HOME/out_hav
+mkdir -p $HOME/out_hav
 cp -r $HOME/$BATCH_NAME/ $HOME/out_hav/
 
 smbclient $SMB_HOST -A $SMB_AUTH -D "$SMB_DIR" <<EOF
@@ -206,7 +206,7 @@ set_status "Results copied to N: drive"
 
 ## Move the updated database to the N: drive
 set_status "Moving updated database to the N: drive"
-mkdir $HOME/out_hav_database
+mkdir -p $HOME/out_hav_database
 cp -r $HAV_DB_DIR/ $HOME/out_hav_database/
 
 smbclient $SMB_HOST -A $SMB_AUTH -D "$SMB_DIR_DATASET" <<EOF
