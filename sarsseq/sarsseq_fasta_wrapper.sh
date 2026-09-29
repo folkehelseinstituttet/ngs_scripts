@@ -20,6 +20,7 @@ usage() {
     echo "  -y <year>          Specify the year directory of the fastq files on the N-drive"
     echo "  -v <validation>    Specify validation flag (e.g., VER)"
     echo "  -b <branch>        Pipeline branch/tag to use (default: master)"
+    echo "  -P PATH            PCR JSON file or directory (default: /mnt/tempdata/sars_db/pcr-primers)"
     exit 1
 }
 
@@ -32,9 +33,12 @@ PRIMER=""
 VALIDATION_FLAG=""
 SKIP_RESULTS_MOVE=false
 PIPELINE_BRANCH="master"
+PRIMER_CHECK_PCR="${PRIMER_CHECK_PCR:-/mnt/tempdata/sars_db/pcr-primers}"
+PRIMER_CHECK_CONTAINER="${PRIMER_CHECK_CONTAINER:-ghcr.io/rasmuskoriis/primer-checker:latest}"
+PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
 
 # Parse options
-while getopts "hr:p:a:s:y:v:b:" opt; do
+while getopts "hr:p:a:s:y:v:b:P:" opt; do
     case "$opt" in
         h) usage ;;
         r) RUN="$OPTARG" ;;
@@ -44,6 +48,7 @@ while getopts "hr:p:a:s:y:v:b:" opt; do
         y) YEAR="$OPTARG" ;;
         v) VALIDATION_FLAG="$OPTARG" ;;
         b) PIPELINE_BRANCH="$OPTARG" ;;
+        P) PRIMER_CHECK_PCR="$OPTARG" ;;
         ?) usage ;;
     esac
 done
@@ -153,6 +158,9 @@ nextflow run RasmusKoRiis/nf-core-sars/main.nf \
   --outdir "$LOCAL_RUN_OUTDIR" \
   --file fasta-workflow \
   --runid "$RUN" \
+  --primer_check "$PRIMER_CHECK_ENABLED" \
+  --primer_check_pcr "$PRIMER_CHECK_PCR" \
+  --primer_check_container "$PRIMER_CHECK_CONTAINER" \
   --spike "$SARS_DATABASE/Spike_mAbs_inhibitors.csv" \
   --rdrp "$SARS_DATABASE/RdRP_inhibitors.csv" \
   --clpro "$SARS_DATABASE/3CLpro_inhibitors.csv" \
