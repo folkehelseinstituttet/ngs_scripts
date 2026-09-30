@@ -207,7 +207,7 @@ set_status "Results copied to N: drive"
 ## Move the updated database to the N: drive
 set_status "Moving updated database to the N: drive"
 mkdir -p $HOME/out_hav_database
-cp -r $HAV_DB_DIR/ $HOME/out_hav_database/
+cp -r "$HAV_DB_DIR"/* $HOME/out_hav_database/
 
 smbclient $SMB_HOST -A $SMB_AUTH -D "$SMB_DIR_DATASET" <<EOF
 prompt OFF
