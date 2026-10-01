@@ -113,8 +113,9 @@ echo "Temporary directory: $TMP_DIR"
 if [ -d "$HOME/$BATCH_NAME" ]; then
     rm -rf "$HOME/$BATCH_NAME"
 fi
-mkdir -p "$HOME/$BATCH_NAME"
-echo "Output directory: $HOME/$BATCH_NAME"
+mkdir -p "$HOME/${BATCH_NAME}_results"
+echo "Output directory: $HOME/${BATCH_NAME}_results"
+export OUT_BASE="$HOME/${BATCH_NAME}_results"
 
 # Make sure the latest version of the ngs_scripts repo is present locally
 export REPO="$HOME/ngs_scripts"
@@ -164,6 +165,27 @@ mget HAV_lw_uttrekk.tsv
 EOF
 set_status "Metadata copy complete. File is in $TMP_DIR/HAV_lw_uttrekk.tsv"
 
+set_status "Metadata copy complete. File is in $TMP_DIR/HAV_lw_uttrekk.tsv"
+
+# Verify that HAV_lw_uttrekk.tsv was generated today
+LW_FILE="$TMP_DIR/HAV_lw_uttrekk.tsv"
+
+if [[ ! -f "$LW_FILE" ]]; then
+    echo "ERROR: Metadata file $LW_FILE was not found."
+    exit 1
+fi
+
+FILE_DATE=$(date -r "$LW_FILE" +%F)
+TODAY=$(date +%F)
+
+if [[ "$FILE_DATE" != "$TODAY" ]]; then
+    echo "ERROR: HAV_lw_uttrekk.tsv is not from today."
+    echo 'Kopier dagens LabWare-uttrekk "HAV_lw_uttrekk.tsv" fra V:\Prod\FromSecure\LW_Datauttrekk til N:\Virologi\Hepatitt\Hepatitt A\HAV genteknologi\Databaser\Metadata'
+    exit 1
+fi
+
+set_status "Verified that HAV_lw_uttrekk.tsv is dated today ($TODAY)"
+
 set_status "Copying meta-data for requests from the N drive (SMB_DIR=$SMB_DIR_METAREQUEST)"
 smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_METAREQUEST" <<EOF
 prompt OFF
@@ -192,7 +214,7 @@ bash ~/hav_seq/scripts/hav_wrapper.sh --mode "$MODE" "$BATCH_NAME" "$YEAR"
 ## Move the results to the N: drive
 set_status "Moving results to the N: drive"
 mkdir -p $HOME/out_hav
-cp -r $HOME/$BATCH_NAME/ $HOME/out_hav/
+cp -r "$HOME/${BATCH_NAME}_results"/ $HOME/out_hav/
 
 smbclient $SMB_HOST -A $SMB_AUTH -D "$SMB_DIR" <<EOF
 prompt OFF
