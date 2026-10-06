@@ -349,6 +349,7 @@ REASSORTMENT_LITS="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/S
 GENOTYPE_H5_LITS="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/"
 HUMAN_REFERENCES="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/references/human"
 REFERENCE_VALIDATION="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/references"
+HUMAN_VACCINE_REFERENCES="$REFERENCE_VALIDATION/human_vaccine"
 REFERENCE_TABLE_LOCAL_FILE="$FLU_DATABASE/reference_table.csv"
 
 if [ -z "$SAMPLEDIR" ]; then
@@ -388,6 +389,15 @@ lcd $FLU_DATABASE/sequence_references/human
 mget *
 EOF
 
+echo "Updating human vaccine references"
+mkdir -p "$SEQUENCE_REFERENCES/human_vaccine"
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$HUMAN_VACCINE_REFERENCES" <<EOF
+prompt OFF
+recurse ON
+lcd $SEQUENCE_REFERENCES/human_vaccine
+mget *
+EOF
+
 echo "Updating reference table"
 rm -f "$REFERENCE_TABLE_LOCAL_FILE"
 
@@ -406,9 +416,7 @@ echo "Using reference table: $REFERENCE_TABLE_LOCAL_FILE"
 echo "Checking that downloaded references match reference_table.csv"
 
 validate_reference_type "$SEQUENCE_REFERENCES/human" "human" "$REFERENCE_TABLE_LOCAL_FILE"
-
-# Enable vaccine validation once a populated EPI-annotated vaccine bundle is available.
-# validate_reference_type "$SEQUENCE_REFERENCES/human_vaccine" "human_vaccine" "$REFERENCE_TABLE_LOCAL_FILE"
+validate_reference_type "$SEQUENCE_REFERENCES/human_vaccine" "human_vaccine" "$REFERENCE_TABLE_LOCAL_FILE"
 
 # Create a samplesheet by running the supplied Rscript in a docker container.
 # ADD CODE FOR HANDLING OF SAMPLESHEET

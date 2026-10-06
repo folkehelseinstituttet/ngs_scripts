@@ -44,9 +44,17 @@ Vaccine bundles can be checked explicitly:
 bash fluseq_wrapper.sh --check-references /path/to/references /path/to/reference_table.csv human_vaccine
 ```
 
-Automatic vaccine validation remains disabled in the routine wrapper because
-the supplied September 2026 archive contains an empty `human_vaccine/` folder.
-Enable that call once a complete EPI-annotated vaccine bundle is available.
+Routine runs recursively download both `references/human/` and
+`references/human_vaccine/` from the selected `Sesongfiler/${SEASON}` SMB directory,
+preserving the subtype and segment layout under the server's
+`sequence_references/` directory. Both types are then validated before Nextflow
+starts. The table must contain matching `human` and `human_vaccine` entries,
+including valid `GISAID_EPI` values, and both bundles must have EPI-annotated
+headers. A failed SMB transfer stops the wrapper.
+
+The supplied September 2026 `references_with_epis.zip` contains 33 human FASTA
+files but no vaccine FASTA files. It can update the human bundle; a populated
+vaccine bundle must be supplied separately in the seasonal SMB folder.
 
 Deploy the updated human references and wrapper together: the new check rejects
 legacy headers without EPI identifiers. The `references_with_epis.zip` archive
