@@ -175,12 +175,15 @@ if [[ ! -f "$LW_FILE" ]]; then
     exit 1
 fi
 
-FILE_DATE=$(date -r "$LW_FILE" +%F)
+LW_SOURCE="/mnt/n/Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/Metadata/HAV_lw_uttrekk.tsv"
+FILE_DATE=$(date -r "$LW_SOURCE" +%F)
 TODAY=$(date +%F)
 
 if [[ "$FILE_DATE" != "$TODAY" ]]; then
-    echo "ERROR: HAV_lw_uttrekk.tsv is not from today."
+    echo "ERROR: HAV_lw_uttrekk.tsv på N-disken er ikke fra i dag."
     echo 'Kopier dagens LabWare-uttrekk "HAV_lw_uttrekk.tsv" fra V:\Prod\FromSecure\LW_Datauttrekk til N:\Virologi\Hepatitt\Hepatitt A\HAV genteknologi\Databaser\Metadata'
+    echo "Fil-dato: $FILE_DATE"
+    echo "Dagens dato: $TODAY"
     exit 1
 fi
 
