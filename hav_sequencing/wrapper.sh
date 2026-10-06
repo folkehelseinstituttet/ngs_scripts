@@ -175,7 +175,7 @@ if [[ ! -f "$LW_FILE" ]]; then
     exit 1
 fi
 
-LW_SOURCE="/mnt/n/Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/Metadata/HAV_lw_uttrekk.tsv"
+LW_SOURCE="$SMB_DIR_METADATA/HAV_lw_uttrekk.tsv"
 FILE_DATE=$(date -r "$LW_SOURCE" +%F)
 TODAY=$(date +%F)
 
