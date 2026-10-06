@@ -58,8 +58,14 @@ Sequencing_Technology <- "Oxford Nanopore"
 Assembly_Method <- "IRMA FLU-minion"
 Sequencing_Strategy <- "Targeted-amplification "
 
-# Read Lab_ID data
-Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Laboratory.xlsx")
+# Read originating-lab IDs from the semicolon-delimited submitter lookup
+Lab_ID <- readr::read_delim(
+  "N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender_GISAID.csv",
+  delim = ";",
+  col_types = readr::cols(.default = readr::col_character()),
+  trim_ws = TRUE
+) %>%
+  select(Innsender_nr, GISAID_Id)
 
 # Proceed with data filtering and selection
 fludb <- fludb %>%
@@ -151,15 +157,15 @@ merged_df <- merge(
   fludb,
   Lab_ID,
   by.x = "prove_innsender_id",
-  by.y = "Innsender nr",
+  by.y = "Innsender_nr",
   all.x = TRUE
 )
 
-# Replace NA / blank values in GISAID_Nr column
-merged_df$GISAID_Nr <- ifelse(
-  is.na(merged_df$GISAID_Nr) | merged_df$GISAID_Nr == "",
-  GISAIDnr,
-  merged_df$GISAID_Nr
+# Replace NA / blank values in GISAID_Id column
+merged_df$GISAID_Id <- ifelse(
+  is.na(merged_df$GISAID_Id) | merged_df$GISAID_Id == "",
+  as.character(GISAIDnr),
+  merged_df$GISAID_Id
 )
 
 ################### FASTA FILE :
@@ -219,7 +225,7 @@ tmp <- merged_df %>%
     "Seq_Id (HE)" = "",
     "Seq_Id (P3)" = "",
     "Submitting_Sample_Id" = merged_df$key,
-    "Originating_Lab_Id" = merged_df$GISAID_Nr,
+    "Originating_Lab_Id" = merged_df$GISAID_Id,
     "Originating_Sample_Id" = "",
     "Collection_Month" = month(merged_df$prove_tatt),
     "Collection_Year" = year(merged_df$prove_tatt),
