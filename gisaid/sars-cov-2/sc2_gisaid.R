@@ -67,13 +67,18 @@ Location <- "Norway"
 sub_lab <- "Norwegian Institute of Public Health, Department of Virology"
 address <- "P.O.Box 222 Skoyen, 0213 Oslo, Norway"
 authors <- "Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; Knutsen, MF"
-GISAIDnr <- 3869
 Sequencing_Technology <- "Oxford Nanopore - GridION"
 Assembly_Method <- "IRMA CoV-minion-long-reads"
 Sequencing_Strategy <- "Targeted-amplification"
 
-# Read Lab_ID data
-Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Laboratory.xlsx")
+# Read originating-lab names from the semicolon-delimited submitter lookup
+Lab_ID <- readr::read_delim(
+  "N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender_GISAID.csv",
+  delim = ";",
+  col_types = readr::cols(.default = readr::col_character()),
+  trim_ws = TRUE
+) %>%
+  select(Innsender_nr, Innsender_navn)
 
 lab_lookup_table <- tribble(
   ~`Lab code`, ~`Lab`, ~`Lab_address`,
@@ -210,20 +215,13 @@ if (nrow(bad_keys) > 0) {
   warning("Some keys did not produce a valid Uniq_nr. Falling back to full key in Isolate_Name for those rows.")
 }
 
-# Merge submitter/lab ID info
+# Match originating-lab names by submitter code
 merged_df <- merge(
   sarsdb,
   Lab_ID,
   by.x = "prove_innsender_id",
-  by.y = "Innsender nr",
+  by.y = "Innsender_nr",
   all.x = TRUE
-)
-
-# Replace missing GISAID_Nr
-merged_df$GISAID_Nr <- ifelse(
-  is.na(merged_df$GISAID_Nr),
-  GISAIDnr,
-  merged_df$GISAID_Nr
 )
 
 ################### SUBMISSION
@@ -247,7 +245,7 @@ tmp <- merged_df %>%
       paste(Sequencing_Technology, Primer_vers, sep = " - ")
     ),
     covv_assembly_method = Assembly_Method,
-    covv_orig_lab = Lab,
+    covv_orig_lab = Innsender_navn,
     covv_orig_lab_addr = Lab_address,
     covv_subm_lab = "Norwegian Institute of Public Health, Department of Virology",
     covv_subm_lab_addr = "P.O.Box 222 Skoyen, 0213 Oslo, Norway",
