@@ -156,38 +156,75 @@ mget *
 EOF
 set_status "Fasta copy complete. Files are in $TMP_DIR/Fasta"
 
-set_status "Copying HAV_lw_uttrekk.tsv from the N drive (SMB_DIR=$SMB_DIR_METADATA)"
-smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_METADATA" <<EOF
-prompt OFF
-recurse ON
-lcd $TMP_DIR
-mget HAV_lw_uttrekk.tsv
-EOF
-set_status "Metadata copy complete. File is in $TMP_DIR/HAV_lw_uttrekk.tsv"
+# ── Verify and copy HAV_lw_uttrekk.tsv ───────────────────────────────────────
 
-set_status "Metadata copy complete. File is in $TMP_DIR/HAV_lw_uttrekk.tsv"
+LW_FILENAME="HAV_lw_uttrekk.tsv"
+LW_FILE="$TMP_DIR/$LW_FILENAME"
 
-# Verify that HAV_lw_uttrekk.tsv was generated today
-LW_FILE="$TMP_DIR/HAV_lw_uttrekk.tsv"
+set_status "Checking modification date for $LW_FILENAME on the N drive"
 
-if [[ ! -f "$LW_FILE" ]]; then
-    echo "ERROR: Metadata file $LW_FILE was not found."
+# Read metadata from the original file on the SMB share.
+LW_INFO=$(
+    smbclient "$SMB_HOST" \
+        -A "$SMB_AUTH" \
+        -D "$SMB_DIR_METADATA" \
+        -c "allinfo $LW_FILENAME"
+)
+
+# Log the SMB metadata to make future troubleshooting easier.
+printf '%s\n' "$LW_INFO"
+
+# allinfo normally reports the modification timestamp as write_time.
+WRITE_TIME=$(
+    printf '%s\n' "$LW_INFO" |
+        sed -n 's/^[[:space:]]*write_time:[[:space:]]*//p' |
+        head -n 1
+)
+
+if [[ -z "$WRITE_TIME" ]]; then
+    echo "ERROR: Could not read write_time for $LW_FILENAME from the N drive." >&2
+    echo "Output from smbclient allinfo:" >&2
+    printf '%s\n' "$LW_INFO" >&2
     exit 1
 fi
 
-LW_SOURCE="$SMB_DIR_METADATA/HAV_lw_uttrekk.tsv"
-FILE_DATE=$(date -r "$LW_SOURCE" +%F)
+# Convert the SMB timestamp to YYYY-MM-DD.
+if ! FILE_DATE=$(date -d "$WRITE_TIME" +%F); then
+    echo "ERROR: Could not interpret SMB write_time: $WRITE_TIME" >&2
+    exit 1
+fi
+
 TODAY=$(date +%F)
 
+echo "Original file timestamp: $WRITE_TIME"
+echo "File date: $FILE_DATE"
+echo "Today's date: $TODAY"
+
 if [[ "$FILE_DATE" != "$TODAY" ]]; then
-    echo "ERROR: HAV_lw_uttrekk.tsv på N-disken er ikke fra i dag."
-    echo 'Kopier dagens LabWare-uttrekk "HAV_lw_uttrekk.tsv" fra V:\Prod\FromSecure\LW_Datauttrekk til N:\Virologi\Hepatitt\Hepatitt A\HAV genteknologi\Databaser\Metadata'
-    echo "Fil-dato: $FILE_DATE"
-    echo "Dagens dato: $TODAY"
+    echo "ERROR: $LW_FILENAME on the N drive is not from today." >&2
+    echo "File date: $FILE_DATE" >&2
+    echo "Today's date: $TODAY" >&2
+    echo 'Kopier dagens LabWare-uttrekk "HAV_lw_uttrekk.tsv" fra V:\Prod\FromSecure\LW_Datauttrekk til N:\Virologi\Hepatitt\Hepatitt A\HAV genteknologi\Databaser\Metadata' >&2
     exit 1
 fi
 
-set_status "Verified that HAV_lw_uttrekk.tsv is dated today ($TODAY)"
+set_status "Verified that $LW_FILENAME on the N drive is dated today ($TODAY)"
+
+set_status "Copying $LW_FILENAME from the N drive (SMB_DIR=$SMB_DIR_METADATA)"
+
+smbclient "$SMB_HOST" \
+    -A "$SMB_AUTH" \
+    -D "$SMB_DIR_METADATA" <<EOF
+lcd $TMP_DIR
+get $LW_FILENAME
+EOF
+
+if [[ ! -s "$LW_FILE" ]]; then
+    echo "ERROR: Metadata file $LW_FILE was not downloaded or is empty." >&2
+    exit 1
+fi
+
+set_status "Metadata copy complete. File is in $LW_FILE"
 
 set_status "Copying meta-data for requests from the N drive (SMB_DIR=$SMB_DIR_METAREQUEST)"
 smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_METAREQUEST" <<EOF
