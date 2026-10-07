@@ -45,6 +45,30 @@ Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Labo
 
 source("N:/Virologi/Influensa/RARI/2526/BN SC2 25-26.R")
 
+# Repair Norwegian letters decoded as Windows-1252 or Latin-1 during SQL import.
+# Unicode escapes keep this helper independent of the script file's encoding.
+repair_norwegian_text <- function(x) {
+  x <- enc2utf8(x)
+  replacements <- c(
+    "\u00c3\u00a6" = "\u00e6", # ae
+    "\u00c3\u00b8" = "\u00f8", # o with stroke
+    "\u00c3\u00a5" = "\u00e5", # a with ring
+    "\u00c3\u2020" = "\u00c6", # uppercase ae (Windows-1252)
+    "\u00c3\u02dc" = "\u00d8", # uppercase o with stroke (Windows-1252)
+    "\u00c3\u2026" = "\u00c5", # uppercase a with ring (Windows-1252)
+    "\u00c3\u0086" = "\u00c6", # uppercase ae (Latin-1)
+    "\u00c3\u0098" = "\u00d8", # uppercase o with stroke (Latin-1)
+    "\u00c3\u0085" = "\u00c5"  # uppercase a with ring (Latin-1)
+  )
+  for (bad in names(replacements)) {
+    x <- gsub(bad, replacements[[bad]], x, fixed = TRUE)
+  }
+  x
+}
+
+sarsdb <- sarsdb %>%
+  mutate(across(where(is.character), repair_norwegian_text))
+
 lab_lookup_table <- tribble(
   ~`Lab code`, ~`Lab`, ~`Lab_address`,
   "FHI-SMLV",	"Norwegian Institute of Public Health, Department of Virology",	"P.O.Box 222 Skoyen, 0213 Oslo, Norway",
@@ -235,7 +259,8 @@ output_dir <- "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/4
 ns_out_dir <- output_dir
 
 ns_out_file <- file.path(ns_out_dir, paste0("nextstrain_metadata_", format(Sys.Date(), "%Y-%m-%d"), ".tsv"))
-write.table(ns_meta, ns_out_file, sep = "\t", quote = TRUE, row.names = FALSE, na = "")
+write.table(ns_meta, ns_out_file, sep = "\t", quote = TRUE, row.names = FALSE,
+            na = "", fileEncoding = "UTF-8")
 
 
 

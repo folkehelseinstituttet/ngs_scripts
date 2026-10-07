@@ -65,13 +65,18 @@ Location <- "Norway"
 sub_lab <- "Norwegian Institute of Public Health, Department of Virology"
 address <- "P.O.Box 222 Skoyen, 0213 Oslo, Norway"
 authors <- "Bragstad, K; Hungnes, O; Riis, R; Fossum E."
-GISAIDnr <- 3869  # Converting directly to numeric
 Sequencing_Technology <- "Oxford Nanopore"
 Assembly_Method <- "IRMA RSV-minion"
 Sequencing_Strategy <- "Targeted-amplification "
 
-# Read Lab_ID data
-Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Laboratory.xlsx")
+# Read originating-lab names from the semicolon-delimited submitter lookup
+Lab_ID <- readr::read_delim(
+  "N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender_GISAID.csv",
+  delim = ";",
+  col_types = readr::cols(.default = readr::col_character()),
+  trim_ws = TRUE
+) %>%
+  select(Innsender_nr, Innsender_navn)
 
 
 # Proceed with data filtering and selection
@@ -100,11 +105,40 @@ rsvdb <- rsvdb %>%
     Isolate_Name = paste("hRSV",Subtype, "Norway", Uniq_nr, Year, sep = "/")  # Creating Isolate_Name
   )
 
-# Merging with Lab_ID
-merged_df <- merge(rsvdb, Lab_ID, by.x = "prove_innsender_id", by.y = "Innsender nr", all.x = TRUE)
+# The CSV uses lab codes; older database exports may store these in the name field.
+normalize_lab_code <- function(x) {
+  x <- toupper(trimws(as.character(x), whitespace = "[\\h\\v]"))
+  x[!is.na(x) & x == ""] <- NA_character_
+  x
+}
 
-# Replace NA and non-numeric values in GISAID_Nr column
-merged_df$GISAID_Nr <- ifelse(is.na(merged_df$GISAID_Nr) | is.na(merged_df$GISAID_Nr), GISAIDnr, merged_df$GISAID_Nr)
+lab_codes <- normalize_lab_code(Lab_ID$Innsender_nr)
+lab_match <- match(
+  normalize_lab_code(rsvdb$prove_innsender_id), lab_codes,
+  incomparables = NA
+)
+missing_lab_match <- is.na(lab_match)
+lab_match[missing_lab_match] <- match(
+  normalize_lab_code(rsvdb$prove_innsender_navn[missing_lab_match]), lab_codes,
+  incomparables = NA
+)
+
+merged_df <- rsvdb
+merged_df$Innsender_navn <- Lab_ID$Innsender_navn[lab_match]
+
+missing_lab_name <- is.na(merged_df$Innsender_navn) | trimws(merged_df$Innsender_navn) == ""
+if (any(missing_lab_name)) {
+  unmatched_labs <- unique(paste0(
+    "id=", merged_df$prove_innsender_id[missing_lab_name],
+    ", name=", merged_df$prove_innsender_navn[missing_lab_name]
+  ))
+  warning(
+    "No originating-lab name found in Innsender_GISAID.csv for: ",
+    paste(unmatched_labs, collapse = "; "),
+    ". Using prove_innsender_navn where available for submission orig_lab.",
+    call. = FALSE
+  )
+}
 
 
 
@@ -138,7 +172,11 @@ submission <- merged_df %>%
     "assembly_method" = Assembly_Method,
     "coverage" = "",
     "rsv_publications" = "unknown",
-    "orig_lab" = merged_df$prove_innsender_navn,
+    "orig_lab" = ifelse(
+      is.na(merged_df$Innsender_navn) | trimws(merged_df$Innsender_navn) == "",
+      as.character(merged_df$prove_innsender_navn),
+      merged_df$Innsender_navn
+    ),
     "orig_lab_addr" =merged_df$prove_innsender_adresse,
     "provider_sample_id" = "",
     "subm_lab" = sub_lab,
