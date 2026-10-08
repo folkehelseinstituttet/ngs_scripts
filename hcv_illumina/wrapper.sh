@@ -259,26 +259,50 @@ set_status "Pulling hcvtyper version ${VERSION}"
 nextflow pull folkehelseinstituttet/hcvtyper -r $VERSION
 set_status "Pulled hcvtyper version ${VERSION}"
 
+# hcvtyper 2.0.0 removed --skip_assembly and changed the Summary.csv format that
+# the Labware import container reads. Tags are "v1.1.7" style up to 1.x and bare
+# "2.0.0" style from 2.0.0 on, so strip any leading "v" before comparing.
+# Anything that is not a version number (e.g. a branch name like "master") is
+# treated as 2.0.0 or newer.
+VERSION_NUM="${VERSION#v}"
+if [[ "$VERSION_NUM" =~ ^[0-9]+(\.[0-9]+)*$ ]] && \
+   ! printf '%s\n%s\n' 2.0.0 "$VERSION_NUM" | sort -V -C; then
+    LEGACY_PIPELINE=1
+    set_status "VERSION=${VERSION} is older than 2.0.0: running with legacy options and Labware import"
+else
+    LEGACY_PIPELINE=0
+    set_status "VERSION=${VERSION} is 2.0.0 or newer: Labware import will be skipped"
+fi
+
+PIPELINE_ARGS=(-r "$VERSION" -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN" -with-tower --platform "illumina" --skip_hcvglue false)
+if [ "$LEGACY_PIPELINE" = 1 ]; then
+    PIPELINE_ARGS+=(--skip_assembly false)
+fi
+
 # Start the pipeline
 set_status "Starting Nextflow run. This may take several hours. Log file: $LOGFILE. Check the log file with: cat $LOGFILE to see the status."
-nextflow run folkehelseinstituttet/hcvtyper/ -r $VERSION -profile server --input "$HOME/$RUN/samplesheet.csv" --outdir "$HOME/$RUN"  -with-tower --platform "illumina" --skip_hcvglue false --skip_assembly false
+nextflow run folkehelseinstituttet/hcvtyper/ "${PIPELINE_ARGS[@]}"
 
 set_status "Nextflow run finished"
 
 ## Create a Labware import file from the Summary file
-set_status "Creating labware import file from Summary"
-# A failure here must not stop the run: the results are still copied to the N: drive.
-# Running the commands as an "if" condition keeps set -e and the ERR trap from firing.
-if mkdir -p "$HOME/$RUN/labware_import" && \
-   docker run --rm \
-     -v "$HOME/$RUN/summary:/input" \
-     -v "$HOME/$RUN/labware_import:/output" \
-     ghcr.io/jonbra/hcv-labware-import:v1.0.4 \
-     /input/Summary.csv \
-     /output/$RUN; then
-    set_status "Labware import file created"
+if [ "$LEGACY_PIPELINE" = 1 ]; then
+    set_status "Creating labware import file from Summary"
+    # A failure here must not stop the run: the results are still copied to the N: drive.
+    # Running the commands as an "if" condition keeps set -e and the ERR trap from firing.
+    if mkdir -p "$HOME/$RUN/labware_import" && \
+       docker run --rm \
+         -v "$HOME/$RUN/summary:/input" \
+         -v "$HOME/$RUN/labware_import:/output" \
+         ghcr.io/jonbra/hcv-labware-import:v1.0.4 \
+         /input/Summary.csv \
+         /output/$RUN; then
+        set_status "Labware import file created"
+    else
+        set_status "WARNING: Failed to create labware import file (exit code $?). Continuing with copying results to the N: drive"
+    fi
 else
-    set_status "WARNING: Failed to create labware import file (exit code $?). Continuing with copying results to the N: drive"
+    set_status "Skipping labware import file (not supported for hcvtyper ${VERSION})"
 fi
 
 ## Then move the results to the N: drive
