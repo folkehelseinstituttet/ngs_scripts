@@ -267,15 +267,19 @@ set_status "Nextflow run finished"
 
 ## Create a Labware import file from the Summary file
 set_status "Creating labware import file from Summary"
-mkdir $HOME/$RUN/labware_import
-docker run --rm \
-  -v "$HOME/$RUN/summary:/input" \
-  -v "$HOME/$RUN/labware_import:/output" \
-  ghcr.io/jonbra/hcv-labware-import:v1.0.4 \
-  /input/Summary.csv \
-  /output/$RUN
-
-set_status "Labware import file created"
+# A failure here must not stop the run: the results are still copied to the N: drive.
+# Running the commands as an "if" condition keeps set -e and the ERR trap from firing.
+if mkdir -p "$HOME/$RUN/labware_import" && \
+   docker run --rm \
+     -v "$HOME/$RUN/summary:/input" \
+     -v "$HOME/$RUN/labware_import:/output" \
+     ghcr.io/jonbra/hcv-labware-import:v1.0.4 \
+     /input/Summary.csv \
+     /output/$RUN; then
+    set_status "Labware import file created"
+else
+    set_status "WARNING: Failed to create labware import file (exit code $?). Continuing with copying results to the N: drive"
+fi
 
 ## Then move the results to the N: drive
 set_status "Moving results to the N: drive"
