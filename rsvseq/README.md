@@ -2,6 +2,16 @@ Run the wrapper with: screen -S rsvseq -d -m bash /home/ngs/ngs_scripts/rsvseq/r
 Replace TEST with a run name (e.g. RSV002)
 If running a verification of script add -v VER flag
 
+## Run logs and cleanup
+
+The routine wrapper writes `$HOME/rsvseq_<RUN>_wrapper.log`,
+`rsvseq_<RUN>_wrapper_error.log`, `rsvseq_<RUN>_status.txt`, and
+`rsvseq_<RUN>_nextflow.log`. Successful online runs archive verified logs to
+`<RUN>/logs` on N: and clean this run's local inputs, work and staged routine
+results. Failed runs retain their logs; validation keeps full local results.
+See the [shared logging and cleanup policy](../resp-virus-toolkit/README.md#shared-wrapper-logging-and-cleanup)
+for destinations, retries, failure handling and configuration.
+
 ## Primer checks
 
 The routine wrapper enables primer-checker (PCR for influenza, PCR and NGS for

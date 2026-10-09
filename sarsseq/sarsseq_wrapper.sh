@@ -1,18 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Activate conda base functions
-CONDA_PROFILE="${CONDA_PROFILE:-$HOME/miniconda3/etc/profile.d/conda.sh}"
-if [ -f "$CONDA_PROFILE" ]; then
-    source "$CONDA_PROFILE"
-elif command -v conda >/dev/null 2>&1; then
-    eval "$(conda shell.bash hook)"
-else
-    echo "ERROR: Could not initialize conda."
-    echo "Set CONDA_PROFILE=/path/to/conda.sh or make conda available in PATH."
-    exit 1
-fi
-
 # Maintained by: Rasmus Kopperud Riis (rasmuskopperud.riis@fhi.no)
 # Version: dev
 
@@ -54,7 +42,7 @@ usage() {
     echo "  OFFLINE_ARTIC_MODEL_DIR      Local ARTIC/Clair3 model directory"
     echo "  PIPELINE_ASSETS_DIR          Local assets fallback (default: PIPELINE_DIR/assets, then wrapper assets)"
     echo "  CONDA_PROFILE                Conda profile script if not \$HOME/miniconda3/etc/profile.d/conda.sh"
-    exit 1
+    exit "${1:-1}"
 }
 
 # Initialize variables
@@ -80,7 +68,7 @@ PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
 # Parse options
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        -h|--help) usage ;;
+        -h|--help) usage 0 ;;
         -r|--run) RUN="${2:?Missing value for $1}"; shift 2 ;;
         -p|--primer) PRIMER="${2:?Missing value for $1}"; shift 2 ;;
         -a|--agens) AGENS="${2:?Missing value for $1}"; shift 2 ;;
@@ -101,6 +89,10 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
+# shellcheck source=../resp-virus-toolkit/wrapper_logging.sh
+source "$SCRIPT_DIR/../resp-virus-toolkit/wrapper_logging.sh"
+wrapper_logs_init sarsseq "$RUN"
+
 if [ -n "$LOCAL_FASTA" ] && { [ -n "$LOCAL_FASTQ_DIR" ] || [ -n "$LOCAL_SAMPLESHEET" ]; }; then
     echo "ERROR: --local-fasta cannot be combined with --local-fastq-dir or --local-samplesheet."
     exit 1
@@ -115,6 +107,18 @@ fi
 if [ -z "${RUN}" ] || [ -z "${AGENS}" ] || [ -z "${YEAR}" ]; then
     echo "ERROR: -r <run>, -a <agens>, and -y <year> are required."
     usage
+fi
+
+# Initialize conda after logging is ready so setup failures are retained.
+CONDA_PROFILE="${CONDA_PROFILE:-$HOME/miniconda3/etc/profile.d/conda.sh}"
+if [ -f "$CONDA_PROFILE" ]; then
+    source "$CONDA_PROFILE"
+elif command -v conda >/dev/null 2>&1; then
+    eval "$(conda shell.bash hook)"
+else
+    echo "ERROR: Could not initialize conda."
+    echo "Set CONDA_PROFILE=/path/to/conda.sh or make conda available in PATH."
+    exit 1
 fi
 
 echo "Run: $RUN"
@@ -243,7 +247,7 @@ upload_db() {
     base="$(basename "$remote_path")"
 
     echo "Uploading DB: $local_file -> $remote_path"
-    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$(dirname "$remote_path")" <<EOF
+    wrapper_smb_upload "$SMB_HOST" -A "$SMB_AUTH" -D "$(dirname "$remote_path")" <<EOF
 prompt OFF
 lcd "$(dirname "$local_file")"
 mput "$base"
@@ -497,16 +501,6 @@ if [ "$PIPELINE_FILE" = "fasta-workflow" ] || [ -n "$LOCAL_FASTQ_DIR" ]; then
     CLEAN_TMP=false
 fi
 
-# Clean TMP on exit
-cleanup() {
-    echo "Cleaning up temporary data..."
-    nextflow clean -f >/dev/null 2>&1 || true
-    if [ "$CLEAN_TMP" = true ]; then
-        rm -rf "$TMP_DIR"
-    fi
-}
-trap cleanup EXIT
-
 ################################################################################
 # Copy fastq files from storage
 ################################################################################
@@ -668,14 +662,16 @@ if [ "$OFFLINE_MODE" = true ]; then
     echo "Offline mode enabled: skipping nextflow pull."
     echo "Using local pipeline: $NEXTFLOW_SOURCE"
 else
-    nextflow pull RasmusKoRiis/nf-core-sars -r "$PIPELINE_BRANCH"
+    nextflow -log "$NEXTFLOW_LOG" pull RasmusKoRiis/nf-core-sars -r "$PIPELINE_BRANCH"
 fi
 
 if [ -n "$NEXTFLOW_WORKDIR" ]; then
     NEXTFLOW_WORK_ARGS=(-work-dir "$NEXTFLOW_WORKDIR")
 fi
 
-nextflow run "$NEXTFLOW_SOURCE" \
+wrapper_logs_nextflow_start
+nextflow -log "$NEXTFLOW_LOG" -c "$SCRIPT_DIR/../resp-virus-toolkit/wrapper_cleanup.config" \
+    run "$NEXTFLOW_SOURCE" \
     "${NEXTFLOW_REV_ARGS[@]}" \
     "${NEXTFLOW_WORK_ARGS[@]}" \
     -profile docker,server \
@@ -691,6 +687,8 @@ nextflow run "$NEXTFLOW_SOURCE" \
     --clpro "$CLPRO_TABLE" \
     --release_version "v1.0.0" \
     "${NEXTFLOW_OFFLINE_ARGS[@]}"
+
+wrapper_logs_status "Nextflow finished"
 
 ################################################################################
 # Move results locally into out_sarsseq
@@ -720,6 +718,7 @@ fi
 if [ "$OFFLINE_MODE" = true ]; then
     echo "Offline mode enabled: skipping dashboard DB merge/upload and N-drive result upload."
     echo "Done. Results are in: $RUN_OUT"
+    wrapper_logs_complete "$RUN_OUT"
     exit 0
 fi
 
@@ -774,23 +773,24 @@ fi
 echo "Moving results to the N: drive"
 
 if [ "$SKIP_RESULTS_MOVE" = false ]; then
-    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" <<EOF
+    # Use RUN_OUT so an explicit --outdir is uploaded correctly, too.
+    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" -c "mkdir \"$RUN\"" || true
+    wrapper_smb_upload "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR/$RUN" <<EOF
 prompt OFF
 recurse ON
-lcd "$HOME/out_sarsseq/"
+lcd "$RUN_OUT"
 mput *
 EOF
 fi
 
 if [ "$SKIP_RESULTS_MOVE" = true ]; then
-    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
+    wrapper_smb_upload "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
 prompt OFF
-lcd "$HOME/out_sarsseq/$RUN/report/"
-cd ${SMB_DIR_ANALYSIS}
+lcd "$RUN_OUT/report/"
 mput *.csv
 EOF
     if [ -d "$RUN_OUT/primer_check" ]; then
-        smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
+        wrapper_smb_upload "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
 prompt OFF
 lcd "$RUN_OUT/primer_check"
 mput *.csv
@@ -798,4 +798,20 @@ EOF
     fi
 fi
 
-echo "Done."
+wrapper_logs_status "Required result uploads completed"
+CLEAN_RUN_INPUT=""
+CLEAN_RUN_SAMPLESHEET=""
+if [ "$CLEAN_TMP" = true ]; then
+    CLEAN_RUN_INPUT="$TMP_DIR/$RUN"
+    if [ -z "$LOCAL_SAMPLESHEET" ]; then
+        CLEAN_RUN_SAMPLESHEET="$SAMPLESHEET"
+    fi
+fi
+# Explicit output directories belong to the caller and are retained.
+REMOVE_STAGED_OUTPUT=1
+if [ -n "$OUTPUT_DIR" ]; then REMOVE_STAGED_OUTPUT=0; fi
+if [ "$SKIP_RESULTS_MOVE" = true ]; then
+    wrapper_logs_complete "$RUN_OUT" "$SMB_DIR_ANALYSIS" "$CLEAN_RUN_INPUT" "$CLEAN_RUN_SAMPLESHEET" 0
+else
+    wrapper_logs_complete "$RUN_OUT" "$SMB_DIR" "$CLEAN_RUN_INPUT" "$CLEAN_RUN_SAMPLESHEET" "$REMOVE_STAGED_OUTPUT"
+fi

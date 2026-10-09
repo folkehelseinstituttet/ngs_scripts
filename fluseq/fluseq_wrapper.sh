@@ -175,15 +175,12 @@ if [[ "${1:-}" == "--check-references" ]]; then
     exit $?
 fi
 
-# Activate conda
-export JAVA_HOME="${JAVA_HOME:-}"
-source "$HOME/miniconda3/etc/profile.d/conda.sh"
-
 # Maintained by: Rasmus Kopperud Riis (rasmuskopperud.riis@fhi.no)
 # Version: dev
 
 # Define the script name and usage
 SCRIPT_NAME=$(basename "$0")
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
     echo "Usage: $SCRIPT_NAME [OPTIONS]"
@@ -225,6 +222,11 @@ while getopts "hr:a:s:y:v:b:P:" opt; do
     esac
 done
 
+# Start logging before validation, conda, downloads or repository updates.
+# shellcheck source=../resp-virus-toolkit/wrapper_logging.sh
+source "$SCRIPT_DIR/../resp-virus-toolkit/wrapper_logging.sh"
+wrapper_logs_init fluseq "$RUN"
+
 # Check required arguments
 [ -z "$RUN" ] && { echo "ERROR: -r RUN is required"; usage; }
 [ -z "$SEASON" ] && { echo "ERROR: -s SEASON is required"; usage; }
@@ -252,6 +254,10 @@ if [ -e "$HOME/$RUN" ]; then
     echo "Move or remove it before starting a new run."
     exit 1
 fi
+
+# Activate conda after logging is ready so setup failures are retained.
+export JAVA_HOME="${JAVA_HOME:-}"
+source "${CONDA_PROFILE:-$HOME/miniconda3/etc/profile.d/conda.sh}"
 
 echo "Run: $RUN"
 echo "Agens: $AGENS"
@@ -443,8 +449,10 @@ set -u
 
 # Start the pipeline
 echo "Map to references and create consensus sequences"
-nextflow pull RasmusKoRiis/nf-core-fluseq -r "$PIPELINE_BRANCH"
-nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
+nextflow -log "$NEXTFLOW_LOG" pull RasmusKoRiis/nf-core-fluseq -r "$PIPELINE_BRANCH"
+wrapper_logs_nextflow_start
+nextflow -log "$NEXTFLOW_LOG" -c "$SCRIPT_DIR/../resp-virus-toolkit/wrapper_cleanup.config" \
+  run RasmusKoRiis/nf-core-fluseq/main.nf \
   -r "$PIPELINE_BRANCH" \
   -profile docker,server \
   --input "$SAMPLESHEET" \
@@ -464,7 +472,7 @@ nextflow run RasmusKoRiis/nf-core-fluseq/main.nf \
   --primer_check_container "$PRIMER_CHECK_CONTAINER" \
   --release_version "v1.0.2"
 
-echo "Moving results to the N: drive"
+wrapper_logs_status "Nextflow finished; moving results to the N: drive"
 mkdir -p "$HOME/out_fluseq"
 if [ -e "$HOME/out_fluseq/$RUN" ]; then
     PREVIOUS_RESULTS="$HOME/out_fluseq/${RUN}.previous.$(date +%Y%m%dT%H%M%S)"
@@ -474,29 +482,33 @@ fi
 mv "$HOME/$RUN" "$HOME/out_fluseq/"
 
 if [ "$SKIP_RESULTS_MOVE" = false ]; then
-    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" <<EOF
+    wrapper_smb_upload "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" <<EOF
 prompt OFF
 recurse ON
-lcd $HOME/out_fluseq
-mput *
+lcd "$HOME/out_fluseq"
+mput "$RUN"
 EOF
 fi
 
-smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
+wrapper_smb_upload "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
 prompt OFF
-lcd $HOME/out_fluseq/${RUN}/reporthuman
+lcd "$HOME/out_fluseq/${RUN}/reporthuman"
 mput *.csv
 EOF
 
 if [ -d "$HOME/out_fluseq/$RUN/primer_check" ]; then
-    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
+    wrapper_smb_upload "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" <<EOF
 prompt OFF
 lcd "$HOME/out_fluseq/$RUN/primer_check"
 mput *.csv
 EOF
 fi
 
-## Clean up
-# nextflow clean -f
-# rm -rf "$HOME/out_fluseq"
-# rm -rf "$TMP_DIR"
+wrapper_logs_status "Required result uploads completed"
+if [ "$SKIP_RESULTS_MOVE" = true ]; then
+    wrapper_logs_complete "$HOME/out_fluseq/$RUN" "$SMB_DIR_ANALYSIS" "$TMP_DIR/$RUN" "$SAMPLESHEET" 0
+else
+    wrapper_logs_complete "$HOME/out_fluseq/$RUN" "$SMB_DIR" "$TMP_DIR/$RUN" "$SAMPLESHEET" 1
+fi
+
+# The shared EXIT handler verifies logs and cleans only this run.

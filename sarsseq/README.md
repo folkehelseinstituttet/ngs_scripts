@@ -5,6 +5,18 @@ Replace TEST with a run name (e.g. SAR002)
 
 If running a verification of script add -v VER flag nad run with -p V4.1
 
+## Run logs and cleanup
+
+The routine wrapper writes `$HOME/sarsseq_<RUN>_wrapper.log`,
+`sarsseq_<RUN>_wrapper_error.log`, `sarsseq_<RUN>_status.txt`, and
+`sarsseq_<RUN>_nextflow.log`. Successful online runs archive verified logs to
+`<RUN>/logs` on N: and clean this run's downloaded inputs, work and staged routine
+results. Failed runs retain their logs; validation keeps full local results.
+Offline runs keep logs, results and work locally. User-provided inputs and explicit
+`--outdir` directories are retained.
+See the [shared logging and cleanup policy](../resp-virus-toolkit/README.md#shared-wrapper-logging-and-cleanup)
+for destinations, retries, failure handling and configuration.
+
 ### Primer-only QC wrapper
 
   Use the `sarsseq_primercheck.sh` helper when you only need primer mismatch statistics for consensus FASTA files stored on the N-drive. The script fetches the FASTA/

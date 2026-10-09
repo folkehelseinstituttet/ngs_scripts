@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Activate conda base hooks
-source ~/miniconda3/etc/profile.d/conda.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Maintained by: Rasmus Kopperud Riis (rasmuskopperud.riis@fhi.no)
 # Version: dev
@@ -20,7 +19,7 @@ usage() {
     echo "  -b <branch>        Pipeline branch/tag to use (default: master)"
     echo "  -P <path>          PCR JSON file or directory (default: /mnt/tempdata/rsv_db/pcr-primers)"
     echo "  -N <dir>           NGS schemes root containing RSVA/<scheme> and RSVB/<scheme>"
-    exit 1
+    exit "${1:-1}"
 }
 
 # Initialize variables
@@ -39,7 +38,7 @@ PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
 # Parse options
 while getopts "hr:a:s:y:v:p:b:P:N:" opt; do
     case "$opt" in
-        h) usage ;;
+        h) usage 0 ;;
         r) RUN="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
         s) SEASON="$OPTARG" ;;
@@ -53,6 +52,10 @@ while getopts "hr:a:s:y:v:p:b:P:N:" opt; do
     esac
 done
 
+# shellcheck source=../resp-virus-toolkit/wrapper_logging.sh
+source "$SCRIPT_DIR/../resp-virus-toolkit/wrapper_logging.sh"
+wrapper_logs_init rsvseq "$RUN"
+
 if [[ -z "$RUN" || -z "$AGENS" || -z "$YEAR" ]]; then
     echo "Error: -r, -a and -y are required."
     usage
@@ -62,6 +65,9 @@ if ! [[ "$YEAR" =~ ^[0-9]{4}$ ]]; then
     echo "Error: -y must be a 4-digit year."
     exit 1
 fi
+
+# Initialize conda after logging is ready so setup failures are retained.
+source "${CONDA_PROFILE:-$HOME/miniconda3/etc/profile.d/conda.sh}"
 
 # Print parsed arguments
 echo "Run: $RUN"
@@ -173,9 +179,11 @@ env | grep '^NXF_' | sort || true
 
 echo "Map to references and create consensus sequences"
 
-nextflow pull RasmusKoRiis/nf-core-rsvseq -r "$PIPELINE_BRANCH"
+nextflow -log "$NEXTFLOW_LOG" pull RasmusKoRiis/nf-core-rsvseq -r "$PIPELINE_BRANCH"
 
-nextflow run RasmusKoRiis/nf-core-rsvseq \
+wrapper_logs_nextflow_start
+nextflow -log "$NEXTFLOW_LOG" -c "$SCRIPT_DIR/../resp-virus-toolkit/wrapper_cleanup.config" \
+    run RasmusKoRiis/nf-core-rsvseq \
     -r "$PIPELINE_BRANCH" \
     -profile docker,server \
     --input "$SAMPLESHEET" \
@@ -191,15 +199,19 @@ nextflow run RasmusKoRiis/nf-core-rsvseq \
     --primer_check_container "$PRIMER_CHECK_CONTAINER" \
     --release_version "v1.0.0"
 
-echo "Preparing results for upload"
+wrapper_logs_status "Nextflow finished; preparing results for upload"
 mkdir -p "$HOME/out_rsvseq"
-rm -rf "$HOME/out_rsvseq/$RUN"
+if [ -e "$HOME/out_rsvseq/$RUN" ]; then
+    PREVIOUS_RESULTS="$HOME/out_rsvseq/${RUN}.previous.$(date +%Y%m%dT%H%M%S).$$"
+    echo "Archiving previous local results to $PREVIOUS_RESULTS"
+    mv "$HOME/out_rsvseq/$RUN" "$PREVIOUS_RESULTS"
+fi
 mv "$HOME/$RUN" "$HOME/out_rsvseq/"
 
 if [[ "$SKIP_RESULTS_MOVE" == false ]]; then
     echo "Uploading full results to N: drive"
-    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" \
-      -c "prompt OFF; recurse ON; lcd $HOME/out_rsvseq; mput *"
+    wrapper_smb_upload "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" \
+      -c "prompt OFF; recurse ON; lcd \"$HOME/out_rsvseq\"; mput \"$RUN\""
 else
     echo "Validation mode detected: uploading report CSV files only"
     if [[ ! -d "$HOME/out_rsvseq/$RUN/report" ]]; then
@@ -207,18 +219,19 @@ else
         exit 1
     fi
 
-    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" \
-      -c "prompt OFF; lcd $HOME/out_rsvseq/$RUN/report; mput *.csv"
+    wrapper_smb_upload "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" \
+      -c "prompt OFF; lcd \"$HOME/out_rsvseq/$RUN/report\"; mput *.csv"
     if [[ -d "$HOME/out_rsvseq/$RUN/primer_check" ]]; then
-        smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" \
-          -c "prompt OFF; lcd $HOME/out_rsvseq/$RUN/primer_check; mput *.csv"
+        wrapper_smb_upload "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_ANALYSIS" \
+          -c "prompt OFF; lcd \"$HOME/out_rsvseq/$RUN/primer_check\"; mput *.csv"
     fi
 fi
 
-echo "Run completed successfully."
+wrapper_logs_status "Required result uploads completed"
+if [[ "$SKIP_RESULTS_MOVE" == true ]]; then
+    wrapper_logs_complete "$HOME/out_rsvseq/$RUN" "$SMB_DIR_ANALYSIS" "$TMP_DIR/$RUN" "$SAMPLESHEET" 0
+else
+    wrapper_logs_complete "$HOME/out_rsvseq/$RUN" "$SMB_DIR" "$TMP_DIR/$RUN" "$SAMPLESHEET" 1
+fi
 
-## Clean up
-# nextflow clean -f
-# rm -rf "$HOME/out_rsvseq"
-# rm -rf "$TMP_DIR/$RUN"
-# rm -f "$SAMPLESHEET"
+# The shared EXIT handler verifies logs and cleans only this run.

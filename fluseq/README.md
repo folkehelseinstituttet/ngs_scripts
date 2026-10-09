@@ -130,3 +130,13 @@ CSV and HTML reports are written to `primer_check/`; `task_status.csv` identifie
 any ignored failures. Online Docker tasks explicitly pull the latest published
 CLI image. See the [deployment and input guide](https://github.com/RasmusKoRiis/primer-checker/blob/main/docs/PIPELINE_INTEGRATION.md)
 before the first run.
+
+## Run logs and cleanup
+
+The routine wrapper writes `$HOME/fluseq_<RUN>_wrapper.log`,
+`fluseq_<RUN>_wrapper_error.log`, `fluseq_<RUN>_status.txt`, and
+`fluseq_<RUN>_nextflow.log`. Successful online runs archive verified logs to
+`<RUN>/logs` on N: and clean this run's local inputs, work and staged routine
+results. Failed runs retain their logs; validation keeps full local results.
+See the [shared logging and cleanup policy](../resp-virus-toolkit/README.md#shared-wrapper-logging-and-cleanup)
+for destinations, retries, failure handling and configuration.
