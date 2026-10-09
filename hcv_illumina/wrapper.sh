@@ -63,6 +63,72 @@ set_status() {
     console "$msg"
 }
 
+# --- Teams notification ----------------------------------------------------
+# When the script exits, post a card to a Teams channel saying whether the run
+# succeeded or failed. The webhook URL is created with the Teams Workflows
+# template "Send webhook alerts to a channel" and must be kept out of this
+# (public) repo: store it on the VM in ~/.teams_webhook_hcv (chmod 600). If
+# the file is missing or the post fails, the run is not affected.
+TEAMS_WEBHOOK_FILE="${TEAMS_WEBHOOK_FILE:-$HOME/.teams_webhook_hcv}"
+NOTIFY_TEAMS=0  # Switched on after argument parsing, so "-h" does not notify
+START_TIME=$(date +'%Y-%m-%d %H:%M')
+
+json_escape() {
+    local s
+    s=$(printf '%s' "$1" | tr -d '\000-\010\013-\037')
+    s=${s//\\/\\\\}
+    s=${s//\"/\\\"}
+    s=${s//$'\n'/\\n}
+    s=${s//$'\t'/\\t}
+    printf '%s' "$s"
+}
+
+# Plain text line (RichTextBlock is not parsed as markdown, so the underscores
+# in paths and run names are shown as they are)
+card_line() {
+    printf '{"type":"RichTextBlock","spacing":"None","inlines":[{"type":"TextRun","text":"%s"%s}]}' \
+        "$(json_escape "$1")" "${2:+,$2}"
+}
+
+card_fact() {
+    printf '{"title":"%s","value":"%s"}' "$(json_escape "$1")" "$(json_escape "$2")"
+}
+
+notify_teams() {
+    local ec=$1 url title color body facts line http payload
+    if [ ! -r "$TEAMS_WEBHOOK_FILE" ]; then
+        echo "No Teams webhook found at $TEAMS_WEBHOOK_FILE - skipping notification"
+        return 0
+    fi
+    url=$(head -n 1 "$TEAMS_WEBHOOK_FILE" | tr -d '[:space:]')
+
+    if [ "$ec" -eq 0 ]; then
+        title="✅ HCV ${RUN:-unknown run} finished"; color="Good"
+    else
+        title="❌ HCV ${RUN:-unknown run} failed (exit code $ec)"; color="Attention"
+    fi
+
+    facts="$(card_fact Run "${RUN:-}"),$(card_fact Agens "${AGENS:-}"),$(card_fact Year "${YEAR:-}")"
+    facts+=",$(card_fact Pipeline "hcvtyper ${VERSION:-}"),$(card_fact Host "$(hostname)")"
+    facts+=",$(card_fact Started "$START_TIME"),$(card_fact Duration "$(printf '%dh %02dm' $((SECONDS / 3600)) $((SECONDS % 3600 / 60)))")"
+
+    body="{\"type\":\"TextBlock\",\"text\":\"$(json_escape "$title")\",\"weight\":\"Bolder\",\"size\":\"Medium\",\"color\":\"$color\",\"wrap\":true}"
+    body+=",{\"type\":\"FactSet\",\"facts\":[$facts]}"
+    body+=",{\"type\":\"TextBlock\",\"text\":\"Last status lines:\",\"isSubtle\":true,\"spacing\":\"Medium\"}"
+    while IFS= read -r line; do
+        body+=",$(card_line "$line" '"fontType":"Monospace","size":"Small"')"
+    done < <(tail -n 10 "$STATUS_FILE" 2>/dev/null)
+    if [ "$ec" -ne 0 ]; then
+        body+=",$(card_line "Error log: $LOGFILE")"
+    fi
+
+    payload='{"type":"message","attachments":[{"contentType":"application/vnd.microsoft.card.adaptive","content":{"$schema":"http://adaptivecards.io/schemas/adaptive-card.json","type":"AdaptiveCard","version":"1.4","msteams":{"width":"Full"},"body":['"$body"']}}]}'
+
+    http=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 \
+        -H 'Content-Type: application/json' --data-binary "$payload" "$url") || http="curl error"
+    echo "Teams notification sent: HTTP $http"
+}
+
 # Trap for detailed error info: line number and command
 trap 'set_status "Error at line $LINENO: \"$BASH_COMMAND\" exited with status $?"' ERR
 
@@ -78,7 +144,8 @@ trap 'ec=$?;
     console "Details are in $LOGFILE"
   else
     set_status "Script completed successfully."
-  fi' EXIT
+  fi
+  if [ "$NOTIFY_TEAMS" = 1 ]; then notify_teams "$ec" || true; fi' EXIT
 
 # Define the script name and usage
 SCRIPT_NAME=$(basename "$0")
@@ -125,6 +192,7 @@ else
     STATUS_FILE="$HOME/hcv_illumina_unknown_status.txt"
 fi
 printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" >> "$STATUS_FILE"
+NOTIFY_TEAMS=1
 
 # Banner so the user can see straight away that the script really started
 console ""
