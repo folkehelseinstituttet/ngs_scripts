@@ -35,16 +35,12 @@ console() {
     fi
 }
 
-# Send all stdout/stderr to the main wrapper log (and to the console when not detached)
-exec > >(tee -a /home/ngs/hcv_illumina_wrapper.log) 2>&1
-
 # Error/history log file (default before args are parsed)
 LOGFILE="/home/ngs/hcv_illumina_unknown_wrapper_error.log"
 
 # Provide a conservative default STATUS_FILE early so very early failures still write somewhere.
 # This will be overwritten with the run-specific file after argument parsing.
 STATUS_FILE="$HOME/hcv_illumina_unknown_status.txt"
-printf '[%s] Initialized (unknown run)\n' "$(date +'%Y-%m-%d %H:%M:%S')" >> "$STATUS_FILE"
 
 # Small helper to write status; STATUS_FILE will be updated after args are parsed.
 # Writes to LOGFILE (append), wrapper log (append) and updates STATUS_FILE atomically.
@@ -129,6 +125,17 @@ notify_teams() {
     echo "Teams notification sent: HTTP $http"
 }
 
+# --- Log clean-up ----------------------------------------------------------
+# After a successful run the log files have been copied to the N: drive with
+# the results, so remove them from the server. Called from the EXIT trap, after
+# the final status line and the Teams notification, so nothing recreates them.
+LOGS_UPLOADED=0
+NF_REPORTS=""
+
+delete_run_logs() {
+    rm -f "$LOGFILE" "$STATUS_FILE" "$WRAPPER_LOG" "$NEXTFLOW_LOG" "$NEXTFLOW_LOG".[0-9]* ${NF_REPORTS:+"$NF_REPORTS"}
+}
+
 # Trap for detailed error info: line number and command
 trap 'set_status "Error at line $LINENO: \"$BASH_COMMAND\" exited with status $?"' ERR
 
@@ -145,7 +152,8 @@ trap 'ec=$?;
   else
     set_status "Script completed successfully."
   fi
-  if [ "$NOTIFY_TEAMS" = 1 ]; then notify_teams "$ec" || true; fi' EXIT
+  if [ "$NOTIFY_TEAMS" = 1 ]; then notify_teams "$ec" || true; fi
+  if [ $ec -eq 0 ] && [ "$LOGS_UPLOADED" = 1 ]; then delete_run_logs || true; fi' EXIT
 
 # Define the script name and usage
 SCRIPT_NAME=$(basename "$0")
@@ -183,14 +191,18 @@ while getopts "hr:a:y:v:" opt; do
     esac
 done
 
-# Now that arguments are parsed, set a run-specific status file and initialize it.
-if [ -n "${RUN:-}" ]; then
-    LOGFILE="/home/ngs/hcv_illumina_${RUN}_wrapper_error.log"
-    STATUS_FILE="$HOME/hcv_illumina_${RUN}_status.txt"
-else
-    LOGFILE="/home/ngs/hcv_illumina_unknown_wrapper_error.log"
-    STATUS_FILE="$HOME/hcv_illumina_unknown_status.txt"
-fi
+# Now that arguments are parsed, set run-specific log files and initialize them.
+# All of them are copied to the N: drive with the results and deleted from the
+# server when the run succeeds. If the run fails they are kept for debugging.
+LOG_PREFIX="/home/ngs/hcv_illumina_${RUN:-unknown}"
+LOGFILE="${LOG_PREFIX}_wrapper_error.log"
+STATUS_FILE="${LOG_PREFIX}_status.txt"
+WRAPPER_LOG="${LOG_PREFIX}_wrapper.log"
+NEXTFLOW_LOG="${LOG_PREFIX}_nextflow.log"
+
+# Send all stdout/stderr to the wrapper log (and to the console when not detached)
+exec > >(tee -a "$WRAPPER_LOG") 2>&1
+
 printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" >> "$STATUS_FILE"
 NOTIFY_TEAMS=1
 
@@ -316,11 +328,6 @@ set_status "Activated NEXTFLOW conda environment"
 
 # Log which version will be used
 set_status "Using VERSION=${VERSION}"
-echo "Using VERSION=${VERSION}" | tee -a /home/ngs/hcv_illumina_wrapper.log >> "$LOGFILE"
-
-# Make sure the latest pipeline is available
-# Log which version will be used (this goes to the existing wrapper log because of the exec+tee above)
-echo "Using VERSION=${VERSION}" | tee -a /home/ngs/hcv_illumina_wrapper.log >> "$LOGFILE"
 
 # Pull the pipeline version
 set_status "Pulling hcvtyper version ${VERSION}"
@@ -348,10 +355,17 @@ if [ "$LEGACY_PIPELINE" = 1 ]; then
 fi
 
 # Start the pipeline
-set_status "Starting Nextflow run. This may take several hours. Log file: $LOGFILE. Check the log file with: cat $LOGFILE to see the status."
-nextflow run folkehelseinstituttet/hcvtyper/ "${PIPELINE_ARGS[@]}"
+set_status "Starting Nextflow run. This may take several hours. Log file: $LOGFILE. Check the log file with: cat $LOGFILE to see the status. Nextflow log: $NEXTFLOW_LOG"
+nextflow -log "$NEXTFLOW_LOG" run folkehelseinstituttet/hcvtyper/ "${PIPELINE_ARGS[@]}"
 
 set_status "Nextflow run finished"
+
+# -with-tower leaves nf-<workflow id>-reports.tsv in the launch directory. Find
+# this run's ID in the Seqera URL that Nextflow writes to its log.
+SEQERA_ID=$(grep -o 'watch/[A-Za-z0-9]*' "$NEXTFLOW_LOG" | tail -n 1 | cut -d/ -f2) || true
+if [ -n "$SEQERA_ID" ]; then
+    NF_REPORTS="$HOME/nf-${SEQERA_ID}-reports.tsv"
+fi
 
 ## Create a Labware import file from the Summary file
 if [ "$LEGACY_PIPELINE" = 1 ]; then
@@ -378,6 +392,15 @@ set_status "Moving results to the N: drive"
 mkdir $HOME/out_hcv
 cp -r $RUN/ out_hcv/
 
+# Include the log files in the upload. Rotated Nextflow logs (.1, .2, ...) come
+# from earlier failed attempts of the same run.
+mkdir -p "$HOME/out_hcv/$RUN/logs"
+for f in "$WRAPPER_LOG" "$LOGFILE" "$STATUS_FILE" "$NEXTFLOW_LOG" "$NEXTFLOW_LOG".[0-9]* "$NF_REPORTS"; do
+    if [ -f "$f" ]; then
+        cp "$f" "$HOME/out_hcv/$RUN/logs/"
+    fi
+done
+
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
 prompt OFF
 recurse ON
@@ -385,7 +408,8 @@ lcd $HOME/out_hcv/
 mput *
 EOF
 
-set_status "Results copied to N: drive"
+LOGS_UPLOADED=1
+set_status "Results and log files copied to N: drive"
 
 ## Clean up
 rm -rf $HOME/out_hcv
