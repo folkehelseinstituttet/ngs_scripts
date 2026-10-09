@@ -1,24 +1,20 @@
 #!/usr/bin/env bash
 
-# Send all stdout/stderr to the main wrapper log (and to the console when not detached)
-exec > >(tee -a /home/ngs/esv_wrapper.log) 2>&1
-
-# Error/history log file
-LOGFILE="/home/ngs/esv_wrapper_error.log"
+# Error/history log file (default before args are parsed)
+LOGFILE="/home/ngs/esv_unknown_wrapper_error.log"
 
 # Provide a conservative default STATUS_FILE early so very early failures still write somewhere.
 # This will be overwritten with the run-specific file after argument parsing.
 STATUS_FILE="$HOME/esv_unknown_status.txt"
-printf '[%s] Initialized (unknown run)\n' "$(date +'%Y-%m-%d %H:%M:%S')" > "$STATUS_FILE"
 
-# Small helper to write status; STATUS_FILE will be updated after args are parsed.
+# Small helper to write status; the log files will be updated after args are parsed.
 # Writes to LOGFILE (append), wrapper log (append) and updates STATUS_FILE atomically.
 set_status() {
     msg="[$(date +'%Y-%m-%d %H:%M:%S')] $1"
     # history
     echo "$msg" >> "$LOGFILE"
     # also write to the main wrapper log for completeness
-    echo "$msg" >> /home/ngs/esv_wrapper.log
+    echo "$msg" >> "${WRAPPER_LOG:-/home/ngs/esv_unknown_wrapper.log}"
     # atomic write of the single-line status file if it's defined
     if [ -n "${STATUS_FILE:-}" ]; then
         tmp="${STATUS_FILE}.tmp"
@@ -28,6 +24,18 @@ set_status() {
             echo "[$(date)] Failed to write status to $tmp" >> "$LOGFILE"
         fi
     fi
+}
+
+# --- Log clean-up ----------------------------------------------------------
+# After a verified upload the log files are on the N: drive with the results,
+# so remove them from the server. Called from the EXIT trap, after the final
+# status line, so nothing recreates them. If the run fails they are kept.
+LOGS_UPLOADED=0
+# Extra text for the final status line on failure (e.g. how to retry an upload)
+EXIT_HINT=""
+
+delete_run_logs() {
+    rm -f "$LOGFILE" "$STATUS_FILE" "$WRAPPER_LOG" "$NEXTFLOW_LOG" "$NEXTFLOW_LOG".[0-9]*
 }
 
 # Trap for detailed error info: line number and command
@@ -40,13 +48,14 @@ trap 'set_status "Received SIGHUP - terminating"; exit 129' SIGHUP
 # Trap for any script exits (success or failure)
 trap 'ec=$?;
   if [ $ec -ne 0 ]; then
-    set_status "Script exited with error code $ec"
+    set_status "Script exited with error code $ec${EXIT_HINT:+. $EXIT_HINT}"
     echo "Script exited with error code $ec" >&2
     echo "Did you remember to change \"RUN_NAME\"?" >&2
   else
     set_status "Script completed successfully."
     echo "Script completed successfully."
-  fi' EXIT
+  fi
+  if [ $ec -eq 0 ] && [ "$LOGS_UPLOADED" = 1 ]; then delete_run_logs || true; fi' EXIT
 
 
 # --- 1. INITIALIZATION & ARGUMENTS ---
@@ -72,7 +81,9 @@ usage() {
     echo "  -H, --host        Host reference alias (default: human)"
     echo "                    Available: ${VALID_HOST_ALIASES[*]}"
     echo "      --resume      Resume a previous Nextflow run (passes -resume to nextflow)
-      --sensitive-filter  Use high-sensitivity host filtering (slower; unpaired --very-sensitive-local)"
+      --sensitive-filter  Use high-sensitivity host filtering (slower; unpaired --very-sensitive-local)
+      --upload-only Only upload the results of a finished run whose upload failed
+                    (skips download and pipeline; needs the same -r/-a/-y)"
     exit 1
 }
 
@@ -84,6 +95,7 @@ DB="v3_2_4"
 HOST="human"
 RESUME=false
 SENSITIVE_FILTER=false
+UPLOAD_ONLY=false
 
 # Pre-scan for --resume and --db (getopts only handles short options)
 filtered_args=()
@@ -95,6 +107,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --sensitive-filter)
             SENSITIVE_FILTER=true
+            shift
+            ;;
+        --upload-only)
+            UPLOAD_ONLY=true
             shift
             ;;
         --db)
@@ -146,14 +162,20 @@ if [[ ! " ${VALID_HOST_ALIASES[*]} " =~ " ${HOST} " ]]; then
     exit 1
 fi
 
-# Now that arguments are parsed, set a run-specific status file and initialize it.
-if [ -n "${RUN:-}" ]; then
-    STATUS_FILE="$HOME/esv_${RUN}_status.txt"
-else
-    STATUS_FILE="$HOME/esv_unknown_status.txt"
-fi
-printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" > "$STATUS_FILE"
-set_status "Started wrapper. RUN=$RUN AGENS=$AGENS YEAR=$YEAR DB=$DB HOST=$HOST RESUME=$RESUME SENSITIVE_FILTER=$SENSITIVE_FILTER"
+# Now that arguments are parsed, set run-specific log files and initialize them.
+# All of them are copied to the N: drive with the results and deleted from the
+# server when the upload has been verified. If the run fails they are kept.
+LOG_PREFIX="/home/ngs/esv_${RUN:-unknown}"
+LOGFILE="${LOG_PREFIX}_wrapper_error.log"
+STATUS_FILE="${LOG_PREFIX}_status.txt"
+WRAPPER_LOG="${LOG_PREFIX}_wrapper.log"
+NEXTFLOW_LOG="${LOG_PREFIX}_nextflow.log"
+
+# Send all stdout/stderr to the wrapper log (and to the console when not detached)
+exec > >(tee -a "$WRAPPER_LOG") 2>&1
+
+printf '[%s] Initialized\n' "$(date +'%Y-%m-%d %H:%M:%S')" >> "$STATUS_FILE"
+set_status "Started wrapper. RUN=$RUN AGENS=$AGENS YEAR=$YEAR DB=$DB HOST=$HOST RESUME=$RESUME SENSITIVE_FILTER=$SENSITIVE_FILTER UPLOAD_ONLY=$UPLOAD_ONLY"
 
 # Set working directory
 cd $HOME
@@ -161,7 +183,6 @@ cd $HOME
 # --- 2. ENVIRONMENT CONFIGURATION ---
 
 # Set up paths
-BASE_DIR=/mnt/tempdata/
 # TMP_DIR will hold the raw fastq files and results
 TMP_DIR=/mnt/tempdata/fastq_esv/raw/${RUN}
 TMP_RES=/mnt/tempdata/fastq_esv/analysis/${RUN}
@@ -180,6 +201,114 @@ SMB_SAMPLESHEET_REMOTE=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/${AGENS
 # fastq_dir paths in the samplesheet start with this prefix; it is stripped
 # to derive the SMB-relative path for smbclient.
 SMB_MOUNT_PREFIX="/mnt/N/"
+
+# --- UPLOAD & CLEAN-UP HELPERS (used by section 6 and --upload-only) ---
+
+# Activate the conda environment that holds Nextflow
+# Temporarily disable set -u because the JAVA_HOME variable is unset
+activate_nextflow() {
+    set +u
+    source ~/miniconda3/etc/profile.d/conda.sh
+    conda activate NEXTFLOW
+    set -u
+    set_status "Activated NEXTFLOW conda environment"
+}
+
+# Copy the run's log files into the results so they are uploaded with them.
+# Rotated Nextflow logs (.1, .2, ...) come from earlier attempts of the same run.
+copy_logs() {
+    mkdir -p "$TMP_RES/logs"
+    for f in "$WRAPPER_LOG" "$LOGFILE" "$STATUS_FILE" "$NEXTFLOW_LOG" "$NEXTFLOW_LOG".[0-9]*; do
+        if [ -f "$f" ]; then
+            cp "$f" "$TMP_RES/logs/"
+        fi
+    done
+}
+
+# Stop without deleting anything: results, FASTQs, work directory and logs are
+# kept, so the upload can be retried with --upload-only (or the run resumed).
+upload_failed() {
+    EXIT_HINT="Upload failed; results kept in $TMP_RES. Retry with: $SCRIPT_NAME -r $RUN -a $AGENS -y $YEAR --upload-only"
+    set_status "Error: upload to N: drive failed ($1). $EXIT_HINT"
+    exit 1
+}
+
+# Compare the number of files and total bytes in $TMP_RES with a recursive
+# listing of the remote run folder. smbclient file lines end with
+# "<attributes> <size> <weekday> <month> <day> <hh:mm:ss> <year>";
+# directories have a D in the attributes and are skipped.
+verify_upload() {
+    local local_stats remote_stats
+    local_stats=$(find "$TMP_RES" -type f -printf '%s\n' | awk '{ n++; b += $1 } END { printf "%d files, %.0f bytes", n, b }')
+    remote_stats=$(smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" -c "recurse ON; ls" 2>/dev/null | awk '
+        NF >= 7 && $NF ~ /^[0-9][0-9][0-9][0-9]$/ && $(NF-1) ~ /^[0-9]+:[0-9][0-9]:[0-9][0-9]$/ &&
+        $(NF-5) ~ /^[0-9]+$/ && $(NF-6) ~ /^[A-Z]+$/ && $(NF-6) !~ /D/ { n++; b += $(NF-5) }
+        END { printf "%d files, %.0f bytes", n, b }') || return 1
+    echo "Upload check: local ${local_stats}; N: drive ${remote_stats}"
+    [ "$local_stats" = "$remote_stats" ]
+}
+
+# Upload the contents of $TMP_RES into the run folder on the N: drive and
+# verify it. Exits via upload_failed on any problem.
+upload_results() {
+    set_status "Uploading results and log files to the N: drive: $SMB_DIR"
+
+    # Create the remote run folder. mkdir fails if it already exists (e.g. on
+    # an --upload-only retry), so check that the folder is there afterwards.
+    smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "${SMB_DIR%/*}" -c "mkdir ${RUN}" >/dev/null 2>&1 || true
+    if ! smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" -c "ls" >/dev/null 2>&1; then
+        upload_failed "remote folder $SMB_DIR not found and could not be created"
+    fi
+
+    # mput overwrites, so a retry completes a partial earlier upload.
+    if ! smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" <<EOF
+prompt OFF
+recurse ON
+lcd $TMP_RES
+mput *
+EOF
+    then
+        upload_failed "smbclient exited with an error"
+    fi
+
+    if ! verify_upload; then
+        upload_failed "files on the N: drive do not match $TMP_RES"
+    fi
+
+    LOGS_UPLOADED=1
+    set_status "Results and log files copied to N: drive"
+}
+
+# Remove local copies and this run's Nextflow work directories. Only called
+# after a verified upload. The run name is read from this run's Nextflow log;
+# a bare 'nextflow clean' would clean whichever run was launched last.
+clean_up() {
+    echo "Cleaning up local files..."
+    rm -rf "$TMP_DIR" "$TMP_RES"
+
+    local nf_run_name
+    nf_run_name=$(sed -n 's/.*CmdRun - Launching `[^`]*` \[\([^]]*\)\].*/\1/p' "$NEXTFLOW_LOG" 2>/dev/null | tail -n 1)
+    if [ -n "$nf_run_name" ]; then
+        set_status "Cleaning Nextflow work directories of run $nf_run_name"
+        nextflow clean -f "$nf_run_name" || set_status "Warning: nextflow clean failed for run $nf_run_name"
+    else
+        set_status "Warning: Nextflow run name not found in $NEXTFLOW_LOG; work directories not cleaned"
+    fi
+}
+
+# --upload-only: the pipeline has already finished but the upload failed.
+if $UPLOAD_ONLY; then
+    if [ ! -d "$TMP_RES" ] || [ -z "$(ls -A "$TMP_RES")" ]; then
+        set_status "Error: --upload-only but no results found in $TMP_RES"
+        exit 1
+    fi
+    activate_nextflow
+    copy_logs
+    upload_results
+    clean_up
+    echo "Done."
+    exit 0
+fi
 
 # Create directories
 mkdir -p "$TMP_RES"
@@ -294,14 +423,7 @@ echo "Samplesheet created: $FINAL_SAMPLESHEET"
 
 # --- 5. RUN PIPELINE ---
 
-# Activate the conda environment that holds Nextflow
-# Temporarily disable set -u because the JAVA_HOME variable is unset
-set +u
-source ~/miniconda3/etc/profile.d/conda.sh
-conda activate NEXTFLOW
-set -u
-
-set_status "Activated NEXTFLOW conda environment"
+activate_nextflow
 
 # 1. Set the version (switch back to 'main' once development is complete and merged)
 VERSION="Assembly_v2"
@@ -335,7 +457,8 @@ $SENSITIVE_FILTER && SENSITIVE_FILTER_FLAG="--sensitive_host_filter true"
 set_status "Using database profile: db_${DB}"
 set_status "Using host profile: host_${HOST}"
 
-nextflow run alexanderhes/Ukjent_virus -r $VERSION \
+set_status "Starting Nextflow run. Nextflow log: $NEXTFLOW_LOG"
+nextflow -log "$NEXTFLOW_LOG" run alexanderhes/Ukjent_virus -r $VERSION \
     $RESUME_FLAG \
     $SENSITIVE_FILTER_FLAG \
     -profile "server,host_${HOST},db_${DB}" \
@@ -349,29 +472,9 @@ nextflow run alexanderhes/Ukjent_virus -r $VERSION \
 
 # --- 6. UPLOAD RESULTS AND CLEAN UP ---
 
-echo "Moving results to the N: drive"
-mkdir -p "$BASE_DIR/move_ESV"
-
-# Move content to staging folder
-mv "$TMP_RES/" "$BASE_DIR/move_ESV"
-
-# Create the remote destination directory before uploading
-smbclient "$SMB_HOST" -A "$SMB_AUTH" <<EOF
-prompt OFF
-cd ${SMB_DIR%/*}
-mkdir ${RUN}
-EOF
-
-smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" <<EOF
-prompt OFF
-recurse ON
-lcd $BASE_DIR/move_ESV
-mput *
-EOF
-
-echo "Cleaning up local files..."
-rm -rf "$TMP_DIR" "$TMP_RES" "$BASE_DIR/move_ESV"
-
-nextflow clean -f
+# Nothing is deleted unless the upload has been verified (see upload_results).
+copy_logs
+upload_results
+clean_up
 
 echo "Done."
