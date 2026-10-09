@@ -7,6 +7,11 @@
 
 wrapper_logs_status() {
     local message="[$(date +'%Y-%m-%d %H:%M:%S')] $*"
+    # Keep this attempt's recent progress available after successful log deletion.
+    WRAPPER_RECENT_STATUS+=("$message")
+    if (( ${#WRAPPER_RECENT_STATUS[@]} > 6 )); then
+        WRAPPER_RECENT_STATUS=("${WRAPPER_RECENT_STATUS[@]: -6}")
+    fi
     printf '%s\n' "$message" >> "$LOGFILE" || return "$?"
     printf '%s\n' "$message" >> "$STATUS_FILE" || return "$?"
     if [[ "$WRAPPER_LOG_STREAM_OPEN" == 0 ]]; then
@@ -46,6 +51,18 @@ wrapper_logs_init() {
         touch -- "$file" || return "$?"
     done
     WRAPPER_RUN_COMPLETE=0
+    WRAPPER_RECENT_STATUS=()
+    WRAPPER_PHASE="Setup"
+    WRAPPER_STARTED_AT="$(date --iso-8601=seconds)"
+    WRAPPER_STARTED_SECONDS=$SECONDS
+    local webhook_name
+    case "$workflow" in
+        fluseq) WRAPPER_DISPLAY_NAME="Influenza"; webhook_name=inf ;;
+        rsvseq) WRAPPER_DISPLAY_NAME="RSV"; webhook_name=rsv ;;
+        sarsseq) WRAPPER_DISPLAY_NAME="SARS-CoV-2"; webhook_name=sars ;;
+        *) WRAPPER_DISPLAY_NAME="$workflow"; webhook_name="$workflow" ;;
+    esac
+    TEAMS_WEBHOOK_FILE="${TEAMS_WEBHOOK_FILE:-$HOME/.teams_webhook_$webhook_name}"
     LOGS_UPLOADED=0
     WRAPPER_LOG_OUTPUT_DIR=""
     WRAPPER_LOG_REMOTE_BASE=""
@@ -68,12 +85,16 @@ wrapper_logs_init() {
     trap 'wrapper_logs_status "Received SIGHUP"; exit 129' HUP
     trap 'wrapper_logs_exit "$?"' EXIT
     wrapper_logs_status "Started $workflow wrapper for run $run"
+    if [[ "${TEST_MODE:-false}" == true || "${OFFLINE_MODE:-false}" == true ]]; then
+        wrapper_logs_status 'Teams notifications disabled for this test/offline run'
+    fi
     printf 'Console log: %s\nStatus: %s\nNextflow log: %s\n' "$WRAPPER_LOG" "$STATUS_FILE" "$NEXTFLOW_LOG"
 }
 
 # Call immediately before Nextflow run so Seqera manifests are resolved against
 # the actual launch directory, including on retries.
 wrapper_logs_nextflow_start() {
+    WRAPPER_PHASE="Nextflow"
     WRAPPER_NF_LAUNCH_DIR="$PWD"
     wrapper_logs_status "Starting Nextflow; log: $NEXTFLOW_LOG"
 }
@@ -243,11 +264,13 @@ wrapper_logs_cleanup_run() {
 
 wrapper_logs_finalize() {
     local output
+    WRAPPER_PHASE="Initial log upload"
     wrapper_logs_collect || return "$?"
     # Offline runs keep their output, logs and intermediates locally.
     wrapper_logs_archive 0 || return "$?"
     [[ -n "$WRAPPER_LOG_REMOTE_BASE" ]] || return 0
     wrapper_logs_status 'Initial log archive verified; starting run cleanup.' || return "$?"
+    WRAPPER_PHASE="Cleanup"
     wrapper_logs_cleanup_run || return "$?"
     if [[ "$WRAPPER_REMOVE_OUTPUT" == 1 ]]; then
         output="${WRAPPER_LOG_OUTPUT_DIR%/logs}"
@@ -259,12 +282,102 @@ wrapper_logs_finalize() {
     fi
     # Nextflow clean can rotate the Nextflow log. Refresh the file list and
     # upload the final logs, including cleanup output, before deleting any logs.
+    WRAPPER_PHASE="Final log upload"
     wrapper_logs_collect || return "$?"
     wrapper_logs_archive 1 || return "$?"
     if [[ "$WRAPPER_REMOVE_OUTPUT" == 1 ]]; then
         # The final snapshot temporarily recreated output/logs. Remove the now
         # empty output directory without touching anything added concurrently.
         rmdir -- "$output" 2>/dev/null || true
+    fi
+}
+
+# Delivery is best effort and happens after final archival/cleanup. Never write
+# through wrapper_logs_status here: that would recreate successfully deleted logs.
+wrapper_teams_notify() {
+    local ec="$1" webhook_url="" payload http curl_ec=0 outcome=failed logs
+    [[ "${TEST_MODE:-false}" != true && "${OFFLINE_MODE:-false}" != true ]] || return 0
+    if [[ ! -r "$TEAMS_WEBHOOK_FILE" ]]; then
+        printf 'Teams notification skipped: webhook file is missing or unreadable: %s\n' "$TEAMS_WEBHOOK_FILE"
+        return 0
+    fi
+    IFS= read -r webhook_url < "$TEAMS_WEBHOOK_FILE" || true
+    webhook_url="${webhook_url%$'\r'}"
+    # Restrict curl's config input to one HTTPS URL; never print its secret value.
+    if [[ "$webhook_url" != https://?* || "$webhook_url" == *[[:space:]\"\\]* ]]; then
+        printf 'Teams notification skipped: webhook file must contain an HTTPS URL on one line.\n'
+        return 0
+    fi
+    if ! command -v python3 >/dev/null || ! command -v curl >/dev/null; then
+        printf 'Teams notification skipped: python3 and curl are required.\n'
+        return 0
+    fi
+    logs="Local logs on ${HOSTNAME:-unknown}: $WRAPPER_LOG_DIR (run $WRAPPER_LOG_RUN); remaining files retained on failure."
+    if (( ec == 0 && WRAPPER_RUN_COMPLETE == 1 )); then
+        outcome=completed
+        WRAPPER_PHASE="Completed"
+        if [[ "$LOGS_UPLOADED" == 1 ]]; then
+            logs="Logs on N: ${WRAPPER_LOG_REMOTE_BASE%/}/$WRAPPER_LOG_RUN/logs"
+        else
+            logs="Local logs: $WRAPPER_LOG_DIR and $WRAPPER_LOG_OUTPUT_DIR"
+        fi
+    elif (( ec == 0 )); then
+        outcome="exited before completion"
+    fi
+    payload=$(python3 - "$WRAPPER_DISPLAY_NAME" "$WRAPPER_LOG_RUN" "$outcome" "$ec" \
+        "$WRAPPER_PHASE" "${HOSTNAME:-unknown}" "$WRAPPER_STARTED_AT" \
+        "$(date --iso-8601=seconds)" "$(( SECONDS - WRAPPER_STARTED_SECONDS ))" \
+        "${PIPELINE_BRANCH:-unknown}" "${VALIDATION_FLAG:-}" "$logs" \
+        "${WRAPPER_RECENT_STATUS[@]}" <<'PY'
+import json
+import sys
+
+name, run, outcome, code, phase, host, started, finished, seconds, branch, validation, logs = sys.argv[1:13]
+ok = outcome == "completed"
+duration = int(seconds)
+facts = [
+    ("Run", run), ("Host", host), ("Pipeline branch/tag", branch),
+    ("Mode", f"Validation ({validation})" if validation else "Routine"),
+    ("Started", started), ("Finished", finished),
+    ("Duration", f"{duration // 3600}h {duration % 3600 // 60}m {duration % 60}s"),
+    ("Stage", phase), ("Exit code", code),
+]
+summary = (
+    "The wrapper script completed successfully, including required result and log uploads and cleanup."
+    if ok else
+    f"The wrapper script {outcome} during {phase} (exit code {code}). Check the retained server logs for details."
+)
+body = [
+    {"type": "TextBlock", "text": f"{'✅' if ok else '❌'} {name} — {run}: {outcome}",
+     "weight": "Bolder", "size": "Medium", "color": "Good" if ok else "Attention", "wrap": True},
+    {"type": "TextBlock", "text": summary, "wrap": True},
+    {"type": "FactSet", "facts": [{"title": title, "value": value[:500]} for title, value in facts]},
+    {"type": "TextBlock", "text": logs[:2000], "wrap": True},
+]
+if sys.argv[13:]:
+    body.append({"type": "TextBlock", "text": "Recent wrapper status", "weight": "Bolder"})
+    body.extend({"type": "TextBlock", "text": line[:1000], "wrap": True} for line in sys.argv[13:])
+print(json.dumps({
+    "type": "message",
+    "attachments": [{
+        "contentType": "application/vnd.microsoft.card.adaptive",
+        "content": {"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard", "version": "1.4", "body": body},
+    }],
+}, ensure_ascii=False))
+PY
+    ) || { printf 'Teams notification skipped: could not build the message.\n'; return 0; }
+    # Keep the URL out of process arguments. Ignore .curlrc, bound delivery time,
+    # and do not retry (a lost response could otherwise cause duplicate posts).
+    http=$(printf 'url = "%s"\n' "$webhook_url" | curl --disable --config - \
+        --silent --output /dev/null --write-out '%{http_code}' \
+        --connect-timeout 5 --max-time 15 --proto '=https' \
+        -H 'Content-Type: application/json' --data-binary "$payload" 2>/dev/null) || curl_ec=$?
+    if (( curl_ec == 0 )) && [[ "$http" =~ ^2[0-9][0-9]$ ]]; then
+        printf 'Teams notification accepted (HTTP %s).\n' "$http"
+    else
+        printf 'WARNING: Teams notification failed (curl exit %s, HTTP %s); wrapper exit code remains %s.\n' \
+            "$curl_ec" "${http:-unknown}" "$ec"
     fi
 }
 
@@ -283,6 +396,7 @@ wrapper_logs_exit() {
     step_ec=$?
     if (( step_ec != 0 )); then
         (( ec != 0 )) || ec=$step_ec
+        WRAPPER_PHASE="Console log finalization"
         wrapper_logs_status "Console log writer failed (exit code $step_ec); retaining local logs." || true
     fi
     if (( ec == 0 && WRAPPER_RUN_COMPLETE == 1 )); then
@@ -292,5 +406,6 @@ wrapper_logs_exit() {
             wrapper_logs_status "Log archival/cleanup failed (exit code $ec); local logs retained where possible." || true
         fi
     fi
+    wrapper_teams_notify "$ec" || true
     exit "$ec"
 }

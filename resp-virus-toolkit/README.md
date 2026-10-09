@@ -78,11 +78,58 @@ byte-for-byte read-back verification; result uploads use SMB status/error checks
 The final console confirmation of successful log verification/deletion appears
 after the archived log is closed. Small temporary archive directories may remain
 if local snapshot creation itself fails. Logs are never deleted on the strength
-of an unverified upload. No Teams notifications are sent by this helper.
+of an unverified upload.
 
 Requirements: Bash 4.4+, GNU `tee`, `flock`, `smbclient`, `cmp`, and the standard
 Linux file utilities. `CONDA_PROFILE` can override the conda initialization script
 in all three wrappers.
+
+### Teams completion and failure notifications
+
+The same helper sends one Adaptive Card when an online wrapper exits, using the
+[Teams incoming webhook format](https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook).
+Success is reported only after required result uploads, verified log archival and
+cleanup finish. Failures during setup, Nextflow, result uploads, log uploads or
+cleanup are reported with the failing stage and exit code. The card includes the
+workflow, run, host, pipeline branch/tag, start/finish times, duration, log location
+and the last six wrapper status messages from this attempt. Caught `INT`, `TERM`
+and `HUP` signals also produce failure notifications. A forced kill or host outage
+cannot run the exit handler.
+
+Create the URL files as the server account that runs the wrappers (normally
+`ngs`). Each file contains its Teams Workflows webhook URL on a single line:
+
+| Wrapper | Default private URL file |
+| --- | --- |
+| Influenza (`fluseq`) | `~/.teams_webhook_inf` |
+| RSV (`rsvseq`) | `~/.teams_webhook_rsv` |
+| SARS-CoV-2 (`sarsseq`) | `~/.teams_webhook_sars` |
+
+```bash
+umask 077
+nano ~/.teams_webhook_inf
+nano ~/.teams_webhook_rsv
+nano ~/.teams_webhook_sars
+chmod 600 ~/.teams_webhook_inf ~/.teams_webhook_rsv ~/.teams_webhook_sars
+```
+
+Use the same URL in multiple files if they should post to the same Teams
+destination. `TEAMS_WEBHOOK_FILE=/path/to/file` overrides the default for a run.
+Keep these URL files outside the repository; they are not included in log uploads.
+Notifications require `curl` and `python3`. A missing/unreadable URL file, missing
+notification dependency, or delivery error prints a console notice and preserves
+the wrapper's exit code. Delivery has a 15-second timeout and no automatic retries.
+The URL is not printed or passed in curl's process arguments.
+
+Append **`-t`** to any of the three wrappers to suppress Teams during testing.
+This only disables notifications: processing, uploads and cleanup still run as
+usual. SARS also accepts `--test`, and `-o`/`--offline` always suppresses Teams.
+Validation (`-v VER`) still sends notifications, marked as validation; add `-t`
+alongside it to suppress them. Help, argument-parsing errors, rejected duplicate
+runs and influenza's standalone reference check do not send notifications.
+
+Notification delivery happens after log finalization, so its delivery notice is
+console-only and does not recreate deleted logs or change the archive on N:.
 
 Run the isolated lifecycle tests from the repository root:
 

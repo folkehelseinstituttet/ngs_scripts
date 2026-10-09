@@ -15,6 +15,7 @@ usage() {
     echo "  -s <season>        Specify season directory (optional)"
     echo "  -y <year>          Specify year directory (required)"
     echo "  -v <validation>    Specify validation flag (e.g., VER)"
+    echo "  -t                 Suppress Teams notifications for testing (pipeline still runs)"
     echo "  -p <scheme>        Primer scheme version (default: V1)"
     echo "  -b <branch>        Pipeline branch/tag to use (default: master)"
     echo "  -P <path>          PCR JSON file or directory (default: /mnt/tempdata/rsv_db/pcr-primers)"
@@ -28,6 +29,7 @@ AGENS=""
 SEASON=""
 YEAR=""
 VALIDATION_FLAG=""
+TEST_MODE=false
 PRIMER_SCHEME="V1"
 PIPELINE_BRANCH="master"
 PRIMER_CHECK_PCR="${PRIMER_CHECK_PCR:-/mnt/tempdata/rsv_db/pcr-primers}"
@@ -36,9 +38,10 @@ PRIMER_CHECK_CONTAINER="${PRIMER_CHECK_CONTAINER:-ghcr.io/rasmuskoriis/primer-ch
 PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
 
 # Parse options
-while getopts "hr:a:s:y:v:p:b:P:N:" opt; do
+while getopts "htr:a:s:y:v:p:b:P:N:" opt; do
     case "$opt" in
         h) usage 0 ;;
+        t) TEST_MODE=true ;;
         r) RUN="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
         s) SEASON="$OPTARG" ;;
@@ -199,6 +202,7 @@ nextflow -log "$NEXTFLOW_LOG" -c "$SCRIPT_DIR/../resp-virus-toolkit/wrapper_clea
     --primer_check_container "$PRIMER_CHECK_CONTAINER" \
     --release_version "v1.0.0"
 
+WRAPPER_PHASE="Result preparation and uploads"
 wrapper_logs_status "Nextflow finished; preparing results for upload"
 mkdir -p "$HOME/out_rsvseq"
 if [ -e "$HOME/out_rsvseq/$RUN" ]; then

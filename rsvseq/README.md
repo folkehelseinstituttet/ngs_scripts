@@ -12,6 +12,11 @@ results. Failed runs retain their logs; validation keeps full local results.
 See the [shared logging and cleanup policy](../resp-virus-toolkit/README.md#shared-wrapper-logging-and-cleanup)
 for destinations, retries, failure handling and configuration.
 
+Teams completion/failure notifications use `~/.teams_webhook_rsv`. Add `-t` to
+suppress notifications during testing; the pipeline, uploads and cleanup still
+run. Validation (`-v VER`) sends notifications unless `-t` is also supplied.
+See [Teams setup](../resp-virus-toolkit/README.md#teams-completion-and-failure-notifications).
+
 ## Primer checks
 
 The routine wrapper enables primer-checker (PCR for influenza, PCR and NGS for

@@ -17,6 +17,7 @@ usage() {
     echo "  -s <season>        Specify the season directory of the fastq files on the N-drive (e.g., Ses2425)"
     echo "  -y <year>          Specify the year directory of the fastq files on the N-drive (required)"
     echo "  -v <validation>    Specify validation flag (e.g., VER)"
+    echo "  -t, --test         Suppress Teams notifications for testing (pipeline still runs)"
     echo "  -b <branch>        Pipeline branch/tag to use (default: master)"
     echo "  -P <path>          PCR JSON file or directory (default: /mnt/tempdata/sars_db/pcr-primers)"
     echo "  -N <dir>           NGS primer assets (default: the sequencing scheme selected with -p)"
@@ -52,6 +53,7 @@ SEASON=""
 YEAR=""
 PRIMER=""
 VALIDATION_FLAG=""
+TEST_MODE=false
 PIPELINE_BRANCH="master"
 OFFLINE_MODE=false
 PIPELINE_DIR="${PIPELINE_DIR:-$HOME/.nextflow/assets/RasmusKoRiis/nf-core-sars}"
@@ -69,6 +71,7 @@ PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -h|--help) usage 0 ;;
+        -t|--test) TEST_MODE=true; shift ;;
         -r|--run) RUN="${2:?Missing value for $1}"; shift 2 ;;
         -p|--primer) PRIMER="${2:?Missing value for $1}"; shift 2 ;;
         -a|--agens) AGENS="${2:?Missing value for $1}"; shift 2 ;;
@@ -688,6 +691,7 @@ nextflow -log "$NEXTFLOW_LOG" -c "$SCRIPT_DIR/../resp-virus-toolkit/wrapper_clea
     --release_version "v1.0.0" \
     "${NEXTFLOW_OFFLINE_ARGS[@]}"
 
+WRAPPER_PHASE="Result preparation and uploads"
 wrapper_logs_status "Nextflow finished"
 
 ################################################################################

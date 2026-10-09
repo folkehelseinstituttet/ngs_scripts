@@ -192,6 +192,7 @@ usage() {
     echo "  -s SEASON          Specify the season directory (e.g., Ses2526)"
     echo "  -y YEAR            Specify the year directory of the fastq files on the N-drive"
     echo "  -v VALIDATION      Specify validation flag (e.g., VER)"
+    echo "  -t                 Suppress Teams notifications for testing (pipeline still runs)"
     echo "  -b BRANCH          Pipeline branch/tag to use (default: master)"
     echo "  -P PATH            PCR JSON file or directory (default: /mnt/tempdata/influensa_db/flu_seq_db/pcr-primers)"
     exit "${1:-1}"
@@ -203,14 +204,16 @@ AGENS=""
 SEASON=""
 YEAR=""
 VALIDATION_FLAG=""
+TEST_MODE=false
 PIPELINE_BRANCH="master"
 PRIMER_CHECK_PCR="${PRIMER_CHECK_PCR:-/mnt/tempdata/influensa_db/flu_seq_db/pcr-primers}"
 PRIMER_CHECK_CONTAINER="${PRIMER_CHECK_CONTAINER:-ghcr.io/rasmuskoriis/primer-checker:latest}"
 PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
 
-while getopts "hr:a:s:y:v:b:P:" opt; do
+while getopts "htr:a:s:y:v:b:P:" opt; do
     case "$opt" in
         h) usage 0 ;;
+        t) TEST_MODE=true ;;
         r) RUN="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
         s) SEASON="$OPTARG" ;;
@@ -472,6 +475,7 @@ nextflow -log "$NEXTFLOW_LOG" -c "$SCRIPT_DIR/../resp-virus-toolkit/wrapper_clea
   --primer_check_container "$PRIMER_CHECK_CONTAINER" \
   --release_version "v1.0.2"
 
+WRAPPER_PHASE="Result preparation and uploads"
 wrapper_logs_status "Nextflow finished; moving results to the N: drive"
 mkdir -p "$HOME/out_fluseq"
 if [ -e "$HOME/out_fluseq/$RUN" ]; then

@@ -17,6 +17,12 @@ Offline runs keep logs, results and work locally. User-provided inputs and expli
 See the [shared logging and cleanup policy](../resp-virus-toolkit/README.md#shared-wrapper-logging-and-cleanup)
 for destinations, retries, failure handling and configuration.
 
+Teams completion/failure notifications use `~/.teams_webhook_sars`. Add `-t`
+(`--test`) to suppress notifications during testing; processing, uploads and
+cleanup still run. Offline (`-o`) always suppresses Teams. Validation (`-v VER`)
+sends notifications unless `-t` is also supplied.
+See [Teams setup](../resp-virus-toolkit/README.md#teams-completion-and-failure-notifications).
+
 ### Primer-only QC wrapper
 
   Use the `sarsseq_primercheck.sh` helper when you only need primer mismatch statistics for consensus FASTA files stored on the N-drive. The script fetches the FASTA/

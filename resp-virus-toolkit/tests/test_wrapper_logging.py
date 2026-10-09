@@ -1,5 +1,6 @@
-"""Test logging/cleanup with local SMB and Nextflow substitutes, never pipelines."""
+"""Test the wrapper lifecycle with mock SMB, Nextflow and Teams; never live services."""
 
+import json
 import os
 from pathlib import Path
 import signal
@@ -83,6 +84,22 @@ else:
     sys.exit(int(os.environ.get('PIPELINE_EXIT', '0')))
 '''
 
+MOCK_CURL = r'''#!/usr/bin/env python3
+import json, os, sys
+from pathlib import Path
+args = sys.argv[1:]
+payload = json.loads(args[args.index('--data-binary') + 1])
+record = {
+    'args': args, 'config': sys.stdin.read(), 'payload': payload,
+    'local_logs': [p.name for p in Path(os.environ['WRAPPER_LOG_DIR']).glob('*_wrapper.log')],
+    'cleaned': Path(os.environ['CLEAN_CALLS']).exists(),
+}
+with open(os.environ['TEAMS_CALLS'], 'a') as out:
+    out.write(json.dumps(record) + '\n')
+print(os.environ.get('TEAMS_HTTP', '202'), end='')
+sys.exit(int(os.environ.get('TEAMS_CURL_EXIT', '0')))
+'''
+
 HARNESS = r'''
 set -euo pipefail
 source "$HELPER"
@@ -93,6 +110,7 @@ if [[ "${HOLD:-}" == 1 ]]; then
 fi
 wrapper_logs_nextflow_start
 nextflow -log "$NEXTFLOW_LOG" run simulated
+WRAPPER_PHASE="Result preparation and uploads"
 if [[ -n "$LOG_DESTINATION" ]]; then
     wrapper_smb_upload mock-host -A mock-auth -D "$LOG_DESTINATION" -c 'mput example.csv'
 fi
@@ -107,7 +125,7 @@ wrapper_logs_complete "$OUTPUT" "$LOG_DESTINATION" "$INPUT_RUN" "$SAMPLESHEET" "
 def env(tmp_path):
     commands = tmp_path / "commands"
     commands.mkdir()
-    for name, source in [("smbclient", MOCK_SMB), ("nextflow", MOCK_NEXTFLOW)]:
+    for name, source in [("smbclient", MOCK_SMB), ("nextflow", MOCK_NEXTFLOW), ("curl", MOCK_CURL)]:
         script = commands / name
         script.write_text(source)
         script.chmod(0o755)
@@ -140,9 +158,31 @@ def env(tmp_path):
         SAMPLESHEET=str(samplesheet), SMB_HOST="mock-host", SMB_AUTH="mock-auth",
         SMB_CALLS=str(tmp_path / "smb-calls.jsonl"),
         CLEAN_CALLS=str(tmp_path / "clean-calls.txt"),
+        TEAMS_WEBHOOK_FILE=str(tmp_path / "webhook-url"),
+        TEAMS_CALLS=str(tmp_path / "teams-calls.jsonl"),
+        TEST_MODE="false", OFFLINE_MODE="false",
         PID_FILE=str(tmp_path / "wrapper.pid"),
         PATH=str(commands) + os.pathsep + os.environ["PATH"],
     )
+
+
+@pytest.fixture
+def teams_env(env):
+    Path(env["TEAMS_WEBHOOK_FILE"]).write_text("https://teams.example.invalid/webhook?sig=TEST_SECRET\n")
+    return env
+
+
+def teams_call(env):
+    calls = Path(env["TEAMS_CALLS"]).read_text().splitlines()
+    assert len(calls) == 1
+    call = json.loads(calls[0])
+    message = call["payload"]
+    assert message["type"] == "message"
+    attachment = message["attachments"][0]
+    assert attachment["contentType"] == "application/vnd.microsoft.card.adaptive"
+    card = attachment["content"]
+    assert card["type"] == "AdaptiveCard" and card["version"] == "1.4"
+    return call, card["body"]
 
 
 def run(env, **overrides):
@@ -296,7 +336,8 @@ def test_explicit_output_and_user_inputs_are_retained(env):
 
 
 @pytest.mark.parametrize(("sig", "code"), [(signal.SIGTERM, 143), (signal.SIGINT, 130), (signal.SIGHUP, 129)])
-def test_signal_keeps_logs_and_original_signal_exit_code(env, sig, code):
+def test_signal_keeps_logs_and_original_signal_exit_code(teams_env, sig, code):
+    env = teams_env
     proc = subprocess.Popen(
         ["bash", env["HARNESS"]], env=dict(env, HOLD="1"), cwd=env["LAUNCH_DIR"],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
@@ -312,6 +353,9 @@ def test_signal_keeps_logs_and_original_signal_exit_code(env, sig, code):
         assert "Received SIG" in local(env, "status.txt").read_text()
         assert local(env, "wrapper.log").is_file()
         assert not Path(env["CLEAN_CALLS"]).exists()
+        _, body = teams_call(env)
+        assert f"exit code {code}" in body[1]["text"]
+        assert "Received SIG" in json.dumps(body)
     finally:
         if proc.poll() is None:
             proc.kill()
@@ -338,28 +382,143 @@ def test_duplicate_run_cannot_modify_active_logs(env):
         proc.communicate(timeout=5)
 
 
-@pytest.mark.parametrize("workflow", WORKFLOWS)
-def test_actual_wrapper_captures_conda_setup_failure(env, workflow, tmp_path):
+@pytest.mark.parametrize(("workflow", "flags"),
+                         [(workflow, flags) for workflow in WORKFLOWS for flags in ([], ["-t"])]
+                         + [("sarsseq", ["--test"]), ("sarsseq", ["-o"])])
+def test_actual_wrapper_captures_conda_setup_failure(teams_env, workflow, tmp_path, flags):
+    env = teams_env
     env["WORKFLOW"] = workflow
     env["RUN_ID"] = "WRAPPER_LOGGING_TEST"
     conda = tmp_path / "conda.sh"
     conda.write_text('echo "simulated conda failure" >&2\nreturn 17\n')
     result = subprocess.run(
         ["bash", str(ROOT / workflow / f"{workflow}_wrapper.sh"),
-         "-r", env["RUN_ID"], "-a", "test", "-s", "Ses2526", "-y", "2026"],
+         "-r", env["RUN_ID"], "-a", "test", "-s", "Ses2526", "-y", "2026"]
+        + flags,
         env=dict(env, CONDA_PROFILE=str(conda)), capture_output=True, text=True, timeout=10,
     )
     assert result.returncode == 17, result.stdout + result.stderr
     assert "simulated conda failure" in local(env, "wrapper.log").read_text()
     assert "error code 17" in local(env, "status.txt").read_text()
     assert not Path(env["SMB_CALLS"]).exists()
+    if flags:
+        assert not Path(env["TEAMS_CALLS"]).exists()
+        assert "Teams notifications disabled" in result.stdout
+    else:
+        _, body = teams_call(env)
+        assert body[0]["text"].endswith("WRAPPER_LOGGING_TEST: failed")
+        assert "during Setup (exit code 17)" in body[1]["text"]
 
 
 @pytest.mark.parametrize("workflow", WORKFLOWS)
-def test_help_does_not_initialize_conda_or_logs(env, workflow):
+def test_help_does_not_initialize_conda_or_logs(teams_env, workflow):
+    env = teams_env
     result = subprocess.run(
         ["bash", str(ROOT / workflow / f"{workflow}_wrapper.sh"), "-h"],
         env=dict(env, CONDA_PROFILE="/nonexistent/conda.sh"), capture_output=True, text=True, timeout=5,
     )
     assert result.returncode == 0
     assert not list(Path(env["WRAPPER_LOG_DIR"]).iterdir())
+    assert not Path(env["TEAMS_CALLS"]).exists()
+
+
+@pytest.mark.parametrize(("workflow", "label"), [
+    ("fluseq", "Influenza"), ("rsvseq", "RSV"), ("sarsseq", "SARS-CoV-2"),
+])
+def test_success_notifies_after_final_archive_and_cleanup(teams_env, workflow, label):
+    env = teams_env
+    result = run(env, WORKFLOW=workflow)
+    assert result.returncode == 0, result.stdout + result.stderr
+    call, body = teams_call(env)
+    assert body[0]["text"] == f"✅ {label} — TEST001: completed"
+    assert body[0]["color"] == "Good"
+    assert "including required result and log uploads and cleanup" in body[1]["text"]
+    facts = {f["title"]: f["value"] for f in body[2]["facts"]}
+    assert facts["Exit code"] == "0" and facts["Stage"] == "Completed"
+    assert facts["Started"] and facts["Finished"] and facts["Duration"]
+    assert "routine/TEST001/logs" in body[3]["text"]
+    assert "Intermediate cleanup complete" in json.dumps(body)
+    assert call["cleaned"] and not call["local_logs"]
+    assert not list(Path(env["WRAPPER_LOG_DIR"]).glob("*_wrapper.log"))
+    assert "Teams notification accepted (HTTP 202)" in result.stdout
+    assert "TEST_SECRET" not in result.stdout + result.stderr
+    assert all("TEST_SECRET" not in arg for arg in call["args"])
+    assert call["config"] == 'url = "https://teams.example.invalid/webhook?sig=TEST_SECRET"\n'
+    assert call["args"][0] == "--disable"
+    assert call["args"][call["args"].index("--max-time") + 1] == "15"
+
+
+@pytest.mark.parametrize(("overrides", "code", "stage"), [
+    ({"PIPELINE_EXIT": "42"}, 42, "Nextflow"),
+    ({"SMB_MODE": "result-nonzero"}, 23, "Result preparation and uploads"),
+    ({"SMB_MODE": "archive-failure"}, 29, "Initial log upload"),
+    ({"CLEAN_FAIL": "1"}, 37, "Cleanup"),
+    ({"SMB_MODE": "final-archive-failure"}, 31, "Final log upload"),
+])
+def test_notification_reflects_final_failure(teams_env, overrides, code, stage):
+    result = run(teams_env, **overrides)
+    assert result.returncode == code, result.stdout + result.stderr
+    call, body = teams_call(teams_env)
+    assert body[0]["text"].endswith(": failed") and body[0]["color"] == "Attention"
+    assert f"during {stage} (exit code {code})" in body[1]["text"]
+    assert "Local logs on" in body[3]["text"]
+    assert call["local_logs"]
+    assert any("Error at" in item.get("text", "") or "failed (exit code" in item.get("text", "") for item in body)
+
+
+@pytest.mark.parametrize("code", [0, 42])
+@pytest.mark.parametrize(("http", "curl_exit"), [("400", "0"), ("500", "0"), ("000", "28")])
+def test_teams_delivery_failure_preserves_wrapper_outcome(teams_env, code, http, curl_exit):
+    result = run(teams_env, PIPELINE_EXIT=str(code), TEAMS_HTTP=http, TEAMS_CURL_EXIT=curl_exit)
+    assert result.returncode == code
+    teams_call(teams_env)
+    assert "WARNING: Teams notification failed" in result.stdout
+    assert local(teams_env, "wrapper.log").exists() == (code != 0)
+
+
+@pytest.mark.parametrize("overrides", [
+    {"TEST_MODE": "true"},
+    {"OFFLINE_MODE": "true", "LOG_DESTINATION": "", "SMB_MODE": "offline-forbidden"},
+])
+@pytest.mark.parametrize("code", [0, 42])
+def test_test_and_offline_runs_never_post(teams_env, overrides, code):
+    result = run(teams_env, PIPELINE_EXIT=str(code), **overrides)
+    assert result.returncode == code
+    assert not Path(teams_env["TEAMS_CALLS"]).exists()
+
+
+@pytest.mark.parametrize("url", [None, "", "http://example.invalid/secret", 'https://example.invalid/"secret',
+                                 "https://example.invalid/\\secret", "https://example.invalid/ secret"])
+def test_missing_or_invalid_webhook_is_optional(env, url):
+    if url is not None:
+        Path(env["TEAMS_WEBHOOK_FILE"]).write_text(url)
+    result = run(env)
+    assert result.returncode == 0
+    assert "Teams notification skipped" in result.stdout
+    assert not Path(env["TEAMS_CALLS"]).exists()
+    assert not local(env, "wrapper.log").exists()
+
+
+@pytest.mark.parametrize("line_ending", [b"", b"\r\n"])
+def test_payload_escapes_values_and_marks_validation(teams_env, line_ending):
+    branch = 'test/"quoted"\\branch\næøå'
+    # URL files without a final newline and CRLF files both work.
+    Path(teams_env["TEAMS_WEBHOOK_FILE"]).write_bytes(b"https://example.invalid/test" + line_ending)
+    result = run(teams_env, PIPELINE_BRANCH=branch, VALIDATION_FLAG="VER", LOG_DESTINATION="validation", REMOVE_OUTPUT="0")
+    assert result.returncode == 0
+    _, body = teams_call(teams_env)
+    facts = {f["title"]: f["value"] for f in body[2]["facts"]}
+    assert facts["Pipeline branch/tag"] == branch
+    assert facts["Mode"] == "Validation (VER)"
+    assert "validation/TEST001/logs" in body[3]["text"]
+
+
+@pytest.mark.parametrize(("workflow", "suffix"), [("fluseq", "inf"), ("rsvseq", "rsv"), ("sarsseq", "sars")])
+def test_default_webhook_filename(env, workflow, suffix):
+    script = 'source "$HELPER"; wrapper_logs_init "$WORKFLOW" "$RUN_ID"; printf "WEBHOOK_FILE=%s\\n" "$TEAMS_WEBHOOK_FILE"'
+    environ = dict(env, WORKFLOW=workflow, TEST_MODE="true")
+    del environ["TEAMS_WEBHOOK_FILE"]
+    result = subprocess.run(["bash", "-euc", script], env=environ, capture_output=True, text=True, timeout=5)
+    assert result.returncode == 0
+    assert f'WEBHOOK_FILE={environ["HOME"]}/.teams_webhook_{suffix}' in result.stdout
+    assert not Path(env["TEAMS_CALLS"]).exists()
