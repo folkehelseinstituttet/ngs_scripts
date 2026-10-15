@@ -2,29 +2,31 @@
 
 Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P##` er steg på Power BI-siden. Nummeret er en ID, ikke en rekkefølge: nye steg får neste ledige nummer, selv om de legges inn midt i skriptet.
 
-**Gjelder versjon:** 2.0-dev (main, `eec9705`). Endringer som er foreslått i 2.1-dev er markert med *2.1-dev*. Linjenumre refererer til 2.0-dev og vil forskyve seg. *Neste steg:* merke seksjonsoverskriftene i skriptet med `[S##]`, så kode og register kan kobles med søk.
+**Gjelder versjon:** 2.0-dev (main, `eec9705`). Endringer som er foreslått i 2.1-dev er markert med *2.1-dev*.
+
+**Kobling til koden:** hvert steg starter med en kommentar `[S##]` i `virus_dashboard.R` (f.eks. `## [S07] Classify tests into buckets`). Søk etter koden for å finne steget. `S02` har to seksjoner. `S13` og `S14` merkes når 2.1-dev legges inn. Nye steg skal alltid få en `[S##]`-kommentar.
 
 ## Oversikt
 
-| Kode | Steg | Linjer (2.0) | Leser | Skriver | Regler |
-|---|---|---|---|---|---|
-| `S01` | Valider miljøvariabler | 9–27 | Miljø | — | — |
-| `S02` | Les variabler og sett utfilnavn | 29–52 | Miljø | `outfile`, `outfile2` | — |
-| `S03` | Koble til LabWare | 54–75 | SQL Server | `con` | — |
-| `S04` | Hent prøver | 81–98 | `SAMPLE_VIEW` | `samples`, `samples_sample_number` | `RG01`, flagg for `RG02` |
-| `S05` | Hent tester | 100–103 | `TEST_VIEW` | `test` | — |
-| `S06` | Definer analysekodegrupper | 105–177 | — | seks kodelister | `RG09` |
-| `S07` | Klassifiser tester i bøtter | 179–216 | `test`, kodelister | `ngs_info` | `RG05`, (`RG06`, `RG07` fra 2.1-dev) |
-| `S08` | Bygg og skriv F1 | 218–223 | `samples`, `ngs_info` | **F1** | — |
-| `S09` | Resultat-whitelist | 230–332 | — | `result_whitelist` | `RG10` |
-| `S10` | Hent og filtrer resultater for F2 | 334–347 | `RESULT_VIEW` | `results_file2` | `RG10`, (`RG06`, `RG07` fra 2.1-dev) |
-| `S11` | Analysekategori og skriv F2 | 349–363 | `results_file2`, kodelister | **F2** | — |
-| `S12` | Lukk tilkobling | 365–366 | — | — | — |
-| `S13` | *2.1-dev:* Finn tester som ikke skal telles | — | `test`, `results` | `excluded_tests` | `RG06`, `RG07` |
-| `S14` | *2.1-dev:* Bygg og skriv F3 | — | `test`, `samples`, kodelister | **F3** | — |
-| `P01` | Relasjon F1–F2 | — | F1, F2 | Datamodell | — |
-| `P02` | Default-filtre for prøver | — | F1 | — | `RG02`, `RG03`, `RG04` |
-| `P03` | Telle analyserte prøver | — | F1 | Measures | `RG05`, `RG08` |
+| Kode | Steg | Leser | Skriver | Regler |
+|---|---|---|---|---|
+| `S01` | Valider miljøvariabler | Miljø | — | — |
+| `S02` | Les variabler og sett utfilnavn | Miljø | `outfile`, `outfile2` | — |
+| `S03` | Koble til LabWare | SQL Server | `con` | — |
+| `S04` | Hent prøver | `SAMPLE_VIEW` | `samples`, `samples_sample_number` | `RG01`, flagg for `RG02` |
+| `S05` | Hent tester | `TEST_VIEW` | `test` | — |
+| `S06` | Definer analysekodegrupper | — | seks kodelister | `RG09` |
+| `S07` | Klassifiser tester i bøtter | `test`, kodelister | `ngs_info` | `RG05`, (`RG06`, `RG07` fra 2.1-dev) |
+| `S08` | Bygg og skriv F1 | `samples`, `ngs_info` | **F1** | — |
+| `S09` | Resultat-whitelist | — | `result_whitelist` | `RG10` |
+| `S10` | Hent og filtrer resultater for F2 | `RESULT_VIEW` | `results_file2` | `RG10`, (`RG06`, `RG07` fra 2.1-dev) |
+| `S11` | Analysekategori og skriv F2 | `results_file2`, kodelister | **F2** | — |
+| `S12` | Lukk tilkobling | — | — | — |
+| `S13` | *2.1-dev:* Finn tester som ikke skal telles | `test`, `results` | `excluded_tests` | `RG06`, `RG07` |
+| `S14` | *2.1-dev:* Bygg og skriv F3 | `test`, `samples`, kodelister | **F3** | — |
+| `P01` | Relasjon F1–F2 | F1, F2 | Datamodell | — |
+| `P02` | Default-filtre for prøver | F1 | — | `RG02`, `RG03`, `RG04` |
+| `P03` | Telle analyserte prøver | F1 | Measures | `RG05`, `RG08` |
 
 ## Utfiler
 

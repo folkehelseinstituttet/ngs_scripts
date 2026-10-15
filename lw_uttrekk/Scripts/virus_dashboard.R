@@ -1,3 +1,6 @@
+# Virus Dashboard: uttrekk fra LabWare til Power BI.
+# Stegkodene [S##] er beskrevet i ../virus_dashboard/STEPS.md
+
 library(odbc)
 library(tidyverse)
 library(lubridate)
@@ -7,7 +10,7 @@ library(lubridate)
 # Versjon 2 legger på mer info om analyser og resultater. 
 
 ## ==================================================
-## Validate required environment variables
+## [S01] Validate required environment variables
 ## ==================================================
 
 required_vars <- c(
@@ -27,7 +30,7 @@ if (length(missing) > 0) {
 }
 
 ## ==================================================
-## Resolve variables
+## [S02] Resolve variables
 ## ==================================================
 
 run_env   <- Sys.getenv("RUN_ENV")   # Test or Prod
@@ -37,7 +40,7 @@ sqlserver <- Sys.getenv("SQL_SERVER")
 database  <- Sys.getenv("SQL_DATABASE")
 
 ## ==================================================
-## Validate output directory
+## [S02] Validate output directory
 ## ==================================================
 
 if (!dir.exists(outdir)) {
@@ -52,7 +55,7 @@ outfile  <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", 
 outfile2 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_results.tsv"))
 
 ## ==================================================
-## Establish connection to Lab Ware 
+## [S03] Establish connection to Lab Ware 
 ## ==================================================
 
 con <- tryCatch(
@@ -78,7 +81,7 @@ con <- tryCatch(
 ## Extract data from LabWare
 ## ==================================================
 
-# Lage liste med relevante faggrupper til filtrering
+# [S04] Lage liste med relevante faggrupper til filtrering
 faggrupper <- c("HEP_HIV", "HPV", "INFLUENSA", "MMR", "POL_ENT", "ROTA", "VIRUS_CMN")
 
 # Hente ut metadata om alle prøver fra SAMPLE-tabellen
@@ -97,13 +100,14 @@ samples <- tbl(con, "SAMPLE_VIEW") %>%
 # Trekke ut SAMPLE_NUMBER
 samples_sample_number <- samples %>% distinct(SAMPLE_NUMBER) %>% pull(SAMPLE_NUMBER)
 
+# [S05] Hent tester
 # Finne batch eller sekvenserings run
 test <- tbl(con, "TEST_VIEW") %>% 
   select("TEST_NUMBER", "SAMPLE_NUMBER", "ANALYSIS", "X_TECH_REVIEW", "BATCH") %>% 
   collect()
 
 ## ==================================================
-## Define analysis code groups
+## [S06] Define analysis code groups
 ## ==================================================
 
 ngs_seq_codes <- c("NGS", "SC2_NGS", "MPX_WGS", "SC2_WGS", "INF_WGS", "RSV_WGS",
@@ -177,7 +181,7 @@ serology_codes <- c(
 )
 
 ## ==================================================
-## Classify tests into buckets
+## [S07] Classify tests into buckets
 ## ==================================================
 
 ngs_info <- test %>% 
@@ -215,7 +219,7 @@ ngs_info <- test %>%
               values_fill = "") # Empty string if bucket absent
   
   
-# Joine med sample-info
+# [S08] Joine med sample-info
 final <- left_join(samples, ngs_info, by = c("SAMPLE_NUMBER" = "SAMPLE_NUMBER")) %>%
   rename("SAMPLE.STATUS" = STATUS)
 
@@ -227,7 +231,7 @@ write_tsv(final, outfile)
 ## Long-format diagnostic result values per sample
 ## ==================================================
 
-# Whitelist of (ANALYSIS, NAME) pairs with diagnostic value.
+# [S09] Whitelist of (ANALYSIS, NAME) pairs with diagnostic value.
 # Admin/workflow fields (Autohandling, MSISLABDB, Rådatafil, Utført av, etc.)
 # are intentionally excluded.
 result_whitelist <- tribble(
@@ -331,6 +335,7 @@ result_whitelist <- tribble(
   "VDYRKA",        "Funn"
 )
 
+# [S10] Hent resultater for virusprøvene og behold whitelistede par
 results_file2 <- tbl(con, "RESULT_VIEW") %>%
   select(SAMPLE_NUMBER, TEST_NUMBER, ANALYSIS, NAME, ENTRY, FORMATTED_ENTRY,
          ENTERED_ON, CHANGED_ON) %>%
@@ -346,7 +351,7 @@ results_file2 <- tbl(con, "RESULT_VIEW") %>%
   filter(!is.na(value)) %>%
   select(SAMPLE_NUMBER, TEST_NUMBER, ANALYSIS, NAME, value, ENTERED_ON, CHANGED_ON)
 
-# Map each ANALYSIS code to a broad category so Power BI can offer
+# [S11] Map each ANALYSIS code to a broad category so Power BI can offer
 # two-level filtering (category → analysis code) via separate slicers.
 category_lookup <- bind_rows(
   tibble(ANALYSIS = "NGS_PREP",       analysis_category = "NGS_PREP"),
@@ -362,5 +367,5 @@ results_file2 <- left_join(results_file2, category_lookup, by = "ANALYSIS")
 # Write File 2: long-format results table
 write_tsv(results_file2, outfile2)
 
-# Close connection
+# [S12] Close connection
 odbc::dbDisconnect(con)

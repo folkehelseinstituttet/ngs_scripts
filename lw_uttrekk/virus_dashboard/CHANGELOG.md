@@ -145,6 +145,19 @@ Versjon satt til 2.1-dev. Merknaden om godkjenning sier nå at R/X- og IU-tester
 | **Saker** | `NY-07` |
 | **Krever PBI-endring** | Nei |
 
+### E2.1-11 Stegkoder `[S##]` i skriptet
+
+Kommentarer `[S01]`–`[S12]` ved starten av hvert steg, og en peker til `STEPS.md` øverst. Bare kommentarer.
+
+| | |
+|---|---|
+| **Saker** | — |
+| **Steg / regler / filer** | Alle steg (bare kommentarer) |
+| **Faggrupper** | — |
+| **Forventet effekt** | Ingen på data |
+| **Krever PBI-endring** | Nei |
+| **Merk** | Den opprinnelige 2.1-dev-patchen (mot `eec9705`) passer ikke lenger på denne versjonen av skriptet. Bruk patchen som er laget på nytt mot stegkodene. Den legger også til `[S13]` og `[S14]` |
+
 ---
 
 ## 2.0-dev (i prod, main `eec9705`, 2026-06-05)
