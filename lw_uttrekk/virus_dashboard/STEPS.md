@@ -1,0 +1,144 @@
+# Stegregister
+
+Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P##` er steg på Power BI-siden. Nummeret er en ID, ikke en rekkefølge: nye steg får neste ledige nummer, selv om de legges inn midt i skriptet.
+
+**Gjelder versjon:** 2.0-dev (main, `eec9705`). Endringer som er foreslått i 2.1-dev er markert med *2.1-dev*. Linjenumre refererer til 2.0-dev og vil forskyve seg. *Neste steg:* merke seksjonsoverskriftene i skriptet med `[S##]`, så kode og register kan kobles med søk.
+
+## Oversikt
+
+| Kode | Steg | Linjer (2.0) | Leser | Skriver | Regler |
+|---|---|---|---|---|---|
+| `S01` | Valider miljøvariabler | 9–27 | Miljø | — | — |
+| `S02` | Les variabler og sett utfilnavn | 29–52 | Miljø | `outfile`, `outfile2` | — |
+| `S03` | Koble til LabWare | 54–75 | SQL Server | `con` | — |
+| `S04` | Hent prøver | 81–98 | `SAMPLE_VIEW` | `samples`, `samples_sample_number` | `RG01`, flagg for `RG02` |
+| `S05` | Hent tester | 100–103 | `TEST_VIEW` | `test` | — |
+| `S06` | Definer analysekodegrupper | 105–177 | — | seks kodelister | `RG09` |
+| `S07` | Klassifiser tester i bøtter | 179–216 | `test`, kodelister | `ngs_info` | `RG05`, (`RG06`, `RG07` fra 2.1-dev) |
+| `S08` | Bygg og skriv F1 | 218–223 | `samples`, `ngs_info` | **F1** | — |
+| `S09` | Resultat-whitelist | 230–332 | — | `result_whitelist` | `RG10` |
+| `S10` | Hent og filtrer resultater for F2 | 334–347 | `RESULT_VIEW` | `results_file2` | `RG10`, (`RG06`, `RG07` fra 2.1-dev) |
+| `S11` | Analysekategori og skriv F2 | 349–363 | `results_file2`, kodelister | **F2** | — |
+| `S12` | Lukk tilkobling | 365–366 | — | — | — |
+| `S13` | *2.1-dev:* Finn tester som ikke skal telles | — | `test`, `results` | `excluded_tests` | `RG06`, `RG07` |
+| `S14` | *2.1-dev:* Bygg og skriv F3 | — | `test`, `samples`, kodelister | **F3** | — |
+| `P01` | Relasjon F1–F2 | — | F1, F2 | Datamodell | — |
+| `P02` | Default-filtre for prøver | — | F1 | — | `RG02`, `RG03`, `RG04` |
+| `P03` | Telle analyserte prøver | — | F1 | Measures | `RG05`, `RG08` |
+
+## Utfiler
+
+| Kode | Fil | Grain | Skrives i |
+|---|---|---|---|
+| `F1` | `VIRUS_POWERBI_lw_uttrekk.tsv` | Én rad per prøve | `S08` |
+| `F2` | `VIRUS_POWERBI_results.tsv` | Én rad per resultatverdi | `S11` |
+| `F3` | `VIRUS_POWERBI_unclassified_codes.tsv` (*2.1-dev*) | Én rad per faggruppe × analysekode | `S14` |
+
+Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [`../Scripts/VIRUS_POWERBI_output_columns.md`](../Scripts/VIRUS_POWERBI_output_columns.md).
+
+---
+
+## Steg i `virus_dashboard.R`
+
+### S01 Valider miljøvariabler
+
+**Gjør:** stopper skriptet hvis `OUTDIR`, `SQL_DRIVER`, `SQL_SERVER`, `SQL_DATABASE` eller `RUN_ENV` mangler. Variablene settes av `AutoReport.bat`.
+
+### S02 Les variabler og sett utfilnavn
+
+**Gjør:** leser miljøvariablene og stopper hvis `OUTDIR` ikke finnes. Setter stiene til F1 og F2 (og F3 fra 2.1-dev).
+
+### S03 Koble til LabWare
+
+**Gjør:** åpner ODBC-tilkoblingen til LabWare-kopien.
+
+**Kjente svakheter**
+- Hvis tilkoblingen feiler, skriver `tryCatch` feilmeldingen **inn i F1**. Power BI laster da en feilmelding som data, og forrige gyldige F1 er borte. Se `NY-11`.
+- Tekst fra ODBC kommer som Windows-1252, ikke UTF-8. stringr/ICU feiler på æøå. Bruk base-funksjoner med `useBytes = TRUE`, eller konverter først. Se `E2.1-03`.
+
+### S04 Hent prøver
+
+**Gjør:** henter 12 kolonner fra `SAMPLE_VIEW` for de sju virusfaggruppene (`RG01`), fjerner identiske rader og legger til `child_sample` (`YES` hvis `ORIGINAL_SAMPLE != SAMPLE_NUMBER`).
+
+**Viktig:** skriptet **filtrerer ikke** bort barneprøver, fryseprøver eller kansellerte prøver. Det eksporterer feltene (`child_sample`, `TEMPLATE`, `SAMPLE.STATUS`), og filtreringen skjer i Power BI (`P02`).
+
+*2.1-dev:* spørringen holdes lat (`samples_db`), så S05 og S10 kan filtreres i databasen.
+
+### S05 Hent tester
+
+**Gjør:** henter `TEST_NUMBER`, `SAMPLE_NUMBER`, `ANALYSIS`, `X_TECH_REVIEW` og `BATCH` fra `TEST_VIEW`.
+
+**Kjente svakheter:** 2.0 henter **hele** `TEST_VIEW` inn i R før filtrering. *2.1-dev:* filtreres i databasen med `semi_join` mot `samples_db`, og `CHANGED_ON` legges til (brukes bare i F3).
+
+### S06 Definer analysekodegrupper
+
+**Gjør:** seks hardkodede lister: `NGS_PREP` (én kode), `ngs_seq_codes`, `extraction_codes`, `culture_codes`, `pcr_codes`, `serology_codes`. Listene styrer både bøttene i F1 (`S07`) og `analysis_category` i F2 (`S11`).
+
+**Kjente svakheter:** en kode som ikke står i en liste kommer ikke med i dashboardet (`RG09`). Matching er eksakt og skiller mellom store og små bokstaver. F3 (`S14`) viser kodene som mangler. På sikt bør listene hentes fra ANALYSIS-mastertabellen (`NY-09`).
+
+### S07 Klassifiser tester i bøtter
+
+**Gjør:** for hver test på en virusprøve med en kode i S06: legger testen i `Auth_<kategori>` hvis `X_TECH_REVIEW == "A"`, ellers i `NotAuth_<kategori>` (`RG05`). Samler unike `BATCH` per prøve og bøtte, kommaseparert, og sprer til én rad per prøve.
+
+**Kategorier:** `NGS_PREP`, `NGS_SEQ`, `EXTRACTION`, `CULTURE`, `PCR`, `SEROLOGY`. Altså 12 kolonner.
+
+**Kjente svakheter**
+- 2.0: `NotAuth_*` tar med alt som ikke er A, også R (avvist) og X (kansellert). Det bryter `RG06`. *2.1-dev* fjerner dem (`E2.1-05`).
+- 2.0: tester med resultat "Ikke utført" telles som analysert. Det bryter `RG07`. *2.1-dev* fjerner dem (`E2.1-05`).
+- Hvis en bøtte ikke finnes for noen prøve, mangler kolonnen helt i F1 (`pivot_wider` lager bare kolonner som har data).
+
+### S08 Bygg og skriv F1
+
+**Gjør:** `left_join` av prøvene (S04) med bøttene (S07), så alle prøver kommer med, også de uten tester. Gir `STATUS` nytt navn, `SAMPLE.STATUS`. Skriver F1.
+
+### S09 Resultat-whitelist
+
+**Gjør:** en liste med ca. 100 `(ANALYSIS, NAME)`-par med diagnostisk verdi (Ct-verdier, titere, konklusjoner, genotype/klade, NGS-QC). Administrasjonsfelt er utelatt med vilje (`RG10`).
+
+### S10 Hent og filtrer resultater for F2
+
+**Gjør:** henter resultatene for virusprøvene, beholder bare par i whitelisten (S09), og setter `value` til `FORMATTED_ENTRY` eller, hvis tom, `ENTRY`. Rader uten verdi fjernes.
+
+*2.1-dev:* `RESULT_VIEW` hentes én gang tidligere i skriptet (filtrert i databasen) og brukes både i S13 og her. Testene i `excluded_tests` fjernes (`E2.1-06`).
+
+### S11 Analysekategori og skriv F2
+
+**Gjør:** legger til `analysis_category` fra kodelistene i S06, så Power BI kan filtrere i to nivåer (kategori → analysekode). Skriver F2.
+
+### S12 Lukk tilkobling
+
+**Gjør:** `dbDisconnect`.
+
+### S13 Finn tester som ikke skal telles (*2.1-dev*)
+
+**Gjør:** lager `excluded_tests`, som er unionen av
+- tester med `X_TECH_REVIEW` R eller X (`RG06`), og
+- tester der **minst ett** resultat har `ENTRY` eller `FORMATTED_ENTRY` lik IU / "Ikke utført" (`RG07`). Matches på bytes på grunn av Windows-1252.
+
+Brukes i S07 og S10.
+
+**Åpent:** skal én IU på et delresultat utelukke hele testen? Se `NY-08`.
+
+### S14 Bygg og skriv F3 (*2.1-dev*)
+
+**Gjør:** teller alle analysekoder på virusprøver som ikke står i noen liste i S06, per faggruppe: `n_tests`, `n_samples`, `last_change`.
+
+**Merk:** F3 er ikke filtrert som dashboardet. Den tar med barne-, fryse- og kansellerte prøver og tester i `excluded_tests`, så ingen kode går tapt. Den inneholder bare aggregerte tall.
+
+---
+
+## Steg på Power BI-siden
+
+Disse stegene eies av Power BI-siden. Beskrivelsen er hentet fra utfil-dokumentasjonen og er **ikke kontrollert mot rapporten**. Power BI-siden fyller inn hvordan det faktisk er gjort.
+
+### P01 Relasjon F1–F2
+
+F1 (1) til F2 (\*) på `SAMPLE_NUMBER`.
+
+### P02 Default-filtre for prøver
+
+Skal implementere `RG02` (barneprøver), `RG03` (fryseprøver) og `RG04` (kansellerte/avviste). Hvis filtrene er bygd etter 2.0-dokumentasjonen, ekskluderer de `SAMPLE.STATUS` C (*Complete*) og tar med fryseprøver. Se `NY-01`, `NY-02`.
+
+### P03 Telle analyserte prøver
+
+En prøve regnes som analysert i en kategori hvis `Auth_<kategori>` ikke er tom (`RG05`). Dashboardet viser bare tellinger (`RG08`).
