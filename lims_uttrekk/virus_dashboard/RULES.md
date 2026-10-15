@@ -16,9 +16,10 @@ Telleregler og faglige beslutninger for Virus Dashboard. En regel sier **hva** s
 | `RG06` | Tester med `X_TECH_REVIEW` R eller X telles ikke | **Avvik (2.0)**. Foreslått i 2.1-dev | `S13`, `S07`, `S10` | Møte 2026-03-20 |
 | `RG07` | Tester med resultat "Ikke utført" telles ikke | **Avvik (2.0)**. Foreslått i 2.1-dev | `S13`, `S07`, `S10` | Møte 2026-03-20 |
 | `RG08` | Dashboardet viser bare tellinger | Vedtatt | `P03` | Møte 2026-02-24 |
-| `RG09` | Bare analysekoder i kodelistene telles | Implementert 2.0. **Midlertidig** | `S06` | Designvalg 2.0 |
+| `RG09` | Bare analysekoder i kodelistene telles | Implementert 2.0. **Midlertidig**. F3 viser det som mangler fra 2.1-dev | `S06`, `S14` | Designvalg 2.0 |
 | `RG10` | F2 har bare whitelistede resultatfelt | Implementert 2.0 | `S09`, `S10` | Designvalg 2.0 (#11) |
 | `RG11` | Avviste tester i dashboardet? | **Åpen** | — | Møte 2026-03-20 |
+| `RG12` | Delresultat-koder telles ikke som egne analyser | Foreslått i 2.1-dev (#37). Må bekreftes av faggruppen | `S06` | Gjennomgang av F3, 2026-10-15 |
 
 ---
 
@@ -80,7 +81,9 @@ Dashboardet viser aggregerte tall, aldri resultater for enkeltpasienter. F2 inne
 
 En test kommer bare med i F1 og får bare `analysis_category` i F2 hvis koden står i en av listene i `S06`.
 
-**Konsekvens:** nye eller manglende koder blir usynlige (f.eks. `BVYPCR`, `#23`). F3 (`E2.1-07`) viser hvilke koder som mangler.
+**Konsekvens:** nye eller manglende koder blir usynlige (f.eks. `BVYPCR`, `#23`). F3 (`S14`, `E2.1-07`) viser hvilke koder som mangler, og må sjekkes når faggruppene tar i bruk nye analyser.
+
+**Slik legges en kode inn:** bare når tilhørigheten er klar (variant eller søsken av en kode som står i en liste, eller et navn som sier hva det er). Ellers samles den i en avklaringssak (som #38) til faggruppen eller LIMS-forvaltningen har svart. En kode skal bare stå i én liste.
 
 **Midlertidig:** bør erstattes av ANALYSIS-mastertabellen (`#26`).
 
@@ -95,6 +98,16 @@ Bare `(ANALYSIS, NAME)`-par i `S09` kommer med i F2. Administrasjons- og arbeids
 Møtet 2026-03-20 nevnte at avviste tester (R) kanskje er relevante å vise. 2.1-dev fjerner dem (`RG06`).
 
 **Hvis de skal vises:** ta `"R"` ut av `excluded_tests` (`S13`) og legg til `Rej_*`-bøtter i `S07`. Det gir nye kolonner i F1 og krever PBI-endring.
+
+## RG12 Delresultat-koder telles ikke som egne analyser
+
+Analysekoder som er delresultater av én analyse, legges ikke i noen kodeliste. Eksempel: de 15 `HCRES_NS*`-kodene, én per legemiddel, som alle hører til HCV-resistensanalysen (`HCRES`, som står i `seq_typing_codes`).
+
+**Hvorfor:** i et ja/nei-flagg per prøve gjør de ingen skade, men enhver telling av tester blir omtrent 15 ganger for høy.
+
+**Konsekvens:** kodene blir stående i F3 som uklassifiserte, med vilje. Kommer en ny analyse med delresultat-koder, må den vurderes på samme måte.
+
+**Status:** foreslått i 2.1-dev (#37). Må bekreftes av faggruppen.
 
 ---
 

@@ -4,7 +4,7 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 
 **Gjelder versjon:** 2.0-dev (main, `eec9705`). Endringer som er foreslått i 2.1-dev er markert med *2.1-dev*.
 
-**Kobling til koden:** hvert steg starter med en kommentar `[S##]` i `virus_dashboard.R` (f.eks. `## [S07] Classify tests into buckets`). Søk etter koden for å finne steget. `S02` har to seksjoner. `S13` og `S14` merkes når 2.1-dev legges inn. Nye steg skal alltid få en `[S##]`-kommentar.
+**Kobling til koden:** hvert steg starter med en kommentar `[S##]` i `virus_dashboard.R` (f.eks. `## [S07] Classify tests into buckets`). Søk etter koden for å finne steget. `S02` har to seksjoner. `S14` er merket fra #23. `S13` merkes når #20–#22 legges inn. Nye steg skal alltid få en `[S##]`-kommentar.
 
 ## Oversikt
 
@@ -15,15 +15,15 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 | `S03` | Koble til LIMS | SQL Server | `con` | — |
 | `S04` | Hent prøver | `SAMPLE_VIEW` | `samples`, `samples_sample_number` | `RG01`, flagg for `RG02` |
 | `S05` | Hent tester | `TEST_VIEW` | `test` | — |
-| `S06` | Definer analysekodegrupper | — | seks kodelister | `RG09` |
+| `S06` | Definer analysekodegrupper | — | sju kodelister (seks før #37) | `RG09`, `RG12` |
 | `S07` | Klassifiser tester i bøtter | `test`, kodelister | `ngs_info` | `RG05`, (`RG06`, `RG07` fra 2.1-dev) |
 | `S08` | Bygg og skriv F1 | `samples`, `ngs_info` | **F1** | — |
 | `S09` | Resultat-whitelist | — | `result_whitelist` | `RG10` |
 | `S10` | Hent og filtrer resultater for F2 | `RESULT_VIEW` | `results_file2` | `RG10`, (`RG06`, `RG07` fra 2.1-dev) |
-| `S11` | Analysekategori og skriv F2 | `results_file2`, kodelister | **F2** | — |
+| `S11` | Analysekategori og skriv F2 | `results_file2`, kodelister | **F2** | `RG12` |
 | `S12` | Lukk tilkobling | — | — | — |
 | `S13` | *2.1-dev:* Finn tester som ikke skal telles | `test`, `results` | `excluded_tests` | `RG06`, `RG07` |
-| `S14` | *2.1-dev:* Bygg og skriv F3 | `test`, `samples`, kodelister | **F3** | — |
+| `S14` | *2.1-dev (#23):* Bygg og skriv F3 | `test`, `samples`, kodelister | **F3** | `RG09`, `RG12` |
 | `P01` | Relasjon F1–F2 | F1, F2 | Datamodell | — |
 | `P02` | Default-filtre for prøver | F1 | — | `RG02`, `RG03`, `RG04` |
 | `P03` | Telle analyserte prøver | F1 | Measures | `RG05`, `RG08` |
@@ -34,7 +34,7 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 |---|---|---|---|
 | `F1` | `VIRUS_POWERBI_lw_uttrekk.tsv` | Én rad per prøve | `S08` |
 | `F2` | `VIRUS_POWERBI_results.tsv` | Én rad per resultatverdi | `S11` |
-| `F3` | `VIRUS_POWERBI_unclassified_codes.tsv` (*2.1-dev*) | Én rad per faggruppe × analysekode | `S14` |
+| `F3` | `VIRUS_POWERBI_unclassified_codes.tsv` (*2.1-dev*, #23) | Én rad per faggruppe × analysekode. Vedlikeholdsfil, ikke til dashboardet | `S14` |
 
 Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [`../Scripts/VIRUS_POWERBI_output_columns.md`](../Scripts/VIRUS_POWERBI_output_columns.md).
 
@@ -70,19 +70,23 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 **Gjør:** henter `TEST_NUMBER`, `SAMPLE_NUMBER`, `ANALYSIS`, `X_TECH_REVIEW` og `BATCH` fra `TEST_VIEW`.
 
-**Kjente svakheter:** 2.0 henter **hele** `TEST_VIEW` inn i R før filtrering. *2.1-dev:* filtreres i databasen med `semi_join` mot `samples_db`, og `CHANGED_ON` legges til (brukes bare i F3).
+*2.1-dev (#23):* `CHANGED_ON` legges til. Den brukes bare i F3 (`S14`) og er borte før F1.
+
+**Kjente svakheter:** 2.0 henter **hele** `TEST_VIEW` inn i R før filtrering, også tester på prøver som ikke er virusprøver. *2.1-dev (#22):* filtreres i databasen med `semi_join` mot `samples_db`.
 
 ### S06 Definer analysekodegrupper
 
-**Gjør:** seks hardkodede lister: `NGS_PREP` (én kode), `ngs_seq_codes`, `extraction_codes`, `culture_codes`, `pcr_codes`, `serology_codes`. Listene styrer både bøttene i F1 (`S07`) og `analysis_category` i F2 (`S11`).
+**Gjør:** hardkodede lister: `NGS_PREP` (én kode), `ngs_seq_codes`, `extraction_codes`, `culture_codes`, `pcr_codes`, `serology_codes` og, fra 2.1-dev, `seq_typing_codes` (Sanger, genotyping, resistens; #37). Listene styrer både bøttene i F1 (`S07`), `analysis_category` i F2 (`S11`) og hva som regnes som uklassifisert i F3 (`S14`).
 
-**Kjente svakheter:** en kode som ikke står i en liste kommer ikke med i dashboardet (`RG09`). Matching er eksakt og skiller mellom store og små bokstaver. F3 (`S14`) viser kodene som mangler. På sikt bør listene hentes fra ANALYSIS-mastertabellen (`#26`).
+*2.1-dev (#23):* koder fra første F3-kjøring lagt til der tilhørigheten er klar (varianter `_BG`, `_FORT`, `71` og WB-strips av koder som allerede står i en liste, `*_WGS`, `*PCR`, søsken av eksisterende koder). Kommentarene i koden sier hvilke. Usikre koder venter på avklaring i #38. Per-legemiddel-kodene `HCRES_NS*` er bevisst utelatt (`RG12`).
+
+**Kjente svakheter:** en kode som ikke står i en liste kommer ikke med i dashboardet (`RG09`). Matching er eksakt og skiller mellom store og små bokstaver. F3 (`S14`) viser kodene som mangler. En kode må bare stå i én liste. På sikt bør listene hentes fra ANALYSIS-mastertabellen (`#26`).
 
 ### S07 Klassifiser tester i bøtter
 
 **Gjør:** for hver test på en virusprøve med en kode i S06: legger testen i `Auth_<kategori>` hvis `X_TECH_REVIEW == "A"`, ellers i `NotAuth_<kategori>` (`RG05`). Samler unike `BATCH` per prøve og bøtte, kommaseparert, og sprer til én rad per prøve.
 
-**Kategorier:** `NGS_PREP`, `NGS_SEQ`, `EXTRACTION`, `CULTURE`, `PCR`, `SEROLOGY`. Altså 12 kolonner.
+**Kategorier:** `NGS_PREP`, `NGS_SEQ`, `EXTRACTION`, `CULTURE`, `PCR`, `SEROLOGY`, og fra 2.1-dev `SEQ_TYPING` (#37). Altså opptil 14 kolonner.
 
 **Kjente svakheter**
 - 2.0: `NotAuth_*` tar med alt som ikke er A, også R (avvist) og X (kansellert). Det bryter `RG06`. *2.1-dev* fjerner dem (`E2.1-05`).
@@ -107,6 +111,8 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 **Gjør:** legger til `analysis_category` fra kodelistene i S06, så Power BI kan filtrere i to nivåer (kategori → analysekode). Skriver F2.
 
+*2.1-dev (#37):* ny verdi `Seq_typing`. Den dukker bare opp hvis whitelisten i `S09` får par for disse kodene, noe den ikke har ennå.
+
 ### S12 Lukk tilkobling
 
 **Gjør:** `dbDisconnect`.
@@ -121,11 +127,15 @@ Brukes i S07 og S10.
 
 **Åpent:** skal én IU på et delresultat utelukke hele testen? Se `#25`.
 
-### S14 Bygg og skriv F3 (*2.1-dev*)
+### S14 Bygg og skriv F3 (*2.1-dev*, #23)
 
-**Gjør:** teller alle analysekoder på virusprøver som ikke står i noen liste i S06, per faggruppe: `n_tests`, `n_samples`, `last_change`.
+**Gjør:** teller alle analysekoder på virusprøver som ikke står i noen liste i S06, per faggruppe (prøvens `GROUP_NAME`): `n_tests`, `n_samples`, `last_change` (siste `CHANGED_ON`, NA hvis ingen test har dato).
 
-**Merk:** F3 er ikke filtrert som dashboardet. Den tar med barne-, fryse- og kansellerte prøver og tester i `excluded_tests`, så ingen kode går tapt. Den inneholder bare aggregerte tall.
+**Merk**
+- F3 filtrerer selv til virusprøvene (`samples_sample_number`), fordi `test` i 2.0 inneholder hele `TEST_VIEW`. Filteret blir overflødig, men ufarlig, når #22 filtrerer i databasen.
+- F3 er ellers ikke filtrert som dashboardet. Den tar med barne-, fryse- og kansellerte prøver og tester med R/X eller IU, så ingen kode går tapt.
+- Den inneholder bare aggregerte tall, og er en vedlikeholdsfil, ikke en del av dashboardet.
+- `last_change` bruker `CHANGED_ON[NA_integer_]` i stedet for `NA` når alle datoer mangler, så kolonnen har samme type i alle grupper uansett dplyr-versjon.
 
 ---
 
