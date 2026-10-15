@@ -59,7 +59,7 @@ Bruk kodene i commit-meldinger, PR-er, saker og kodekommentarer, f.eks. `E2.1-06
 2. **Gren.** Lag en gren fra main: `vd/<saksnr>-kort-navn`, f.eks. `vd/17-ikke-utfort`.
 3. **Endring.** Skriv koden. Legg til en `E`-oppføring under neste versjon i `CHANGELOG.md` og fyll ut konsekvensvurderingen (se under).
 4. **Registre.** Oppdater `STEPS.md` hvis et steg endres eller kommer til, `RULES.md` hvis en regel implementeres eller endres, og utfil-dokumentasjonen hvis kolonner endres.
-5. **Test.** Kjør i Test-miljøet. Sammenlign tellinger per faggruppe og bøtte før og etter, og fyll inn *Målt effekt* i endringsloggen. Sjekk at R-versjonen er den samme som på serveren (se `AutoReport.bat`).
+5. **Test.** Kjør gammel og ny versjon i Test-miljøet, rett etter hverandre, med hver sin utmappe. Sammenlign med [`../Scripts/virus_dashboard_compare.R`](../Scripts/virus_dashboard_compare.R) (se under), og lim tabellen inn under *Målt effekt* i endringsloggen. Sjekk at R-versjonen er den samme som på serveren (se `AutoReport.bat`).
 6. **Power BI.** Hvis endringen krever endring i Power BI (*Krever PBI-endring: ja*), lag en egen sak for Power BI-siden og koble den til `E`-koden.
 7. **Merge.** Merge til main. Sett saken til `I prod` med dato, og lukk den.
 
@@ -73,6 +73,21 @@ Hver endring i `CHANGELOG.md` skal svare på:
 - **Målt effekt:** tallene fra testkjøringen, per faggruppe og bøtte. Fylles inn etter test.
 - **Krever PBI-endring:** ja/nei, og hva.
 - **Bakoverkompatibel:** om eksisterende Power BI-visninger fortsatt virker uten endring.
+
+### Måle effekten: `virus_dashboard_compare.R`
+
+```
+Rscript virus_dashboard_compare.R <før-mappe> <etter-mappe> [utfil.tsv]
+```
+
+Hver mappe skal inneholde F1 og F2 (og eventuelt F3) fra én kjøring. Skriptet teller per faggruppe (og `TOTALT`), både for alle prøver (`alle`) og etter dashboardets default-filtre `RG02`–`RG04` (`dashboard`):
+
+- `F1 prøver`, og antall prøver med noe i hver `Auth_*`- / `NotAuth_*`-kolonne
+- `F2 rader <analysis_category>` og `F2 IU-verdier`
+- `F3 koder`, hvis F3 finnes
+- `Prøver bare i før` / `Prøver bare i etter`: bør være 0. Hvis ikke, er kjøringene gjort mot ulike data, og endringene blander kode og nye prøver
+
+Den skriver ut en Markdown-tabell med bare målene som endret seg, klar til å limes inn i `CHANGELOG.md`. Med `utfil.tsv` skrives alle målene til fil. Resultatet inneholder bare aggregerte tall.
 
 ---
 

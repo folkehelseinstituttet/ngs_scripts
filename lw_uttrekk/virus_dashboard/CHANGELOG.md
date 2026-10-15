@@ -22,6 +22,7 @@ Nyeste versjon øverst.
 - [ ] F3: koder ser rimelige ut, og `BVYPCR` er ikke med
 - [ ] æøå ser ut som før i Power BI
 - [ ] Kjørt med samme R-versjon som serveren
+- [ ] `virus_dashboard_compare.R` kjørt mot 2.0- og 2.1-utfilene, og tabellene limt inn under *Målt effekt*
 
 ### E2.1-01 Versjon i skripthodet
 
