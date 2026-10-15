@@ -12,7 +12,7 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 |---|---|---|---|---|
 | `S01` | Valider miljøvariabler | Miljø | — | — |
 | `S02` | Les variabler og sett utfilnavn | Miljø | `outfile`, `outfile2` | — |
-| `S03` | Koble til LabWare | SQL Server | `con` | — |
+| `S03` | Koble til LIMS | SQL Server | `con` | — |
 | `S04` | Hent prøver | `SAMPLE_VIEW` | `samples`, `samples_sample_number` | `RG01`, flagg for `RG02` |
 | `S05` | Hent tester | `TEST_VIEW` | `test` | — |
 | `S06` | Definer analysekodegrupper | — | seks kodelister | `RG09` |
@@ -50,9 +50,9 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 **Gjør:** leser miljøvariablene og stopper hvis `OUTDIR` ikke finnes. Setter stiene til F1 og F2 (og F3 fra 2.1-dev).
 
-### S03 Koble til LabWare
+### S03 Koble til LIMS
 
-**Gjør:** åpner ODBC-tilkoblingen til LabWare-kopien.
+**Gjør:** åpner ODBC-tilkoblingen til LIMS-kopien.
 
 **Kjente svakheter**
 - Hvis tilkoblingen feiler, skriver `tryCatch` feilmeldingen **inn i F1**. Power BI laster da en feilmelding som data, og forrige gyldige F1 er borte. Se `NY-11`.

@@ -1,4 +1,4 @@
-# Virus Dashboard: uttrekk fra LabWare til Power BI.
+# Virus Dashboard: uttrekk fra LIMS til Power BI.
 # Stegkodene [S##] er beskrevet i ../virus_dashboard/STEPS.md
 
 library(odbc)
@@ -55,7 +55,7 @@ outfile  <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", 
 outfile2 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_results.tsv"))
 
 ## ==================================================
-## [S03] Establish connection to Lab Ware 
+## [S03] Establish connection to LIMS
 ## ==================================================
 
 con <- tryCatch(
@@ -78,7 +78,7 @@ con <- tryCatch(
 )
 
 ## ==================================================
-## Extract data from LabWare
+## Extract data from LIMS
 ## ==================================================
 
 # [S04] Lage liste med relevante faggrupper til filtrering

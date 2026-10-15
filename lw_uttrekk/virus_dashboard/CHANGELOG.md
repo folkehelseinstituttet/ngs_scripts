@@ -8,7 +8,7 @@ Nyeste versjon øverst.
 
 ## 2.1-dev (foreslått, under test fra 2026-10-15)
 
-**Status:** ikke merget til main. Testes mot LabWare i Test-miljøet. Patchen er laget mot main `eec9705`.
+**Status:** ikke merget til main. Testes mot LIMS i Test-miljøet. Patchen er laget mot main `eec9705`.
 
 **Sammendrag:** fjerner tester som ikke skal telles (R/X og "Ikke utført"), filtrerer i databasen i stedet for i R, legger til en manglende influensakode og en ny fil (F3) som viser koder som mangler. Retter filterråd i dokumentasjonen.
 
@@ -139,7 +139,7 @@ Versjon satt til 2.1-dev. Merknaden om godkjenning sier nå at R/X- og IU-tester
 | **Målt effekt** | *Fylles inn når PBI er endret* |
 | **Krever PBI-endring** | **Ja.** Default-filtrene i `P02` må sjekkes og endres |
 
-### E2.1-10 `LW-kopi_tabeller.md`: `RESULT_VIEW`
+### E2.1-10 `LIMS-kopi_tabeller.md`: `RESULT_VIEW`
 
 | | |
 |---|---|

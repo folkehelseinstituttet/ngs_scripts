@@ -1,6 +1,6 @@
 # Virus Dashboard: utvikling og styring
 
-Denne mappen samler alt som trengs for å forstå, endre og etterprøve uttrekket fra LabWare til Virus Dashboard i Power BI.
+Denne mappen samler alt som trengs for å forstå, endre og etterprøve uttrekket fra LIMS til Virus Dashboard i Power BI.
 
 | Dokument | Innhold |
 |---|---|
@@ -17,7 +17,7 @@ Kode: [`../Scripts/virus_dashboard.R`](../Scripts/virus_dashboard.R). Kjøres hv
 ## Oversikt
 
 ```
-LabWare-kopi (SQL Server)
+LIMS-kopi (SQL Server)
   SAMPLE_VIEW ─┐
   TEST_VIEW  ──┼─> virus_dashboard.R ─┬─> F1  VIRUS_POWERBI_lw_uttrekk.tsv   (én rad per prøve)
   RESULT_VIEW ─┘                      ├─> F2  VIRUS_POWERBI_results.tsv      (én rad per resultat)
@@ -93,4 +93,4 @@ Den skriver ut en Markdown-tabell med bare målene som endret seg, klar til å l
 
 ## Viktig: repoet er offentlig
 
-`ngs_scripts` er et **offentlig** repo. Saker, dokumentasjon og endringslogg skal **bare** inneholde aggregerte tall (f.eks. "INFLUENSA: Auth_PCR −312"). Aldri prøvenummer, pasient-ID, resultater for enkeltprøver, navn, skjermbilder fra LabWare eller lenker til interne systemer. Detaljerte notater og møtereferater hører hjemme internt.
+`ngs_scripts` er et **offentlig** repo. Saker, dokumentasjon og endringslogg skal **bare** inneholde aggregerte tall (f.eks. "INFLUENSA: Auth_PCR −312"). Aldri prøvenummer, pasient-ID, resultater for enkeltprøver, navn, skjermbilder fra LIMS eller lenker til interne systemer. Detaljerte notater og møtereferater hører hjemme internt.

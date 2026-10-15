@@ -3,7 +3,7 @@ library(tidyverse)
 library(lubridate)
 
 # Script version 1.3
-# Extracts HAV (Hepatitt A Virus) PCR/genotyping data from LabWare.
+# Extracts HAV (Hepatitt A Virus) PCR/genotyping data from LIMS.
 # Includes sample metadata, HAGEN analyses, results, and order-level
 # contamination fields (X_CONTAM_LOC, X_CONTAM_LOC_COM,
 # X_CONTAMINATED_THROUGH, X_CONTAM_TH).
@@ -54,7 +54,7 @@ if (!dir.exists(outdir)) {
 outfile <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/HAV_lw_uttrekk.tsv"))
 
 ## ==================================================
-## Establish connection to LabWare
+## Establish connection to LIMS
 ## ==================================================
 
 con <- tryCatch(
@@ -77,7 +77,7 @@ con <- tryCatch(
 )
 
 ## ==================================================
-## Extract data from LabWare
+## Extract data from LIMS
 ## ==================================================
 
 # Pull sample metadata from SAMPLE_VIEW.

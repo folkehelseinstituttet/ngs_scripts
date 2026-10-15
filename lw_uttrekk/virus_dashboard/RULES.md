@@ -38,7 +38,7 @@ Telleregler og faglige beslutninger for Virus Dashboard. En regel sier **hva** s
 
 `TEMPLATE != "STORAGE"`.
 
-**Hvorfor:** fryseprøver er ekstrakter med eget LabWare-nummer (f.eks. de fleste influensaprøver). Tas de med, ser det ut som det har kommet inn omtrent dobbelt så mange prøver.
+**Hvorfor:** fryseprøver er ekstrakter med eget LIMS-nummer (f.eks. de fleste influensaprøver). Tas de med, ser det ut som det har kommet inn omtrent dobbelt så mange prøver.
 
 **Avvik:** feltet eksporteres, men 2.0-dokumentasjonen anbefaler ikke filteret. Se `NY-02`, `E2.1-09`.
 

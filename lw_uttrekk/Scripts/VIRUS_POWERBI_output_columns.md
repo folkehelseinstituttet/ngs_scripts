@@ -1,4 +1,4 @@
-# Dokumentasjon for LabWare-uttrekksfiler til Virus Dashboard
+# Dokumentasjon for LIMS-uttrekksfiler til Virus Dashboard
 
 Generert av `virus_dashboard.R` (v2.0).  
 Skriptet produserer **to filer** som begge lastes inn i Power BI:
@@ -30,13 +30,13 @@ Kun prøver som tilhører følgende faggrupper (`GROUP_NAME`) er inkludert:
 
 Én rad per prøve. Brukes til telling, tidsserier og filtrering på faggruppe og analysestatus.
 
-### Kolonner hentet direkte fra LabWare
+### Kolonner hentet direkte fra LIMS
 | Kolonne | Beskrivelse |
 |---|---|
 | `ORIGINAL_SAMPLE` | Hvis dette nummeret er identisk med `SAMPLE_NUMBER`, regnes prøven **ikke** som en barneprøve. |
 | `PARENT_SAMPLE` | Inneholder alltid nummeret "0". Ikke informativt for Dashboardet. |
 | `TEMPLATE` | Hvis det står "STORAGE" her er dette en såkalt Fryseprøve. |
-| `SAMPLE_NUMBER` | Det som vi ofte kaller "LabWare-nummer". Primærnøkkel. Kobling til resultatfilen. |
+| `SAMPLE_NUMBER` | Det som vi ofte kaller "LIMS-nummer". Primærnøkkel. Kobling til resultatfilen. |
 | `TEXT_ID` |  |
 | `GROUP_NAME` | Faggruppe |
 | `SAMPLED_DATE` | Prøvetakningsdato |
@@ -46,11 +46,11 @@ Kun prøver som tilhører følgende faggrupper (`GROUP_NAME`) er inkludert:
 | `X_AGENS` | Agens fra prøvetabellen. Skrevet inn ved prøvemottak. |
 | `PATIENT` | Unik ID for pasient. Identisk nummer betyr samme pasient. |
 
-### Kolonner avledet fra LabWare
+### Kolonner avledet fra LIMS
 
 Alle `Auth_*`- og `NotAuth_*`-kolonner inneholder kommaseparerte batch-IDer dersom prøven har en eller flere tester av den aktuelle typen. Tom streng (`""`) betyr at prøven ikke har noen slik test registrert.
 
-> **Merk om godkjenning:** `X_TECH_REVIEW == "A"` betyr at analysen er teknisk godkjent i LabWare. Analyser som er ventende, avvist eller ikke vurdert vises i `NotAuth_*`-kolonnene.
+> **Merk om godkjenning:** `X_TECH_REVIEW == "A"` betyr at analysen er teknisk godkjent i LIMS. Analyser som er ventende, avvist eller ikke vurdert vises i `NotAuth_*`-kolonnene.
 
 | Kolonne | Betingelse | Beskrivelse |
 |---|---|---|
@@ -80,8 +80,8 @@ Kun et utvalg av `(ANALYSIS, NAME)`-par med diagnostisk verdi er inkludert. Rene
 
 | Kolonne | Beskrivelse |
 |---|---|
-| `SAMPLE_NUMBER` | LabWare-nummer. Kobling til Fil 1. |
-| `TEST_NUMBER` | LabWare test-ID. |
+| `SAMPLE_NUMBER` | LIMS-nummer. Kobling til Fil 1. |
+| `TEST_NUMBER` | LIMS test-ID. |
 | `ANALYSIS` | Analysekode (f.eks. `INFA_TRICDC`, `MOGENZ`, `NGS`). |
 | `analysis_category` | Overordnet kategori for analysen. Verdier: `PCR`, `Serology`, `NGS_SEQ`, `NGS_PREP`, `Extraction`, `Culture`. Brukes til hierarkisk filtrering i Power BI. |
 | `NAME` | Navn på resultatparameter (f.eks. `Resultat`, `ct. INFA`, `Titer`, `Clade`). |
@@ -109,11 +109,11 @@ Kun et utvalg av `(ANALYSIS, NAME)`-par med diagnostisk verdi er inkludert. Rene
 
 `child_sample == "NO"`
 
-Barneprøver er avledede prøver opprettet i LabWare (f.eks. alikvot, ekstraksjonsrør). Ved å beholde kun `child_sample == "NO"` telles hver reelle pasientprøve bare én gang.
+Barneprøver er avledede prøver opprettet i LIMS (f.eks. alikvot, ekstraksjonsrør). Ved å beholde kun `child_sample == "NO"` telles hver reelle pasientprøve bare én gang.
 
 ### 2. Ekskluder kansellerte prøver
 
-Prøver som har enten `C` eller `X` i `SAMPLE.STATUS` finnes ikke i LabWare (kan være feilregistrering). Bør ikke vises med mindre man spesifikt ønsker dette. 
+Prøver som har enten `C` eller `X` i `SAMPLE.STATUS` finnes ikke i LIMS (kan være feilregistrering). Bør ikke vises med mindre man spesifikt ønsker dette. 
 
 ### 3. Telle mottatte prøver
 

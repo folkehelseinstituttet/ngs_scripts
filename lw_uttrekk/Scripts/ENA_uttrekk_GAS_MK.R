@@ -51,7 +51,7 @@ tmp <- read_delim("K:/GbMetaFile.csv", delim = ";")
 tmp %>% distinct(Gruppenavn)
 
 ## ==================================================
-## Establish connection to LabWare
+## Establish connection to LIMS
 ## ==================================================
 
 con <- tryCatch(

@@ -16,7 +16,7 @@ Den har følgende kolonner:
 
 | Kolonne           | Beskrivelse       |
 |--------------------------|-----------------------|
-| SAMPLE_NUMBER            | Labware-nummer        |
+| SAMPLE_NUMBER            | LIMS-nummer           |
 | TEXT_ID                  |                       |
 | X_CUSTOMER_SAMPLE_ID     |                       |
 | STATUS                   | Status på prøven. Kan inneholde følgende symboler: A = Authorized. X = Cancelled. R = Rejected. C = Complete. P = In-progress. I = Incomplete. U = Unreceived                       |

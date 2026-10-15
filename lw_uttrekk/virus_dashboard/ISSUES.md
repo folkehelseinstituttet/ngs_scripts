@@ -35,7 +35,7 @@ Alle saker for Virus Dashboard, med status og koblinger til steg (`S`/`P`), regl
 | `NY-04` | Tester med "Ikke utført" telles som analysert | Uttrekk | Feil | Alle (særlig HEP_HIV, `#17`) | Til test | `RG07`, `S07`, `S10`, `S13`, `E2.1-03`, `E2.1-05`, `E2.1-06` |
 | `NY-05` | Hele `TEST_VIEW` og `RESULT_VIEW` hentes inn i R | Uttrekk | Drift | Alle | Til test | `S04`, `S05`, `S10`, `E2.1-02`, `E2.1-03` |
 | `NY-06` | Manglende analysekoder (f.eks. `BVYPCR`) | Uttrekk | Feil | INFLUENSA, flere? | Til test (`BVYPCR`). Flere koder: venter på F3 | `RG09`, `S06`, `E2.1-04`, `E2.1-07` |
-| `NY-07` | `LW-kopi_tabeller.md` sier `RESULTS_VIEW`, koden bruker `RESULT_VIEW` | Uttrekk | Dok | — | Til test | `E2.1-10` |
+| `NY-07` | `LIMS-kopi_tabeller.md` sier `RESULTS_VIEW`, koden bruker `RESULT_VIEW` | Uttrekk | Dok | — | Til test | `E2.1-10` |
 | `NY-08` | Skal én IU på et delresultat utelukke hele testen? Hvilket resultat er hovedresultatet? | Uttrekk | Spørsmål | Alle | Åpen | `RG07`, `S13`. Avhenger av Instrument Series-tabellen (bestilt 2026-03-20) |
 | `NY-09` | Hent kodelister fra ANALYSIS-mastertabellen i stedet for hardkoding | Begge | Funksjon | Alle | Utsatt (venter på view, bestilt 2026-03-20) | `RG09`, `S06` |
 | `NY-10` | Skal avviste tester vises i dashboardet? | Begge | Spørsmål | Alle | Åpen | `RG11`, `RG06`, `S07`, `S13` |

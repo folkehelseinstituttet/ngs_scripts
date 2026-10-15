@@ -37,7 +37,7 @@ for (d in c(dir_before, dir_after)) {
 ## Lese filene
 ## ==================================================
 
-# Tekst fra LabWare kan være Windows-1252. latin1 gir alltid gyldige strenger,
+# Tekst fra LIMS kan være Windows-1252. latin1 gir alltid gyldige strenger,
 # og kolonnene som brukes her er ASCII, så de blir like uansett.
 read_lw <- function(path, ...) {
   read_tsv(path, col_types = cols(.default = col_character()),
