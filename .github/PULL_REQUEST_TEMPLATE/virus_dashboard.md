@@ -25,7 +25,7 @@ Kort beskrivelse av hva som er endret, og hvorfor.
 - [ ] `CHANGELOG.md`: `E`-oppføring med konsekvensvurdering og målt effekt
 - [ ] `STEPS.md` / `RULES.md` oppdatert hvis steg eller regler er endret, og nye steg har en `[S##]`-kommentar i koden
 - [ ] `VIRUS_POWERBI_output_columns.md` oppdatert hvis kolonner er endret
-- [ ] `ISSUES.md` oppdatert (status)
+- [ ] Statusetikett på saken oppdatert, og ny rad i `ISSUES.md` hvis saken er ny
 - [ ] Kjørt i Test-miljøet med samme R-versjon som serveren
 - [ ] `virus_dashboard_compare.R` kjørt mot forrige versjon, og `Prøver bare i før/etter` er 0
 - [ ] Egen sak for Power BI-siden hvis det trengs

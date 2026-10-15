@@ -40,7 +40,7 @@ Nyeste versjon øverst.
 
 | | |
 |---|---|
-| **Saker** | `NY-05` |
+| **Saker** | `#22` |
 | **Steg / regler / filer** | `S04` |
 | **Faggrupper** | Alle |
 | **Forventet effekt** | Ingen på data. Gjør `E2.1-03` mulig |
@@ -56,7 +56,7 @@ Nyeste versjon øverst.
 
 | | |
 |---|---|
-| **Saker** | `NY-03`, `NY-04`, `NY-05` |
+| **Saker** | `#20`, `#21`, `#22` |
 | **Steg / regler / filer** | `S05`, `S10`, `S13` (nytt). `RG06`, `RG07` |
 | **Faggrupper** | Alle |
 | **Forventet effekt** | Ingen på data i seg selv (effekten kommer i `E2.1-05` og `E2.1-06`). Kortere kjøretid |
@@ -68,7 +68,7 @@ Nyeste versjon øverst.
 
 | | |
 |---|---|
-| **Saker** | `NY-06` |
+| **Saker** | `#23` |
 | **Steg / regler / filer** | `S06`. `RG09`. F1, F2 (`analysis_category`) |
 | **Faggrupper** | INFLUENSA |
 | **Forventet effekt** | Flere influensaprøver med `Auth_PCR` / `NotAuth_PCR`. `BVYPCR`-resultater i F2 hvis de legges til i whitelisten (gjøres ikke her) |
@@ -82,7 +82,7 @@ Nyeste versjon øverst.
 
 | | |
 |---|---|
-| **Saker** | `NY-03`, `NY-04`, `#17` |
+| **Saker** | `#20`, `#21`, `#17` |
 | **Steg / regler / filer** | `S07`. `RG06`, `RG07`. F1 |
 | **Faggrupper** | Alle. Størst effekt ventet for HEP_HIV (kansellerte HCVNGS-duplikater) |
 | **Forventet effekt** | Antall rader i F1 uendret. R/X-tester forsvinner fra `NotAuth_*`. IU-tester forsvinner fra både `Auth_*` og `NotAuth_*`. Færre prøver telles som analysert. Tester uten `X_TECH_REVIEW` (NA) beholdes i `NotAuth_*`, som før |
@@ -94,7 +94,7 @@ Nyeste versjon øverst.
 
 | | |
 |---|---|
-| **Saker** | `NY-04`, `#14` |
+| **Saker** | `#21`, `#14` |
 | **Steg / regler / filer** | `S10`. `RG06`, `RG07`. F2 |
 | **Faggrupper** | Alle |
 | **Forventet effekt** | Færre rader i F2. Ingen IU-verdier. Nevneren i positivitetsrater blir riktig |
@@ -107,7 +107,7 @@ Nytt steg `S14`. `VIRUS_POWERBI_unclassified_codes.tsv`: én rad per faggruppe �
 
 | | |
 |---|---|
-| **Saker** | `NY-06` |
+| **Saker** | `#23` |
 | **Steg / regler / filer** | `S14` (nytt). `RG09`. F3 (ny) |
 | **Faggrupper** | Alle |
 | **Forventet effekt** | Ingen på F1 og F2 |
@@ -121,7 +121,7 @@ Versjon satt til 2.1-dev. Merknaden om godkjenning sier nå at R/X- og IU-tester
 
 | | |
 |---|---|
-| **Saker** | `NY-03`, `NY-04` |
+| **Saker** | `#20`, `#21` |
 | **Steg / regler / filer** | Dokumentasjon. `RG06`, `RG07` |
 | **Krever PBI-endring** | Nei |
 
@@ -132,7 +132,7 @@ Versjon satt til 2.1-dev. Merknaden om godkjenning sier nå at R/X- og IU-tester
 
 | | |
 |---|---|
-| **Saker** | `NY-01`, `NY-02` |
+| **Saker** | `#18`, `#19` |
 | **Steg / regler / filer** | Dokumentasjon, `P02`. `RG03`, `RG04` |
 | **Faggrupper** | Alle. Fryseprøver: særlig INFLUENSA |
 | **Forventet effekt** | Ingen på utfilene. **I dashboardet**, når PBI er endret: flere mottatte prøver (Complete-prøver kommer tilbake) og færre (fryseprøver fjernes). For influensa ventes omtrent en halvering fra fryseprøvefilteret |
@@ -143,7 +143,7 @@ Versjon satt til 2.1-dev. Merknaden om godkjenning sier nå at R/X- og IU-tester
 
 | | |
 |---|---|
-| **Saker** | `NY-07` |
+| **Saker** | `#24` |
 | **Krever PBI-endring** | Nei |
 
 ### E2.1-11 Stegkoder `[S##]` i skriptet
@@ -169,7 +169,7 @@ Kommentarer `[S01]`–`[S12]` ved starten av hvert steg, og en peker til `STEPS.
 - **2026-03-11** (`4673b78`): utfil-dokumentasjonen opprettet.
 - **2026-06-05** (`eec9705`): versjon 2 fra dev til main. Analysebøtter `Auth_*` / `NotAuth_*` for seks kategorier (`S06`, `S07`). Ny fil F2 med whitelistede resultater og `analysis_category` (`S09`–`S11`). Lukket `#11`, `#13`.
 
-**Kjente avvik i 2.0** (rettes i 2.1-dev): `RG03`, `RG04` (dokumentasjon), `RG06`, `RG07` (kode). Se `NY-01`–`NY-07`.
+**Kjente avvik i 2.0** (rettes i 2.1-dev): `RG03`, `RG04` (dokumentasjon), `RG06`, `RG07` (kode). Se `#18`–`#24`.
 
 ## 1.x (før 2026-02)
 
@@ -189,7 +189,7 @@ Hva som er endret, og hvorfor (1–3 linjer).
 
 | | |
 |---|---|
-| **Saker** | #nn / NY-## |
+| **Saker** | #nn |
 | **Steg / regler / filer** | S## / P## / RG## / F# |
 | **Faggrupper** | Alle / ... |
 | **Forventet effekt** | Hvilke tall endres, og i hvilken retning |

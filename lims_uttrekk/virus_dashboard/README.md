@@ -6,7 +6,7 @@ Denne mappen samler alt som trengs for å forstå, endre og etterprøve uttrekke
 |---|---|
 | [`STEPS.md`](STEPS.md) | **Stegregister.** Hva hvert steg i `virus_dashboard.R` (og på Power BI-siden) gjør, input/output, hvilke regler det implementerer, kjente svakheter |
 | [`RULES.md`](RULES.md) | **Regelregister.** Telleregler og faglige beslutninger, med kilde, dato og hvor de er implementert |
-| [`ISSUES.md`](ISSUES.md) | **Saksoversikt.** Alle åpne og lukkede saker med status, side og koblinger til steg/regler/endringer |
+| [`ISSUES.md`](ISSUES.md) | **Saksindeks.** Etiketter, filtre og koblinger fra hver GitHub-sak til steg/regler/endringer. Status ligger på GitHub |
 | [`CHANGELOG.md`](CHANGELOG.md) | **Endringslogg.** Hver versjon og hver endring, med konsekvensvurdering (hvilke filer, faggrupper og tall som påvirkes) |
 | [`../Scripts/VIRUS_POWERBI_output_columns.md`](../Scripts/VIRUS_POWERBI_output_columns.md) | **Utfiler.** Kolonnebeskrivelse og anbefalte filtre for Power BI |
 
@@ -38,14 +38,13 @@ Alle ting som skal kunne refereres har en fast kode. Kodene endres aldri, og gje
 | `S##` | **Steg** i `virus_dashboard.R` | `S07` Klassifiser tester i bøtter | `STEPS.md` |
 | `P##` | **Steg på Power BI-siden** | `P02` Default-filtre | `STEPS.md` |
 | `RG##` | **Regel**: telleregel eller faglig beslutning | `RG03` Ekskluder fryseprøver | `RULES.md` |
-| `#nn` | **Sak** på GitHub (`folkehelseinstituttet/ngs_scripts`) | `#17` Kommentarer fra faggruppe | GitHub, `ISSUES.md` |
-| `NY-##` | **Sak som ikke er opprettet på GitHub ennå**. Byttes ut med `#nn` når saken opprettes | `NY-03` R/X-tester telles som NotAuth | `ISSUES.md` |
+| `#nn` | **Sak** på GitHub (`folkehelseinstituttet/ngs_scripts`, etikett `virus-dashboard`). De midlertidige ID-ene `NY-01`–`NY-19` er nå `#18`–`#36` | `#20` R/X-tester telles som NotAuth | GitHub, `ISSUES.md` |
 | `E<versjon>-##` | **Endring** som er implementert eller foreslått i en versjon | `E2.1-03` Fjern R/X-tester før bøtteinndeling | `CHANGELOG.md` |
 | `F1`–`F3` | **Utfil** | `F2` = `VIRUS_POWERBI_results.tsv` | `STEPS.md` |
 
 Bruk kodene i commit-meldinger, PR-er, saker og kodekommentarer, f.eks. `E2.1-06 (#17, RG07): fjern IU-tester fra F2`. Da kan man søke seg fra en sak til koden og tilbake.
 
-**Status for saker:** `Idé` → `Planlagt` → `Pågår` → `Til test` → `I prod`. Eller `Avvist` / `Utsatt`, med begrunnelse.
+**Status for saker:** etiketter på GitHub: `status: idé` → `status: planlagt` → `status: pågår` → `status: til test` → lukket (= i prod). Eller `status: utsatt`, eller lukket med `wontfix` (avvist), med begrunnelse. Se [`ISSUES.md`](ISSUES.md#etiketter).
 
 **Status for regler:** `Vedtatt` (bestemt, ikke nødvendigvis implementert), `Implementert` (med versjon), `Avvik` (koden gjør noe annet enn regelen), `Åpen` (ikke bestemt).
 
@@ -55,13 +54,14 @@ Bruk kodene i commit-meldinger, PR-er, saker og kodekommentarer, f.eks. `E2.1-06
 
 ## Arbeidsflyt for en endring
 
-1. **Sak.** Opprett en sak på GitHub med `[VD]` først i tittelen (eller en `NY-##` i `ISSUES.md` inntil videre). Beskriv problemet, ikke løsningen. Angi side (uttrekk, Power BI eller begge) og hvilke faggrupper det gjelder.
-2. **Gren.** Lag en gren fra main: `vd/<saksnr>-kort-navn`, f.eks. `vd/17-ikke-utfort`.
+1. **Sak.** Opprett en sak på GitHub med malen *Virus Dashboard*. Beskriv problemet, ikke løsningen. Sett etiketter for side, type, status og eventuelt faggruppe, og legg den i milepælen for versjonen den skal løses i. Legg til en rad i `ISSUES.md` hvis den berører steg, regler eller endringer.
+2. **Gren.** Lag en gren fra main: `vd/<saksnr>-kort-navn`, f.eks. `vd/21-ikke-utfort`. Sett saken til `status: pågår`.
 3. **Endring.** Skriv koden. Legg til en `E`-oppføring under neste versjon i `CHANGELOG.md` og fyll ut konsekvensvurderingen (se under).
 4. **Registre.** Oppdater `STEPS.md` hvis et steg endres eller kommer til, `RULES.md` hvis en regel implementeres eller endres, og utfil-dokumentasjonen hvis kolonner endres.
 5. **Test.** Kjør gammel og ny versjon i Test-miljøet, rett etter hverandre, med hver sin utmappe. Sammenlign med [`../Scripts/virus_dashboard_compare.R`](../Scripts/virus_dashboard_compare.R) (se under), og lim tabellen inn under *Målt effekt* i endringsloggen. Sjekk at R-versjonen er den samme som på serveren (se `AutoReport.bat`).
-6. **Power BI.** Hvis endringen krever endring i Power BI (*Krever PBI-endring: ja*), lag en egen sak for Power BI-siden og koble den til `E`-koden.
-7. **Merge.** Merge til main. Sett saken til `I prod` med dato, og lukk den.
+6. **PR.** Åpne en PR med Virus Dashboard-malen (`…/compare/main...<gren>?template=virus_dashboard.md`), med `closes #nn`. Sett saken til `status: til test` mens den testes.
+7. **Power BI.** Hvis endringen krever endring i Power BI (*Krever PBI-endring: ja*), lag en egen sak med `side: power-bi` og koble den til `E`-koden.
+8. **Merge og prod.** Merge til main, og kopier skriptet til Prod på serveren. Saken lukkes av `closes #nn`. Skriv i saken hvilken dato endringen kom i prod.
 
 ### Konsekvensvurdering (fylles ut for hver endring)
 

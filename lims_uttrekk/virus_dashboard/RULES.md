@@ -40,7 +40,7 @@ Telleregler og faglige beslutninger for Virus Dashboard. En regel sier **hva** s
 
 **Hvorfor:** fryseprøver er ekstrakter med eget LIMS-nummer (f.eks. de fleste influensaprøver). Tas de med, ser det ut som det har kommet inn omtrent dobbelt så mange prøver.
 
-**Avvik:** feltet eksporteres, men 2.0-dokumentasjonen anbefaler ikke filteret. Se `NY-02`, `E2.1-09`.
+**Avvik:** feltet eksporteres, men 2.0-dokumentasjonen anbefaler ikke filteret. Se `#19`, `E2.1-09`.
 
 ## RG04 Ekskluder kansellerte og avviste prøver
 
@@ -48,7 +48,7 @@ Telleregler og faglige beslutninger for Virus Dashboard. En regel sier **hva** s
 
 **Hvorfor:** kansellerte og avviste prøver er som regel feilregistreringer.
 
-**Avvik:** 2.0-dokumentasjonen sier at C og X skal ekskluderes. Hvis Power BI følger den, forsvinner alle ferdige prøver. Se `NY-01`, `E2.1-09`.
+**Avvik:** 2.0-dokumentasjonen sier at C og X skal ekskluderes. Hvis Power BI følger den, forsvinner alle ferdige prøver. Se `#18`, `E2.1-09`.
 
 ## RG05 Analysert = teknisk godkjent
 
@@ -58,7 +58,7 @@ En test teller som utført når `X_TECH_REVIEW == "A"` (`Auth_*`). Ventende elle
 
 Avviste (R) og kansellerte (X) tester skal verken telles i `Auth_*` eller `NotAuth_*`, og resultatene deres skal ikke være i F2.
 
-**Avvik i 2.0:** `case_when` legger alt som ikke er A i `NotAuth_*`. Se `NY-03`. Foreslått rettet i `E2.1-05` og `E2.1-06`.
+**Avvik i 2.0:** `case_when` legger alt som ikke er A i `NotAuth_*`. Se `#20`. Foreslått rettet i `E2.1-05` og `E2.1-06`.
 
 **Se også:** `RG11`.
 
@@ -68,9 +68,9 @@ En test med resultat IU (kode) / "IkkeUtført" (tekst) i `RESULT.ENTRY` er ikke 
 
 **Hvorfor:** ellers telles uutførte tester som analysert, og IU-verdier havner i nevneren for positivitetsrater (#14). Gjelder blant annet kansellerte HCVNGS-duplikater (#17).
 
-**Avvik i 2.0:** ikke håndtert. Se `NY-04`. Foreslått i `E2.1-03`, `E2.1-05`, `E2.1-06`.
+**Avvik i 2.0:** ikke håndtert. Se `#21`. Foreslått i `E2.1-03`, `E2.1-05`, `E2.1-06`.
 
-**Åpent:** hele testen ekskluderes hvis **ett** delresultat er IU. Om det er riktig, avhenger av hvilket resultat som er hovedresultatet. Se `NY-08`.
+**Åpent:** hele testen ekskluderes hvis **ett** delresultat er IU. Om det er riktig, avhenger av hvilket resultat som er hovedresultatet. Se `#25`.
 
 ## RG08 Dashboardet viser bare tellinger
 
@@ -80,9 +80,9 @@ Dashboardet viser aggregerte tall, aldri resultater for enkeltpasienter. F2 inne
 
 En test kommer bare med i F1 og får bare `analysis_category` i F2 hvis koden står i en av listene i `S06`.
 
-**Konsekvens:** nye eller manglende koder blir usynlige (f.eks. `BVYPCR`, `NY-06`). F3 (`E2.1-07`) viser hvilke koder som mangler.
+**Konsekvens:** nye eller manglende koder blir usynlige (f.eks. `BVYPCR`, `#23`). F3 (`E2.1-07`) viser hvilke koder som mangler.
 
-**Midlertidig:** bør erstattes av ANALYSIS-mastertabellen (`NY-09`).
+**Midlertidig:** bør erstattes av ANALYSIS-mastertabellen (`#26`).
 
 ## RG10 F2 har bare whitelistede resultatfelt
 

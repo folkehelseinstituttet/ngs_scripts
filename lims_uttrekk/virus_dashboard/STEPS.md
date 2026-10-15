@@ -55,7 +55,7 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 **Gjør:** åpner ODBC-tilkoblingen til LIMS-kopien.
 
 **Kjente svakheter**
-- Hvis tilkoblingen feiler, skriver `tryCatch` feilmeldingen **inn i F1**. Power BI laster da en feilmelding som data, og forrige gyldige F1 er borte. Se `NY-11`.
+- Hvis tilkoblingen feiler, skriver `tryCatch` feilmeldingen **inn i F1**. Power BI laster da en feilmelding som data, og forrige gyldige F1 er borte. Se `#28`.
 - Tekst fra ODBC kommer som Windows-1252, ikke UTF-8. stringr/ICU feiler på æøå. Bruk base-funksjoner med `useBytes = TRUE`, eller konverter først. Se `E2.1-03`.
 
 ### S04 Hent prøver
@@ -76,7 +76,7 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 **Gjør:** seks hardkodede lister: `NGS_PREP` (én kode), `ngs_seq_codes`, `extraction_codes`, `culture_codes`, `pcr_codes`, `serology_codes`. Listene styrer både bøttene i F1 (`S07`) og `analysis_category` i F2 (`S11`).
 
-**Kjente svakheter:** en kode som ikke står i en liste kommer ikke med i dashboardet (`RG09`). Matching er eksakt og skiller mellom store og små bokstaver. F3 (`S14`) viser kodene som mangler. På sikt bør listene hentes fra ANALYSIS-mastertabellen (`NY-09`).
+**Kjente svakheter:** en kode som ikke står i en liste kommer ikke med i dashboardet (`RG09`). Matching er eksakt og skiller mellom store og små bokstaver. F3 (`S14`) viser kodene som mangler. På sikt bør listene hentes fra ANALYSIS-mastertabellen (`#26`).
 
 ### S07 Klassifiser tester i bøtter
 
@@ -119,7 +119,7 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 Brukes i S07 og S10.
 
-**Åpent:** skal én IU på et delresultat utelukke hele testen? Se `NY-08`.
+**Åpent:** skal én IU på et delresultat utelukke hele testen? Se `#25`.
 
 ### S14 Bygg og skriv F3 (*2.1-dev*)
 
@@ -139,7 +139,7 @@ F1 (1) til F2 (\*) på `SAMPLE_NUMBER`.
 
 ### P02 Default-filtre for prøver
 
-Skal implementere `RG02` (barneprøver), `RG03` (fryseprøver) og `RG04` (kansellerte/avviste). Hvis filtrene er bygd etter 2.0-dokumentasjonen, ekskluderer de `SAMPLE.STATUS` C (*Complete*) og tar med fryseprøver. Se `NY-01`, `NY-02`.
+Skal implementere `RG02` (barneprøver), `RG03` (fryseprøver) og `RG04` (kansellerte/avviste). Hvis filtrene er bygd etter 2.0-dokumentasjonen, ekskluderer de `SAMPLE.STATUS` C (*Complete*) og tar med fryseprøver. Se `#18`, `#19`.
 
 ### P03 Telle analyserte prøver
 
