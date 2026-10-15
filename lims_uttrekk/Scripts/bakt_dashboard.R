@@ -2,7 +2,7 @@ library(odbc)
 library(tidyverse)
 library(lubridate)
 
-# Establish connection to Lab Ware ----------------------------------------
+# Establish connection to LIMS ----------------------------------------
 # Variables stored in Renviron file
 con <- odbc::dbConnect(odbc::odbc(),
                        Driver = Sys.getenv("SQL_DRIVER"),

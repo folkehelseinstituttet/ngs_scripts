@@ -57,7 +57,7 @@ if (file.exists(readyfile)) {
 }
 
 ## ==================================================
-## Establish connection to Lab Ware 
+## Establish connection to LIMS
 ## ==================================================
 
 con <- tryCatch(

@@ -69,7 +69,7 @@ message("Run date: ", run_date)
 message("Including samples from: ", date_from, " to ", date_to)
 
 ## ==================================================
-## Establish connection to LabWare
+## Establish connection to LIMS
 ## ==================================================
 
 con <- tryCatch(

@@ -49,7 +49,7 @@ if (!dir.exists(outdir)) {
 outfile <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/GAS_PK_lw_uttrekk.tsv"))
 
 ## ==================================================
-## Establish connection to Lab Ware 
+## Establish connection to LIMS
 ## ==================================================
 
 con <- tryCatch(

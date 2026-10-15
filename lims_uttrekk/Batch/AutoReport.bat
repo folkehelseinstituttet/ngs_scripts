@@ -1,4 +1,4 @@
-REM This batch file executes a series of R scripts that queries LabWare and writes report files
+REM This batch file executes a series of R scripts that queries LIMS and writes report files
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
