@@ -8,7 +8,7 @@ labels: virus-dashboard
 <!--
 Repoet er offentlig: bare aggregerte tall. Ikke prøvenummer, pasient-ID,
 resultater for enkeltprøver, skjermbilder fra LIMS eller lenker til interne systemer.
-Koder (S##, P##, RG##, F#, E…): se lw_uttrekk/virus_dashboard/README.md
+Koder (S##, P##, RG##, F#, E…): se lims_uttrekk/virus_dashboard/README.md
 -->
 
 **Side:** Uttrekk / Power BI / Begge / Drift

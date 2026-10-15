@@ -5,7 +5,7 @@ Repoet er offentlig: bare aggregerte tall.
 
 ## Endring
 
-**Endringer:** `E<versjon>-##` (se `lw_uttrekk/virus_dashboard/CHANGELOG.md`)
+**Endringer:** `E<versjon>-##` (se `lims_uttrekk/virus_dashboard/CHANGELOG.md`)
 **Saker:** closes #
 **Steg / regler / filer:** `S##` / `RG##` / `F#`
 **Faggrupper:** Alle / …
