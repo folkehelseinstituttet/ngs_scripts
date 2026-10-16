@@ -19,7 +19,7 @@ Nyeste versjon øverst.
 - [x] (#40) F3 har ingen av kodene i F5, og ellers de samme kodene som før
 - [x] (#40) F1 og F2 er uendret (`virus_dashboard_compare.R`, prøvene som finnes i begge kjøringene)
 - [x] (#40) `reason` i F5 er ren tekst uten tegnfeil (rettet til ASCII etter første testkjøring)
-- [ ] (#40) Ingen advarsel om koder både i en kategoriliste og i `excluded_codes`
+- [x] (#40) Ingen advarsel om koder både i en kategoriliste og i `excluded_codes`
 
 ### E2.2-01 Liste over koder som bevisst ikke telles
 
