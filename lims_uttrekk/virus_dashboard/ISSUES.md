@@ -49,7 +49,7 @@ Milepæler samler sakene som løses i en versjon (f.eks. *Virus Dashboard 2.1*).
 | `#25` | NY-08 | Skal én IU på et delresultat utelukke hele testen? | Uttrekk | `RG07`, `S13`. Avhenger av Instrument Series-tabellen (bestilt 2026-03-20) |
 | `#26` | NY-09 | Hent kodelister fra ANALYSIS-mastertabellen | Begge | `RG09`, `S06`. Venter på view (bestilt 2026-03-20) |
 | `#27` | NY-10 | Skal avviste tester vises i dashboardet? | Begge | `RG11`, `RG06`, `S07`, `S13` |
-| `#28` | NY-11 | Ved tilkoblingsfeil skrives feilmeldingen inn i F1 | Uttrekk | `S03` |
+| `#28` | NY-11 | Ved tilkoblingsfeil skrives feilmeldingen inn i F1 | Uttrekk | `S03`, `E2.2-07`. Gren `vd/28-tilkoblingsfeil` |
 | `#29` | NY-12 | Automatisk oppdatering i Power BI | PBI | — |
 | `#30` | NY-13 | Auto-uttrekk nede (databasetilkobling) | Drift | `S03` |
 | `#31` | NY-14 | Prøver som er mottatt, men aldri satt opp til PCR | PBI | Nær `#15`. `P03` |
