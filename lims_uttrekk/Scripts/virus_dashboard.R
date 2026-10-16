@@ -10,7 +10,8 @@ library(lubridate)
 # Versjon 2 legger på mer info om analyser og resultater. 
 # Versjon 2.1: ny kategori SEQ_TYPING (Sanger/genotyping/resistens), flere analysekoder,
 #   og Fil 3 med uklassifiserte koder (#23, #37).
-# Versjon 2.2 (under arbeid): liste over analysekoder som bevisst ikke telles, og Fil 5 (#40).
+# Versjon 2.2 (under arbeid): liste over analysekoder som bevisst ikke telles, og Fil 5 (#40),
+#   og Fil 4 med kobling mellom prøver og analysekoder (#42).
 
 ## ==================================================
 ## [S01] Validate required environment variables
@@ -473,6 +474,35 @@ write_tsv(unclassified, outfile_F3)
 outfile_F5 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_excluded_codes.tsv"))
 
 write_tsv(excluded_codes %>% arrange(rule, reason, ANALYSIS), outfile_F5)
+
+## ==================================================
+## [S16] File 4: VIRUS_POWERBI_sample_codes.tsv
+## Kobling mellom prøver og analysekoder, siste fem år (#42, RG08)
+## ==================================================
+
+outfile_F4 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_sample_codes.tsv"))
+
+# Prøver mottatt de siste fem årene (rullerende). Prøver uten mottaksdato er ikke med
+f4_start <- Sys.Date() %m-% years(5)
+recent_samples <- samples %>%
+  filter(!is.na(RECD_DATE), as.Date(RECD_DATE) >= f4_start) %>%
+  distinct(SAMPLE_NUMBER) %>%
+  pull(SAMPLE_NUMBER)
+
+# Én rad per prøve og analysekode. Koder i excluded_codes (Fil 5) er ikke med.
+# Koder som ikke står i en kategoriliste, får kategorien "Ukategorisert"
+sample_codes <- test %>%
+  filter(SAMPLE_NUMBER %in% recent_samples,
+         !ANALYSIS %in% excluded_codes$ANALYSIS) %>%
+  group_by(SAMPLE_NUMBER, ANALYSIS) %>%
+  summarise(n_tests = n(),
+            n_auth  = sum(X_TECH_REVIEW %in% "A"),
+            .groups = "drop") %>%
+  left_join(category_lookup, by = "ANALYSIS") %>%
+  mutate(analysis_category = coalesce(analysis_category, "Ukategorisert")) %>%
+  select(SAMPLE_NUMBER, ANALYSIS, analysis_category, n_tests, n_auth)
+
+write_tsv(sample_codes, outfile_F4)
 
 # [S12] Close connection
 odbc::dbDisconnect(con)
