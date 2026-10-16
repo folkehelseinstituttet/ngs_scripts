@@ -14,6 +14,7 @@ Nyeste versjon øverst.
 |---|---|---|---|
 | `vd/40-utelatte-koder` | #40 | `E2.2-01`, `E2.2-02`, `E2.2-03` | Merget (#47), ikke i prod ennå |
 | `vd/42-prove-kode-kobling` | #42 | `E2.2-04`, `E2.2-05` | Merget, ikke i prod ennå |
+| `vd/39-linjeskift-f2` | #39 | `E2.2-06` | Pågår |
 
 **Testsjekkliste**
 - [x] (#40) F5 finnes, med kodene i `excluded_codes`
@@ -22,6 +23,7 @@ Nyeste versjon øverst.
 - [x] (#40) `reason` i F5 er ren tekst uten tegnfeil (rettet til ASCII etter første testkjøring)
 - [x] (#42) F4 finnes, bare med prøver fra de siste fem årene, og uten kodene i F5
 - [x] (#42) Antall rader og filstørrelse i F4 er håndterbart for Power BI
+- [ ] (#39) F2 har ingen ødelagte rader (alle rader har 8 kolonner), og ellers samme innhold
 - [x] (#42) F1, F2, F3 og F5 er uendret (F3 byte-identisk med #40-kjøringen, F5 med samme koder og nå uten tegnfeil, F1 og F2 med samme filstørrelse)
 - [x] (#40) Ingen advarsel om koder både i en kategoriliste og i `excluded_codes`
 
@@ -84,6 +86,20 @@ Fil 4 i utfil-dokumentasjonen (med oppsett i Power BI), `S16` og `P04` i `STEPS.
 |---|---|
 | **Saker** | #42 |
 | **Krever PBI-endring** | Nei (men beskriver oppsettet PBI trenger, se `E2.2-04`) |
+
+### E2.2-06 Linjeskift i resultatverdier byttes med mellomrom
+
+`S10` bytter linjeskift (`\r`, `\n`) i `value` med mellomrom før F2 skrives. Før delte en verdi med linjeskift raden i to ødelagte rader, fordi `write_tsv` ikke setter anførselstegn rundt den. Bruker `gsub(..., useBytes = TRUE)`, så Windows-1252-tekst ikke endres ellers.
+
+| | |
+|---|---|
+| **Saker** | #39 |
+| **Steg / regler / filer** | `S10`. F2 |
+| **Faggrupper** | Alle |
+| **Forventet effekt** | F2 får like mange rader som det finnes resultatverdier, ingen ødelagte rader. Verdier med linjeskift får mellomrom i stedet |
+| **Målt effekt** | *Fylles inn etter test* |
+| **Krever PBI-endring** | Nei |
+| **Bakoverkompatibel** | Ja |
 ---
 
 ## 2.1-dev (under arbeid fra 2026-10-15)

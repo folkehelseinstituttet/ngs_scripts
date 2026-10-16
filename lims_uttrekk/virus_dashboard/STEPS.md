@@ -113,6 +113,8 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 **Gjør:** henter resultatene for virusprøvene, beholder bare par i whitelisten (S09), og setter `value` til `FORMATTED_ENTRY` eller, hvis tom, `ENTRY`. Rader uten verdi fjernes.
 
+*2.2-dev (#39):* linjeskift i `value` byttes med mellomrom, så en verdi ikke deler raden i to i F2. Bytes ellers er uendret (Windows-1252).
+
 *2.1-dev:* `RESULT_VIEW` hentes én gang tidligere i skriptet (filtrert i databasen) og brukes både i S13 og her. Testene i `excluded_tests` fjernes (`E2.1-06`).
 
 ### S11 Analysekategori og skriv F2

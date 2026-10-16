@@ -60,7 +60,7 @@ Milepæler samler sakene som løses i en versjon (f.eks. *Virus Dashboard 2.1*).
 | `#36` | NY-19 | Bruke `SAMPLE.STATUS` / `X_MEDICAL_REVIEW` til å finne prøver som "henger" | PBI | `RG05` |
 | `#37` | | Ny kategori SEQ_TYPING (Sanger, genotyping, resistens) | Begge | `S06`, `S07`, `S11`, `RG12`, `E2.1-12`. Del av #23. Krever PBI-endring (nye kolonner) |
 | `#38` | | Avklare usikre analysekoder fra første F3-kjøring | Uttrekk | `S06`, `RG09`. Oppfølging av #23. Spørsmål til faggruppene og LIMS-forvaltningen (`N_`-prefiks, suffikser). `INFBVY` avklart og lagt til under #23 |
-| `#39` | | Linjeskift i resultatverdier ødelegger rader i F2 | Uttrekk | `S10`, F2. Finnes fra 2.0 |
+| `#39` | | Linjeskift i resultatverdier ødelegger rader i F2 | Uttrekk | `S10`, F2, `E2.2-06`. Gren `vd/39-linjeskift-f2`. Finnes fra 2.0 |
 | `#40` | | Liste over analysekoder som bevisst ikke tas med (F5) | Uttrekk | `S15` (nytt), `RG13` (ny), F3, F5 (ny), `E2.2-01`–`E2.2-03`. Gren `vd/40-utelatte-koder`. 2.2 |
 | `#41` | | Regelavklaring: skal dashboardet vise enkeltprøver og analysekodene deres? | Begge | `RG08`, `P01`, `P03`. Avklart: enkeltprøver tillatt, se `RG08`. Lukket |
 | `#42` | | F4: kobling mellom prøver og analysekoder | Begge | `S16` (nytt), F4 (ny), `RG08`, `RG09`, `RG13`, `P04`, `E2.2-04`, `E2.2-05`. Gren `vd/42-prove-kode-kobling` (på #40). Siste fem år, uten `PATIENT` (`RG08`). 2.2 |
