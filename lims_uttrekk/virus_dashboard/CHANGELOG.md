@@ -12,13 +12,17 @@ Nyeste versjon øverst.
 
 | Gren | Saker | Endringer | Status |
 |---|---|---|---|
-| `vd/40-utelatte-koder` | #40 | `E2.2-01`, `E2.2-02`, `E2.2-03` | Pågår |
+| `vd/40-utelatte-koder` | #40 | `E2.2-01`, `E2.2-02`, `E2.2-03` | Merget (#47), ikke i prod ennå |
+| `vd/42-prove-kode-kobling` | #42 | `E2.2-04`, `E2.2-05` | Merget, ikke i prod ennå |
 
 **Testsjekkliste**
 - [x] (#40) F5 finnes, med kodene i `excluded_codes`
 - [x] (#40) F3 har ingen av kodene i F5, og ellers de samme kodene som før
 - [x] (#40) F1 og F2 er uendret (`virus_dashboard_compare.R`, prøvene som finnes i begge kjøringene)
 - [x] (#40) `reason` i F5 er ren tekst uten tegnfeil (rettet til ASCII etter første testkjøring)
+- [x] (#42) F4 finnes, bare med prøver fra de siste fem årene, og uten kodene i F5
+- [x] (#42) Antall rader og filstørrelse i F4 er håndterbart for Power BI
+- [x] (#42) F1, F2, F3 og F5 er uendret (F3 byte-identisk med #40-kjøringen, F5 med samme koder og nå uten tegnfeil, F1 og F2 med samme filstørrelse)
 - [x] (#40) Ingen advarsel om koder både i en kategoriliste og i `excluded_codes`
 
 ### E2.2-01 Liste over koder som bevisst ikke telles
@@ -56,6 +60,30 @@ Fil 5 i utfil-dokumentasjonen, `S15` i `STEPS.md`, `RG13` i `RULES.md`, og F5 i 
 | **Saker** | #40 |
 | **Krever PBI-endring** | Nei |
 
+
+### E2.2-04 F4: kobling mellom prøver og analysekoder
+
+Nytt steg `S16`. `VIRUS_POWERBI_sample_codes.tsv`: én rad per prøve og analysekode, med `analysis_category` (`Ukategorisert` for koder utenfor kategorilistene), `n_tests` og `n_auth`. Bare prøver mottatt de siste fem årene, og uten kodene i F5. Ingen `PATIENT` og ingen resultater (`RG08`).
+
+| | |
+|---|---|
+| **Saker** | #42 |
+| **Steg / regler / filer** | `S16` (nytt), `P04` (nytt). `RG08`, `RG13`. F4 (ny) |
+| **Faggrupper** | Alle |
+| **Forventet effekt** | Ingen på F1, F2, F3 og F5. F4 er ny, og trolig den største fila etter F1 |
+| **Målt effekt** | Testkjøring av `vd/42-prove-kode-kobling`. F4: 673 621 rader, 19,4 MB, 190 011 prøver og 216 koder. Ingen duplikater, ingen F5-koder, alle prøvene finnes i F1. Tidligste mottaksdato er like etter femårsgrensen. Av prøvene mottatt de siste fem årene mangler bare de uten tester. Alle `Ukategorisert`-koder finnes i F3. <br>• **Sammenligning med F1** (prøver med godkjent test per kategori): F4 har flere i alle kategorier, aldri færre. Forskjellen er godkjente tester uten batch-ID, som står som `NA` i F1, det samme som "ingen test" (#48). F4 er riktig |
+| **Krever PBI-endring** | **Ja.** Ta inn F4, relasjon til F1 som filtrerer begge veier, og visningene i `P04`. `PATIENT` skal ikke vises, og eksport skal være blokkert (#43) |
+| **Bakoverkompatibel** | Ja. Eksisterende visninger påvirkes ikke |
+| **Åpent** | Tester med R/X eller "Ikke utført" er med inntil #20/#21 også brukes her |
+
+### E2.2-05 Dokumentasjon av F4
+
+Fil 4 i utfil-dokumentasjonen (med oppsett i Power BI), `S16` og `P04` i `STEPS.md`, F4 i `RULES.md` (`RG08`, `RG13`) og i oversikten i `README.md`. Variablene for utfilene heter nå `outfile_F1` … `outfile_F5`, etter kodene i dokumentasjonen, og alle er deklarert samlet i `S02` med en kommentar om innhold og formål. Stiene er uendret.
+
+| | |
+|---|---|
+| **Saker** | #42 |
+| **Krever PBI-endring** | Nei (men beskriver oppsettet PBI trenger, se `E2.2-04`) |
 ---
 
 ## 2.1-dev (under arbeid fra 2026-10-15)

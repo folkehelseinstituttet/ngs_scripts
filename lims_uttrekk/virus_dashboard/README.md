@@ -22,6 +22,7 @@ LIMS-kopi (SQL Server)
   TEST_VIEW  ──┼─> virus_dashboard.R ─┬─> F1  VIRUS_POWERBI_lw_uttrekk.tsv   (én rad per prøve)
   RESULT_VIEW ─┘                      ├─> F2  VIRUS_POWERBI_results.tsv      (én rad per resultat)
                                       ├─> F3  VIRUS_POWERBI_unclassified_codes.tsv  (fra 2.1-dev)
+                                      ├─> F4  VIRUS_POWERBI_sample_codes.tsv        (fra 2.2-dev)
                                       └─> F5  VIRUS_POWERBI_excluded_codes.tsv      (fra 2.2-dev)
                                                    │
                                                    v

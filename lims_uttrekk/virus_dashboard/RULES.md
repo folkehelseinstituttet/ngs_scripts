@@ -15,7 +15,7 @@ Telleregler og faglige beslutninger for Virus Dashboard. En regel sier **hva** s
 | `RG05` | Analysert = teknisk godkjent | Implementert 2.0 | `S07`, `P03` | Møte 2026-02-24 |
 | `RG06` | Tester med `X_TECH_REVIEW` R eller X telles ikke | **Avvik (2.0)**. Foreslått i 2.1-dev | `S13`, `S07`, `S10` | Møte 2026-03-20 |
 | `RG07` | Tester med resultat "Ikke utført" telles ikke | **Avvik (2.0)**. Foreslått i 2.1-dev | `S13`, `S07`, `S10` | Møte 2026-03-20 |
-| `RG08` | Dashboardet viser tellinger, og enkeltprøver med prøvenummer og analysekoder | Vedtatt (endret i #41) | `P03`, F4 (#42), eksport (#43) | Møte 2026-02-24, #41 |
+| `RG08` | Dashboardet viser tellinger, og enkeltprøver med prøvenummer og analysekoder | Vedtatt (endret i #41) | `P03`, `S16` / F4 og `P04` (2.2-dev, #42), eksport (#43) | Møte 2026-02-24, #41 |
 | `RG09` | Bare analysekoder i kodelistene telles | Implementert 2.0. **Midlertidig**. F3 viser det som mangler fra 2.1-dev | `S06`, `S14` | Designvalg 2.0 |
 | `RG10` | F2 har bare whitelistede resultatfelt | Implementert 2.0 | `S09`, `S10` | Designvalg 2.0 (#11) |
 | `RG11` | Avviste tester i dashboardet? | **Åpen** | — | Møte 2026-03-20 |
@@ -130,7 +130,7 @@ Analysekoder som ikke er analyser (administrative koder, arbeidsflyt, kommentarf
 
 **Slik legges en kode inn:** bare eksakte koder, ingen mønstre, så ingen analyse utelates ved et uhell. En kode legges bare inn når det er avklart at den ikke er en analyse, eller at den er utgått (se #38).
 
-**Konsekvens:** F3 blir mindre, og viser bare koder som ikke er avklart. F1 og F2 endres ikke.
+**Konsekvens:** F3 blir mindre, og viser bare koder som ikke er avklart. Kodene er heller ikke med i F4 (#42). F1 og F2 endres ikke.
 
 **Ikke med:** delresultat-koder som `HCRES_NS*` står i F3 etter `RG12`, ikke i lista. Koder som kan trengs til andre saker (`MOTTAK`, `AGENS`, `N_IKKEUS`), og `N_`-kodene som venter på svar i #38, er heller ikke med.
 

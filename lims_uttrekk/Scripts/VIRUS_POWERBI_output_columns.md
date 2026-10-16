@@ -8,6 +8,7 @@ Skriptet produserer **to filer** som begge lastes inn i Power BI, og en tredje f
 | `VIRUS_POWERBI_lw_uttrekk.tsv` | Tab-separert, én rad per prøve (wide) | Prøvenivå |
 | `VIRUS_POWERBI_results.tsv` | Tab-separert, én rad per resultat (long) | Resultatnivå |
 | `VIRUS_POWERBI_unclassified_codes.tsv` | Tab-separert, én rad per faggruppe og analysekode | Aggregert (kun tellinger). Ikke til Dashboardet |
+| `VIRUS_POWERBI_sample_codes.tsv` | Tab-separert, én rad per prøve og analysekode | Kobling mellom prøver og analysekoder, siste fem år |
 | `VIRUS_POWERBI_excluded_codes.tsv` | Tab-separert, én rad per analysekode | Liste over koder som bevisst ikke telles. Ikke koblet til prøver |
 
 Filene kobles i Power BI via `SAMPLE_NUMBER` (mange-til-én fra resultatfilen til prøvefilen).
@@ -125,6 +126,34 @@ Merk:
 - Fila er **ufiltrert** innenfor virusprøvene: den inkluderer barneprøver, fryseprøver, kansellerte prøver og tester med R/X eller "Ikke utført", slik at ingen koder blir oversett. Tallene er derfor høyere enn i Dashboardet.
 - Den viser bare koder som mangler i listene, ikke koder som står i listene men aldri brukes (eller er feilstavet).
 - Koder som bevisst ikke telles (Fil 5), er ikke med.
+
+---
+
+## Fil 4: `VIRUS_POWERBI_sample_codes.tsv`
+
+Kobling mellom prøver og analysekoder. Gjør det mulig å gå fra en analysekode til prøvene som har den, og fra en prøve til alle analysekodene den har.
+
+| Kolonne | Beskrivelse |
+|---|---|
+| `SAMPLE_NUMBER` | LIMS-nummer. Kobling til Fil 1. |
+| `ANALYSIS` | Analysekode. |
+| `analysis_category` | Samme verdier som i Fil 2 (`PCR`, `Serology`, `NGS_SEQ`, `NGS_PREP`, `Extraction`, `Culture`, `Seq_typing`), eller `Ukategorisert` for koder som ikke står i noen kategoriliste. |
+| `n_tests` | Antall tester av koden på prøven. |
+| `n_auth` | Hvor mange av dem som er teknisk godkjent (`X_TECH_REVIEW == "A"`). |
+
+Merk:
+
+- Bare prøver mottatt de siste fem årene (rullerende, etter `RECD_DATE`). Prøver uten mottaksdato er ikke med.
+- Koder i Fil 5 er ikke med.
+- Fila har ingen pasient-ID og ingen resultater. `PATIENT` fra Fil 1 skal ikke vises i visninger av enkeltprøver.
+- Tester med `X_TECH_REVIEW` R eller X, og tester med resultat "Ikke utført", er foreløpig med i `n_tests`, som i Fil 1.
+
+### Oppsett i Power BI
+
+- Relasjon fra `VIRUS_POWERBI_lw_uttrekk` (1) til `VIRUS_POWERBI_sample_codes` (\*) på `SAMPLE_NUMBER`.
+- Fra analysekode til prøver: et utsnitt på `ANALYSIS` i Fil 4. Relasjonen må da filtrere begge veier, eller et measure må håndtere det.
+- Fra prøve til analysekoder: velg en prøve, og vis en tabell med `ANALYSIS`, `analysis_category`, `n_tests` og `n_auth`.
+- Eksport av data fra dashboardet skal være blokkert.
 
 ---
 

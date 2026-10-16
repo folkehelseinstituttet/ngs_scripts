@@ -10,7 +10,8 @@ library(lubridate)
 # Versjon 2 legger på mer info om analyser og resultater. 
 # Versjon 2.1: ny kategori SEQ_TYPING (Sanger/genotyping/resistens), flere analysekoder,
 #   og Fil 3 med uklassifiserte koder (#23, #37).
-# Versjon 2.2 (under arbeid): liste over analysekoder som bevisst ikke telles, og Fil 5 (#40).
+# Versjon 2.2 (under arbeid): liste over analysekoder som bevisst ikke telles, og Fil 5 (#40),
+#   og Fil 4 med kobling mellom prøver og analysekoder (#42).
 
 ## ==================================================
 ## [S01] Validate required environment variables
@@ -54,8 +55,25 @@ if (!dir.exists(outdir)) {
 }
 
 # Name output files
-outfile  <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_lw_uttrekk.tsv"))
-outfile2 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_results.tsv"))
+# Alle utfilene skrives til <OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/.
+# Kodene F1-F5 er de samme som i dokumentasjonen (../virus_dashboard/STEPS.md).
+outpath <- file.path(outdir, run_env, "ToOrdinary", "LW_Datauttrekk")
+
+# F1: én rad per prøve, med prøveinfo og Auth_*/NotAuth_*-kolonner per analysekategori.
+#     Hovedtabellen i dashboardet. Skrives i [S08]
+outfile_F1 <- file.path(outpath, "VIRUS_POWERBI_lw_uttrekk.tsv")
+# F2: én rad per resultatverdi, bare for whitelistede (ANALYSIS, NAME)-par.
+#     Til resultater i dashboardet (Ct-verdier, konklusjoner, genotyper). Skrives i [S11]
+outfile_F2 <- file.path(outpath, "VIRUS_POWERBI_results.tsv")
+# F3: analysekoder på virusprøver som ikke står i noen kategoriliste, per faggruppe, med antall.
+#     Vedlikeholdsfil for kodelistene, ikke til dashboardet. Skrives i [S14]
+outfile_F3 <- file.path(outpath, "VIRUS_POWERBI_unclassified_codes.tsv")
+# F4: én rad per prøve og analysekode, for prøver mottatt de siste fem årene.
+#     Kobling mellom prøver og analysekoder i dashboardet. Skrives i [S16]
+outfile_F4 <- file.path(outpath, "VIRUS_POWERBI_sample_codes.tsv")
+# F5: analysekoder som bevisst ikke telles, med begrunnelse.
+#     Referanseliste, ikke koblet til prøver. Skrives i [S15]
+outfile_F5 <- file.path(outpath, "VIRUS_POWERBI_excluded_codes.tsv")
 
 ## ==================================================
 ## [S03] Establish connection to LIMS
@@ -74,7 +92,7 @@ con <- tryCatch(
       "ERROR: Unable to connect to database.\n",
       "Environment: ", run_env, "\n",
       "Message: ", e$message, "\n", 
-      file = outfile
+      file = outfile_F1
     )
     stop("Connection failed")
   }
@@ -296,7 +314,7 @@ final <- left_join(samples, ngs_info, by = c("SAMPLE_NUMBER" = "SAMPLE_NUMBER"))
   rename("SAMPLE.STATUS" = STATUS)
 
 # Write File 1: sample-level wide table
-write_tsv(final, outfile)
+write_tsv(final, outfile_F1)
 
 ## ==================================================
 ## File 2: VIRUS_POWERBI_results.tsv
@@ -438,15 +456,13 @@ category_lookup <- bind_rows(
 results_file2 <- left_join(results_file2, category_lookup, by = "ANALYSIS")
 
 # Write File 2: long-format results table
-write_tsv(results_file2, outfile2)
+write_tsv(results_file2, outfile_F2)
 
 ## ==================================================
 ## [S14] File 3: VIRUS_POWERBI_unclassified_codes.tsv
 ## Analysekoder på virusprøver som ikke er i noen kategori, og ikke bevisst utelatt
 ## (for å finne manglende koder, #23, #40)
 ## ==================================================
-
-outfile3 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_unclassified_codes.tsv"))
 
 unclassified <- test %>%
   # Behold virusprøver. Ellers kommer koder fra alle faggrupper i LIMS med
@@ -463,16 +479,41 @@ unclassified <- test %>%
             .groups = "drop") %>%
   arrange(desc(n_tests))
 
-write_tsv(unclassified, outfile3)
+write_tsv(unclassified, outfile_F3)
 
 ## ==================================================
 ## [S15] File 5: VIRUS_POWERBI_excluded_codes.tsv
 ## Analysekoder som bevisst ikke telles (#40). Ikke koblet til prøver
 ## ==================================================
 
-outfile5 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_excluded_codes.tsv"))
+write_tsv(excluded_codes %>% arrange(rule, reason, ANALYSIS), outfile_F5)
 
-write_tsv(excluded_codes %>% arrange(rule, reason, ANALYSIS), outfile5)
+## ==================================================
+## [S16] File 4: VIRUS_POWERBI_sample_codes.tsv
+## Kobling mellom prøver og analysekoder, siste fem år (#42, RG08)
+## ==================================================
+
+# Prøver mottatt de siste fem årene (rullerende). Prøver uten mottaksdato er ikke med
+f4_start <- Sys.Date() %m-% years(5)
+recent_samples <- samples %>%
+  filter(!is.na(RECD_DATE), as.Date(RECD_DATE) >= f4_start) %>%
+  distinct(SAMPLE_NUMBER) %>%
+  pull(SAMPLE_NUMBER)
+
+# Én rad per prøve og analysekode. Koder i excluded_codes (Fil 5) er ikke med.
+# Koder som ikke står i en kategoriliste, får kategorien "Ukategorisert"
+sample_codes <- test %>%
+  filter(SAMPLE_NUMBER %in% recent_samples,
+         !ANALYSIS %in% excluded_codes$ANALYSIS) %>%
+  group_by(SAMPLE_NUMBER, ANALYSIS) %>%
+  summarise(n_tests = n(),
+            n_auth  = sum(X_TECH_REVIEW %in% "A"),
+            .groups = "drop") %>%
+  left_join(category_lookup, by = "ANALYSIS") %>%
+  mutate(analysis_category = coalesce(analysis_category, "Ukategorisert")) %>%
+  select(SAMPLE_NUMBER, ANALYSIS, analysis_category, n_tests, n_auth)
+
+write_tsv(sample_codes, outfile_F4)
 
 # [S12] Close connection
 odbc::dbDisconnect(con)

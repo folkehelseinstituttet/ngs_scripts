@@ -11,7 +11,7 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 | Kode | Steg | Leser | Skriver | Regler |
 |---|---|---|---|---|
 | `S01` | Valider miljøvariabler | Miljø | — | — |
-| `S02` | Les variabler og sett utfilnavn | Miljø | `outfile`, `outfile2` | — |
+| `S02` | Les variabler og sett utfilnavn | Miljø | `outpath`, `outfile_F1` … `outfile_F5` | — |
 | `S03` | Koble til LIMS | SQL Server | `con` | — |
 | `S04` | Hent prøver | `SAMPLE_VIEW` | `samples`, `samples_sample_number` | `RG01`, flagg for `RG02` |
 | `S05` | Hent tester | `TEST_VIEW` | `test` | — |
@@ -25,9 +25,11 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 | `S13` | *2.1-dev:* Finn tester som ikke skal telles | `test`, `results` | `excluded_tests` | `RG06`, `RG07` |
 | `S14` | *2.1-dev (#23):* Bygg og skriv F3 | `test`, `samples`, kodelister, `excluded_codes` | **F3** | `RG09`, `RG12`, `RG13` |
 | `S15` | *2.2-dev (#40):* Koder som bevisst ikke telles, og skriv F5 | — | `excluded_codes`, `category_codes`, **F5** | `RG13` |
+| `S16` | *2.2-dev (#42):* Kobling mellom prøver og analysekoder, skriv F4 | `test`, `samples`, `category_lookup`, `excluded_codes` | **F4** | `RG08`, `RG13` |
 | `P01` | Relasjon F1–F2 | F1, F2 | Datamodell | — |
 | `P02` | Default-filtre for prøver | F1 | — | `RG02`, `RG03`, `RG04` |
 | `P03` | Telle analyserte prøver | F1 | Measures | `RG05`, `RG08` |
+| `P04` | *2.2-dev (#42):* Fra analysekode til prøver, og fra prøve til analysekoder | F1, F4 | Visninger | `RG08` |
 
 ## Utfiler
 
@@ -36,6 +38,7 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 | `F1` | `VIRUS_POWERBI_lw_uttrekk.tsv` | Én rad per prøve | `S08` |
 | `F2` | `VIRUS_POWERBI_results.tsv` | Én rad per resultatverdi | `S11` |
 | `F3` | `VIRUS_POWERBI_unclassified_codes.tsv` (*2.1-dev*, #23) | Én rad per faggruppe × analysekode. Vedlikeholdsfil, ikke til dashboardet | `S14` |
+| `F4` | `VIRUS_POWERBI_sample_codes.tsv` (*2.2-dev*, #42) | Én rad per prøve × analysekode, siste fem år | `S16` |
 | `F5` | `VIRUS_POWERBI_excluded_codes.tsv` (*2.2-dev*, #40) | Én rad per analysekode. Koder som bevisst ikke telles, ikke koblet til prøver | `S15` |
 
 Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [`../Scripts/VIRUS_POWERBI_output_columns.md`](../Scripts/VIRUS_POWERBI_output_columns.md).
@@ -50,7 +53,7 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 ### S02 Les variabler og sett utfilnavn
 
-**Gjør:** leser miljøvariablene og stopper hvis `OUTDIR` ikke finnes. Setter stiene til F1 og F2 (og F3 fra 2.1-dev).
+**Gjør:** leser miljøvariablene og stopper hvis `OUTDIR` ikke finnes. Setter alle utfilene samlet: `outpath` (`<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk`) og `outfile_F1` … `outfile_F5`, hver med en kommentar om innhold, formål og hvilket steg som skriver den. Nye utfiler skal deklareres her, med neste ledige F-kode.
 
 ### S03 Koble til LIMS
 
@@ -94,6 +97,7 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 - 2.0: `NotAuth_*` tar med alt som ikke er A, også R (avvist) og X (kansellert). Det bryter `RG06`. *2.1-dev* fjerner dem (`E2.1-05`).
 - 2.0: tester med resultat "Ikke utført" telles som analysert. Det bryter `RG07`. *2.1-dev* fjerner dem (`E2.1-05`).
 - Hvis en bøtte ikke finnes for noen prøve, mangler kolonnen helt i F1 (`pivot_wider` lager bare kolonner som har data).
+- En test uten `BATCH` gir teksten `NA` i bøtta, det samme som "ingen test" etter `S08` (#48).
 
 ### S08 Bygg og skriv F1
 
@@ -151,6 +155,16 @@ Brukes i S07 og S10.
 - Lista påvirker bare F3 (og senere F4, #42). F1 og F2 er uendret, fordi de bare teller koder i kategorilistene.
 - Per-legemiddel-kodene `HCRES_NS*` står ikke i lista. De blir stående i F3 (`RG12`).
 
+### S16 Kobling mellom prøver og analysekoder, skriv F4 (*2.2-dev*, #42)
+
+**Gjør:** for prøver mottatt de siste fem årene (rullerende, etter `RECD_DATE`): én rad per prøve og analysekode med `analysis_category` fra `category_lookup` (`S11`), eller `Ukategorisert`, og `n_tests` / `n_auth`. Koder i `excluded_codes` (`S15`) er ikke med. Skriver F4.
+
+**Merk**
+- Femårsgrensen og at `PATIENT` ikke er med, følger av `RG08`.
+- Prøver uten mottaksdato er ikke med (se #34).
+- Tester med R/X eller "Ikke utført" er med i `n_tests` inntil `excluded_tests` (`S13`, #20/#21) også brukes her.
+- Filtrerer til virusprøvene via prøvelista, fordi `test` ennå ikke er filtrert i databasen (#22).
+
 ---
 
 ## Steg på Power BI-siden
@@ -168,3 +182,7 @@ Skal implementere `RG02` (barneprøver), `RG03` (fryseprøver) og `RG04` (kansel
 ### P03 Telle analyserte prøver
 
 En prøve regnes som analysert i en kategori hvis `Auth_<kategori>` ikke er tom (`RG05`). Dashboardet viser tellinger, og enkeltprøver bare med prøvenummer og analysekoder, uten `PATIENT` (`RG08`).
+
+### P04 Fra analysekode til prøver, og fra prøve til analysekoder (*2.2-dev*, #42)
+
+Utsnitt på `F4[ANALYSIS]` som filtrerer F1, og en tabell over F4 for valgt prøve. Relasjonen F1–F4 må filtrere begge veier, eller et measure må håndtere det. `PATIENT` vises ikke, og eksport er blokkert (`RG08`, #43).
