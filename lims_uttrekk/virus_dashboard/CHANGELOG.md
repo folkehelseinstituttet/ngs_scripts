@@ -25,7 +25,8 @@ Nyeste versjon øverst.
 - [x] (#23) F1: samme antall rader som 2.0 (944 719), og `*_SEQ_TYPING`-kolonnene finnes
 - [ ] (#23) Stikkprøve på en prøve med `HAGEN1`
 - [x] (#23) F3: kodene som er lagt til i `E2.1-04` og `E2.1-12` er ikke med, og resten ser rimelige ut
-- [ ] (#23, #38) Finnes `BVYPCR` i dataene, eller heter koden `INFBVY`? Ingen endring i INFLUENSA-PCR, og `INFBVY` står i F3. Må avklares
+- [x] (#23, #38) Finnes `BVYPCR` i dataene, eller heter koden `INFBVY`? Søk i `TEST_VIEW` 2026-10-16: `BVYPCR` finnes ikke. `INFBVY` (2014-11 – 2025-09) er forløperen til `INFBVYPCR` (fra 2024-10), og er lagt til
+- [ ] (#23) Ny testkjøring etter at `INFBVY` er lagt til: INFLUENSA `Auth_PCR` / `NotAuth_PCR` går opp, og `INFBVY` er borte fra F3
 - [ ] (#21) Hvordan "Ikke utført" faktisk ser ut i `ENTRY` / `FORMATTED_ENTRY` (juster mønsteret i `E2.1-03` ved behov)
 - [ ] (#22) `semi_join` virker mot viewene og er ikke tregere enn før
 - [ ] (#20, #21) F1: samme antall rader. Stikkprøve på en prøve med R/X-test og en med IU-test
@@ -80,7 +81,7 @@ Versjon 2.1-dev og en linje som beskriver 2.1. Gjøres i den første grenen (#23
 Koder fra første F3-kjøring (2026-10-15) der tilhørigheten er klar:
 
 - **NGS_SEQ:** `EV_WGS`, `HBV_WGS`
-- **PCR:** `BVYPCR` (meldt fra Power BI-siden), `ROTARIX_PCR`, `ROVPCR`, `OPXVPCR`
+- **PCR:** `INFBVY`, `ROTARIX_PCR`, `ROVPCR`, `OPXVPCR`. `INFBVY` er forløperen til `INFBVYPCR` (som allerede står i listen): i bruk 2014-11 – 2025-09, med ett års overlapp fra 2024-10. `BVYPCR`, som ble meldt fra Power BI-siden, finnes ikke som kode i `TEST_VIEW` (søk 2026-10-16), og er ikke med
 - **Serologi:** varianter av koder som allerede står i listen: `HBCPIE_BG`, `HCVB_BG`, `HBSEU_BG`, `HIAGB_BG`, `HIIE_BG`, `HIAGNB_FORT`, `HBSNEU_FORT`, `HCVB71`, `HAIF71`, `HIGWB_STRIP`, `HIGWB_ENV`, `HIGWB_GAG`, `HIGWB_POL`, `HIGWB_HIV2`, og søsknene `PAMENZ`, `PAGENZ`
 
 Usikre koder er ikke lagt inn. De er samlet i #38.
@@ -89,12 +90,12 @@ Usikre koder er ikke lagt inn. De er samlet i #38.
 |---|---|
 | **Saker** | #23 |
 | **Steg / regler / filer** | `S06`. `RG09`. F1, F3 |
-| **Faggrupper** | Mest HEP_HIV (serologivariantene), deretter MMR (`PAMENZ`, `PAGENZ`), ROTA (`ROTARIX_PCR`, `ROVPCR`), POL_ENT (`EV_WGS`) og INFLUENSA (`BVYPCR`) |
+| **Faggrupper** | Mest HEP_HIV (serologivariantene), deretter MMR (`PAMENZ`, `PAGENZ`), ROTA (`ROTARIX_PCR`, `ROVPCR`), POL_ENT (`EV_WGS`) og INFLUENSA (`INFBVY`: 11 955 tester på 11 794 prøver, 2014–2025) |
 | **Forventet effekt** | Antall rader i F1 uendret. Flere prøver med noe i `Auth_SEROLOGY` / `NotAuth_SEROLOGY`, `*_PCR` og `*_NGS_SEQ`. Størrelse fra F3-kjøringen (alle år, ufiltrert, tester, ikke prøver): ca. 12 300 serologitester, 1 500 PCR-tester og 120 NGS-tester. Kodene forsvinner fra F3. F2 uendret, fordi ingen av kodene står i whitelisten (`S09`) |
-| **Målt effekt** | Testkjøring 2026-10-15, 2.0-dev mot `vd/23-analysekoder`, samme data (0 prøver bare i én kjøring). Antall prøver med noe i kolonnen, etter dashboardets default-filtre (`RG02`–`RG04`). F1: 944 719 rader i begge. <br>• HEP_HIV: `Auth_SEROLOGY` 18 804 → 21 120 (+2 316, +12,3 %), `NotAuth_SEROLOGY` 9 133 → 10 702 (+1 569, +17,2 %) <br>• MMR: `Auth_SEROLOGY` 28 844 → 29 883 (+1 039, +3,6 %), `NotAuth_SEROLOGY` 11 739 → 12 044 (+305, +2,6 %), `NotAuth_PCR` +3 <br>• ROTA: `Auth_PCR` 1 831 → 2 580 (+749, +40,9 %), `NotAuth_PCR` 380 → 387 (+7) <br>• Uendret: `*_NGS_SEQ` i alle faggrupper (prøvene med `EV_WGS` / `HBV_WGS` hadde allerede en NGS-kode), og PCR i INFLUENSA (så `BVYPCR` finnes ikke, eller bare på prøver som allerede hadde PCR) <br>• F2 byte-identisk. Prøvekolonnene i F1 byte-identiske |
+| **Målt effekt** | Testkjøring 2026-10-15, 2.0-dev mot `vd/23-analysekoder`, samme data (0 prøver bare i én kjøring). Antall prøver med noe i kolonnen, etter dashboardets default-filtre (`RG02`–`RG04`). F1: 944 719 rader i begge. <br>• HEP_HIV: `Auth_SEROLOGY` 18 804 → 21 120 (+2 316, +12,3 %), `NotAuth_SEROLOGY` 9 133 → 10 702 (+1 569, +17,2 %) <br>• MMR: `Auth_SEROLOGY` 28 844 → 29 883 (+1 039, +3,6 %), `NotAuth_SEROLOGY` 11 739 → 12 044 (+305, +2,6 %), `NotAuth_PCR` +3 <br>• ROTA: `Auth_PCR` 1 831 → 2 580 (+749, +40,9 %), `NotAuth_PCR` 380 → 387 (+7) <br>• Uendret: `*_NGS_SEQ` i alle faggrupper (prøvene med `EV_WGS` / `HBV_WGS` hadde allerede en NGS-kode), og PCR i INFLUENSA (kjøringen hadde `BVYPCR`, som ikke finnes, og ikke `INFBVY`) <br>• **INFLUENSA-PCR må måles på nytt** etter at `INFBVY` er lagt til (2026-10-16). Tallene over gjelder resten <br>• F2 byte-identisk. Prøvekolonnene i F1 byte-identiske |
 | **Krever PBI-endring** | Nei. Tallene i dashboardet endres |
 | **Bakoverkompatibel** | Ja |
-| **Åpent** | `BVYPCR` ga ingen endring i INFLUENSA. `INFBVY` står i F3 med 11 955 tester på 11 794 prøver, sist endret 2025-09-09. Avklares i #38. Fjern `BVYPCR` hvis den ikke finnes |
+| **Avklart** | `BVYPCR` finnes ikke (søk i `TEST_VIEW` 2026-10-16). Navnet som ble meldt var trolig visningsnavnet for B Victoria/Yamagata-PCR, som har kodene `INFBVY` (gammel) og `INFBVYPCR` (ny). `INFBVY` finnes også i faggruppen SMVA (80 tester, 2016–2018), som er utenfor dashboardet (`RG01`) |
 
 ### E2.1-05 Fjern ekskluderte tester før bøtteinndeling
 

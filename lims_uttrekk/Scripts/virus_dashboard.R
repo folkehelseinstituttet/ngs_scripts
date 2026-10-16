@@ -130,7 +130,9 @@ culture_codes <- c("DYRKING", "VDYRKE", "VDYRKA", "BGM", "L20B", "A549", "RD",
 pcr_codes <- c(
   # Influensa
   "INFABPCR", "INFA_TRICDC", "INFB_TRICDC", "SC2_TRICDC", "INFSC2",
-  "INFAH1H3", "INFBVYPCR", "BVYPCR", "INFB_VIC", "INFB_YAM",
+  "INFAH1H3", "INFBVYPCR", "INFB_VIC", "INFB_YAM",
+  # INFBVY er forløperen til INFBVYPCR (i bruk 2014-11 til 2025-09). Lagt til 2026-10-16 (#23)
+  "INFBVY",
   "IAH1C1", "IAH3C1", "IACDC1", "IBCDC1", "IASAC1",
   "INAH5A", "INAH5B", "INFAH9", "INFAN9", "H7VLA2", "RNPPCR",
   # Luftveir / VIRUS_CMN
