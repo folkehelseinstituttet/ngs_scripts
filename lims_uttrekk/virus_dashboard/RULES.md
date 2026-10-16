@@ -20,6 +20,7 @@ Telleregler og faglige beslutninger for Virus Dashboard. En regel sier **hva** s
 | `RG10` | F2 har bare whitelistede resultatfelt | Implementert 2.0 | `S09`, `S10` | Designvalg 2.0 (#11) |
 | `RG11` | Avviste tester i dashboardet? | **Åpen** | — | Møte 2026-03-20 |
 | `RG12` | Delresultat-koder telles ikke som egne analyser | Foreslått i 2.1-dev (#37). Må bekreftes av faggruppen | `S06` | Gjennomgang av F3, 2026-10-15 |
+| `RG13` | Administrative og utgåtte koder telles ikke, og listes i F5 | Implementert 2.2-dev (#40) | `S15`, `S14` | #40 |
 
 ---
 
@@ -95,7 +96,7 @@ En test kommer bare med i F1 og får bare `analysis_category` i F2 hvis koden st
 
 **Konsekvens:** nye eller manglende koder blir usynlige (f.eks. `INFBVY`, den eldre koden for samme analyse som `INFBVYPCR`; #23). Når en analyse får ny kode, må den gamle koden stå i listen så lenge historiske tall skal vises. F3 (`S14`, `E2.1-07`) viser hvilke koder som mangler, og må sjekkes når faggruppene tar i bruk nye analyser.
 
-**Slik legges en kode inn:** bare når tilhørigheten er klar (variant eller søsken av en kode som står i en liste, eller et navn som sier hva det er). Ellers samles den i en avklaringssak (som #38) til faggruppen eller LIMS-forvaltningen har svart. En kode skal bare stå i én liste.
+**Slik legges en kode inn:** bare når tilhørigheten er klar (variant eller søsken av en kode som står i en liste, eller et navn som sier hva det er). Ellers samles den i en avklaringssak (som #38) til faggruppen eller LIMS-forvaltningen har svart. Er koden administrativ eller utgått, legges den i utelatelseslista i stedet (`RG13`). En kode skal bare stå ett sted.
 
 **Midlertidig:** bør erstattes av ANALYSIS-mastertabellen (`#26`).
 
@@ -120,6 +121,18 @@ Analysekoder som er delresultater av én analyse, legges ikke i noen kodeliste. 
 **Konsekvens:** kodene blir stående i F3 som uklassifiserte, med vilje. Kommer en ny analyse med delresultat-koder, må den vurderes på samme måte.
 
 **Status:** foreslått i 2.1-dev (#37). Må bekreftes av faggruppen.
+
+## RG13 Administrative og utgåtte koder telles ikke
+
+Analysekoder som ikke er analyser (administrative koder, arbeidsflyt, kommentarfelt) eller som er utgått, legges i den hardkodede lista `excluded_codes` (`S15`). De telles ikke, tas ikke med i F3, og skrives til F5 med begrunnelse.
+
+**Hvorfor:** uten en slik liste blir disse kodene liggende i F3 for alltid, og det finnes ingen oversikt over hva som bevisst er utelatt.
+
+**Slik legges en kode inn:** bare eksakte koder, ingen mønstre, så ingen analyse utelates ved et uhell. En kode legges bare inn når det er avklart at den ikke er en analyse, eller at den er utgått (se #38).
+
+**Konsekvens:** F3 blir mindre, og viser bare koder som ikke er avklart. F1 og F2 endres ikke.
+
+**Ikke med:** delresultat-koder som `HCRES_NS*` står i F3 etter `RG12`, ikke i lista. Koder som kan trengs til andre saker (`MOTTAK`, `AGENS`, `N_IKKEUS`), og `N_`-kodene som venter på svar i #38, er heller ikke med.
 
 ---
 
