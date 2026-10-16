@@ -12,8 +12,8 @@ Nyeste versjon øverst.
 
 | Gren | Saker | Endringer | Status |
 |---|---|---|---|
-| `vd/40-utelatte-koder` | #40 | `E2.2-01`, `E2.2-02`, `E2.2-03` | PR #47 |
-| `vd/42-prove-kode-kobling` | #42 | `E2.2-04`, `E2.2-05` | Pågår (bygger på `vd/40-utelatte-koder`) |
+| `vd/40-utelatte-koder` | #40 | `E2.2-01`, `E2.2-02`, `E2.2-03` | Merget (#47), ikke i prod ennå |
+| `vd/42-prove-kode-kobling` | #42 | `E2.2-04`, `E2.2-05` | Merget, ikke i prod ennå |
 
 **Testsjekkliste**
 - [x] (#40) F5 finnes, med kodene i `excluded_codes`
