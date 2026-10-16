@@ -179,7 +179,7 @@ F1 (1) til F2 (\*) på `SAMPLE_NUMBER`.
 
 ### P02 Default-filtre for prøver
 
-Skal implementere `RG02` (barneprøver), `RG03` (fryseprøver) og `RG04` (kansellerte/avviste). Hvis filtrene er bygd etter 2.0-dokumentasjonen, ekskluderer de `SAMPLE.STATUS` C (*Complete*) og tar med fryseprøver. Se `#18`, `#19`.
+Skal implementere `RG02` (barneprøver), `RG03` (fryseprøver) og `RG04` (kansellerte/avviste): filter 1, 2 og 2b i utfil-dokumentasjonen. 2.0-dokumentasjonen anbefalte å ekskludere `SAMPLE.STATUS` C (*Complete*) og hadde ikke fryseprøvefilteret. Dokumentasjonen er rettet (#18, #19). Rapporten sjekkes i #51.
 
 ### P03 Telle analyserte prøver
 

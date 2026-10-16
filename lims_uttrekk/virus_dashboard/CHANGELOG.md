@@ -94,7 +94,7 @@ Fil 4 i utfil-dokumentasjonen (med oppsett i Power BI), `S16` og `P04` i `STEPS.
 |---|---|---|---|
 | `vd/23-analysekoder` | #23, #37 | `E2.1-01`, `E2.1-04`, `E2.1-07`, `E2.1-12`, `E2.1-13` | Merget (#45), ikke i prod ennå |
 | `vd/21-ekskluderte-tester` | #20, #21, #22 | `E2.1-02`, `E2.1-03`, `E2.1-05`, `E2.1-06`, `E2.1-08` | Ikke startet |
-| `vd/18-dokumenterte-filtre` | #18, #19, #24 | `E2.1-09`, `E2.1-10` | Ikke startet |
+| `vd/18-dokumenterte-filtre` | #18, #19, #24 | `E2.1-09`, `E2.1-10` | Merget, ikke i prod ennå. Power BI-delen: #51 |
 | (main) | — | `E2.1-11` | Merget 2026-10-15 |
 | `vd/48-na-i-f1` | #48 | `E2.1-14`, `E2.1-15` | Merget, ikke i prod ennå |
 
@@ -240,8 +240,8 @@ Merknaden om godkjenning sier at R/X- og IU-tester er fjernet fra begge filene.
 | **Steg / regler / filer** | Dokumentasjon, `P02`. `RG03`, `RG04` |
 | **Faggrupper** | Alle. Fryseprøver: særlig INFLUENSA |
 | **Forventet effekt** | Ingen på utfilene. **I dashboardet**, når PBI er endret: flere mottatte prøver (Complete-prøver kommer tilbake) og færre (fryseprøver fjernes). For influensa ventes omtrent en halvering fra fryseprøvefilteret |
-| **Målt effekt** | *Fylles inn når PBI er endret* |
-| **Krever PBI-endring** | **Ja.** Default-filtrene i `P02` må sjekkes og endres |
+| **Målt effekt** | *Fylles inn når PBI er endret (#51)* |
+| **Krever PBI-endring** | **Ja** (#51). Default-filtrene i `P02` må sjekkes og endres |
 
 ### E2.1-10 `LIMS-kopi_tabeller.md`: `RESULT_VIEW`
 

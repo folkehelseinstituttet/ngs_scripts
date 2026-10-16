@@ -182,13 +182,19 @@ Merk:
 
 Barneprøver er avledede prøver opprettet i LIMS (f.eks. alikvot, ekstraksjonsrør). Ved å beholde kun `child_sample == "NO"` telles hver reelle pasientprøve bare én gang.
 
-### 2. Ekskluder kansellerte prøver
+### 2. Ekskluder kansellerte og avviste prøver
 
-Prøver som har enten `C` eller `X` i `SAMPLE.STATUS` finnes ikke i LIMS (kan være feilregistrering). Bør ikke vises med mindre man spesifikt ønsker dette. 
+Prøver som har `X` (Cancelled) eller `R` (Rejected) i `SAMPLE.STATUS` finnes ikke i LIMS (kan være feilregistrering). Bør ikke vises med mindre man spesifikt ønsker dette. **NB:** `C` betyr *Complete* og skal **ikke** ekskluderes.
+
+### 2b. Ekskluder fryseprøver
+
+`TEMPLATE != "STORAGE"`
+
+Fryseprøver er ekstrakter som får eget LIMS-nummer (f.eks. de fleste influensaprøver). Tas de med, ser det ut som det har kommet inn omtrent dobbelt så mange prøver.
 
 ### 3. Telle mottatte prøver
 
-Alle rader som passerer filter 1 og 2 ovenfor regnes som mottatte prøver. Dato-feltet `RECD_DATE` brukes for tidsserie/tidsfiltrering.
+Alle rader som passerer filter 1, 2 og 2b ovenfor regnes som mottatte prøver. Dato-feltet `RECD_DATE` brukes for tidsserie/tidsfiltrering.
 
 ### 4. Telle analyserte prøver
 
