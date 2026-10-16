@@ -97,11 +97,13 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 - 2.0: `NotAuth_*` tar med alt som ikke er A, også R (avvist) og X (kansellert). Det bryter `RG06`. *2.1-dev* fjerner dem (`E2.1-05`).
 - 2.0: tester med resultat "Ikke utført" telles som analysert. Det bryter `RG07`. *2.1-dev* fjerner dem (`E2.1-05`).
 - Hvis en bøtte ikke finnes for noen prøve, mangler kolonnen helt i F1 (`pivot_wider` lager bare kolonner som har data).
-- En test uten `BATCH` gir teksten `NA` i bøtta, det samme som "ingen test" etter `S08` (#48).
+- 2.0: en test uten `BATCH` ga teksten `NA` i bøtta, det samme som "ingen test". *2.1-dev* gir slike tester verdien `UTEN_BATCH` (#48, `E2.1-14`).
 
 ### S08 Bygg og skriv F1
 
 **Gjør:** `left_join` av prøvene (S04) med bøttene (S07), så alle prøver kommer med, også de uten tester. Gir `STATUS` nytt navn, `SAMPLE.STATUS`. Skriver F1.
+
+*2.1-dev (#48):* tomme bøtter blir `""`, ikke `NA`, så "ingen test" alltid er tom (`E2.1-15`). `NA` i de andre kolonnene (f.eks. `X_MEDICAL_REVIEW`) betyr fortsatt manglende informasjon.
 
 ### S09 Resultat-whitelist
 

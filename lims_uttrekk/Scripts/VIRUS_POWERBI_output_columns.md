@@ -51,7 +51,7 @@ Kun prøver som tilhører følgende faggrupper (`GROUP_NAME`) er inkludert:
 
 ### Kolonner avledet fra LIMS
 
-Alle `Auth_*`- og `NotAuth_*`-kolonner inneholder kommaseparerte batch-IDer dersom prøven har en eller flere tester av den aktuelle typen. Tom streng (`""`) betyr at prøven ikke har noen slik test registrert.
+Alle `Auth_*`- og `NotAuth_*`-kolonner inneholder kommaseparerte batch-IDer dersom prøven har en eller flere tester av den aktuelle typen. En test uten batch-ID står som `UTEN_BATCH`. Tom streng (`""`) betyr at prøven ikke har noen slik test registrert. Fra 2.1-dev står det aldri `NA` i disse kolonnene (#48), så regelen er: ikke tom = har test.
 
 > **Merk om godkjenning:** `X_TECH_REVIEW == "A"` betyr at analysen er teknisk godkjent i LIMS. Analyser som er ventende, avvist eller ikke vurdert vises i `NotAuth_*`-kolonnene.
 

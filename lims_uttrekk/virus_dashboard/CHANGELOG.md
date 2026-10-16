@@ -96,6 +96,7 @@ Fil 4 i utfil-dokumentasjonen (med oppsett i Power BI), `S16` og `P04` i `STEPS.
 | `vd/21-ekskluderte-tester` | #20, #21, #22 | `E2.1-02`, `E2.1-03`, `E2.1-05`, `E2.1-06`, `E2.1-08` | Ikke startet |
 | `vd/18-dokumenterte-filtre` | #18, #19, #24 | `E2.1-09`, `E2.1-10` | Ikke startet |
 | (main) | — | `E2.1-11` | Merget 2026-10-15 |
+| `vd/48-na-i-f1` | #48 | `E2.1-14`, `E2.1-15` | Merget, ikke i prod ennå |
 
 **Sammendrag:** flere analysekoder og en ny kategori for Sanger-sekvensering, genotyping og resistens, en ny fil (F3) som viser koder som mangler, fjerning av tester som ikke skal telles (R/X og "Ikke utført"), filtrering i databasen i stedet for i R, og riktige filterråd i dokumentasjonen.
 
@@ -111,6 +112,8 @@ Fil 4 i utfil-dokumentasjonen (med oppsett i Power BI), `S16` og `P04` i `STEPS.
 - [ ] (#22) `semi_join` virker mot viewene og er ikke tregere enn før
 - [ ] (#20, #21) F1: samme antall rader. Stikkprøve på en prøve med R/X-test og en med IU-test
 - [ ] (#21) F2: ingen `value` er IU / IkkeUtført
+- [ ] (#48) F1: ingen `NA` i `Auth_*` / `NotAuth_*`, og godkjente tester uten batch-ID står som `UTEN_BATCH`
+- [ ] (#48) Prøver med godkjent test per kategori i F1 stemmer med F4 (#42) for de siste fem årene
 - [ ] (alle) æøå ser ut som før i Power BI. For #23: prøvekolonnene i F1 og hele F2 er byte-identiske med 2.0, så ingen endring
 - [ ] (alle) Kjørt med samme R-versjon som serveren
 - [ ] (alle) `virus_dashboard_compare.R` kjørt mot forrige versjon, og tabellen limt inn under *Målt effekt*. Gjort for #23
@@ -284,6 +287,34 @@ Versjon satt til 2.1-dev. F3 i fillisten og ny seksjon "Fil 3". `Auth_SEQ_TYPING
 | **Saker** | #23, #37 |
 | **Steg / regler / filer** | Dokumentasjon. F1, F2, F3 |
 | **Krever PBI-endring** | Nei (men beskriver kolonnene PBI må ta inn, se `E2.1-12`) |
+
+### E2.1-14 Tester uten batch-ID får verdien `UTEN_BATCH`
+
+`S07` gir tester med tom eller manglende `BATCH` verdien `UTEN_BATCH` før batch-IDene slås sammen. Før ga `paste()` teksten `NA`, som ikke kunne skilles fra "ingen test".
+
+| | |
+|---|---|
+| **Saker** | #48 |
+| **Steg / regler / filer** | `S07`. `RG05`. F1 |
+| **Faggrupper** | Alle |
+| **Forventet effekt** | Antall rader i F1 uendret. Celler som i dag har `NA` for en godkjent eller ikke-godkjent test uten batch-ID, får `UTEN_BATCH`. Flere prøver telles som analysert hvis Power BI har behandlet `NA` som tom |
+| **Målt effekt** | Testet i testmiljøet, og skriptet virker. Tall er ikke registrert |
+| **Krever PBI-endring** | **Ja.** Sjekk om rapporten tester på teksten `"NA"`, og fjern det. Regelen er: ikke tom = har test |
+| **Bakoverkompatibel** | Ja, hvis rapporten bruker "ikke tom". Visninger som viser batch-ID, viser nå `UTEN_BATCH` |
+
+### E2.1-15 Tomme bøtter er tomme, ikke `NA`
+
+`S08` setter tomme `Auth_*`- og `NotAuth_*`-celler til `""` i stedet for `NA`, også for prøver uten klassifiserte tester. Bare bøttekolonnene endres. Utfil-dokumentasjonen beskriver regelen.
+
+| | |
+|---|---|
+| **Saker** | #48 |
+| **Steg / regler / filer** | `S08`, `P03`. F1 |
+| **Faggrupper** | Alle |
+| **Forventet effekt** | Antall rader i F1 uendret. `NA` i bøttekolonnene blir tom. Ingen endring i de andre kolonnene |
+| **Målt effekt** | Testet i testmiljøet, og skriptet virker. Tall er ikke registrert |
+| **Krever PBI-endring** | Samme sjekk som `E2.1-14` |
+| **Bakoverkompatibel** | Ja |
 
 ---
 
