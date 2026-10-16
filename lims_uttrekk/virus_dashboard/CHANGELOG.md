@@ -12,7 +12,7 @@ Nyeste versjon øverst.
 
 | Gren | Saker | Endringer | Status |
 |---|---|---|---|
-| `vd/23-analysekoder` | #23, #37 | `E2.1-01`, `E2.1-04`, `E2.1-07`, `E2.1-12`, `E2.1-13` | Pågår |
+| `vd/23-analysekoder` | #23, #37 | `E2.1-01`, `E2.1-04`, `E2.1-07`, `E2.1-12`, `E2.1-13` | Merget (#45), ikke i prod ennå |
 | `vd/21-ekskluderte-tester` | #20, #21, #22 | `E2.1-02`, `E2.1-03`, `E2.1-05`, `E2.1-06`, `E2.1-08` | Ikke startet |
 | `vd/18-dokumenterte-filtre` | #18, #19, #24 | `E2.1-09`, `E2.1-10` | Ikke startet |
 | (main) | — | `E2.1-11` | Merget 2026-10-15 |
@@ -26,7 +26,7 @@ Nyeste versjon øverst.
 - [ ] (#23) Stikkprøve på en prøve med `HAGEN1`
 - [x] (#23) F3: kodene som er lagt til i `E2.1-04` og `E2.1-12` er ikke med, og resten ser rimelige ut
 - [x] (#23, #38) Finnes `BVYPCR` i dataene, eller heter koden `INFBVY`? `BVYPCR` finnes ikke. `INFBVY` er den eldre koden for samme analyse som `INFBVYPCR`, og er lagt til
-- [ ] (#23) Ny testkjøring etter at `INFBVY` er lagt til: INFLUENSA `Auth_PCR` / `NotAuth_PCR` går opp, og `INFBVY` er borte fra F3
+- [ ] (#23) Ny testkjøring etter at `INFBVY` er lagt til: INFLUENSA `Auth_PCR` / `NotAuth_PCR` går opp, og `INFBVY` er borte fra F3. Måles ved første kjøring i prod
 - [ ] (#21) Hvordan "Ikke utført" faktisk ser ut i `ENTRY` / `FORMATTED_ENTRY` (juster mønsteret i `E2.1-03` ved behov)
 - [ ] (#22) `semi_join` virker mot viewene og er ikke tregere enn før
 - [ ] (#20, #21) F1: samme antall rader. Stikkprøve på en prøve med R/X-test og en med IU-test
