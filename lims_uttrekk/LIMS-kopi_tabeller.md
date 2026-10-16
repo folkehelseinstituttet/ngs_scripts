@@ -207,7 +207,7 @@ Den har følgende kolonner:
 
 # Resultater-tabellen
 
-`tbl(con, "RESULTS_VIEW")`.
+`tbl(con, "RESULT_VIEW")`.
 
 | Kolonne           | Beskrivelse       |
 |--------------------------|-----------------------|

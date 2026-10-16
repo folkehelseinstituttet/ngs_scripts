@@ -10,8 +10,8 @@ Telleregler og faglige beslutninger for Virus Dashboard. En regel sier **hva** s
 |---|---|---|---|---|
 | `RG01` | Bare de sju virusfaggruppene | Implementert 1.0 | `S04` | Opprinnelig kravnotat (nov. 2025) |
 | `RG02` | Ekskluder barneprøver | Vedtatt. Flagg i uttrekket, filter i PBI | `S04` (flagg), `P02` | Møte 2026-02-24 |
-| `RG03` | Ekskluder fryseprøver | Vedtatt. **Mangler i dokumentasjonen (2.0)** | `P02` | Møte 2026-02-24 |
-| `RG04` | Ekskluder kansellerte og avviste prøver | **Avvik i dokumentasjonen (2.0)** | `P02` | Møte 2026-02-24 |
+| `RG03` | Ekskluder fryseprøver | Vedtatt. Dokumentert fra 2.1-dev (#19). Power BI: #51 | `P02` | Møte 2026-02-24 |
+| `RG04` | Ekskluder kansellerte og avviste prøver | Vedtatt. Dokumentasjonen rettet fra 2.1-dev (#18). Power BI: #51 | `P02` | Møte 2026-02-24 |
 | `RG05` | Analysert = teknisk godkjent | Implementert 2.0 | `S07`, `P03` | Møte 2026-02-24 |
 | `RG06` | Tester med `X_TECH_REVIEW` R eller X telles ikke | **Avvik (2.0)**. Foreslått i 2.1-dev | `S13`, `S07`, `S10` | Møte 2026-03-20 |
 | `RG07` | Tester med resultat "Ikke utført" telles ikke | **Avvik (2.0)**. Foreslått i 2.1-dev | `S13`, `S07`, `S10` | Møte 2026-03-20 |
@@ -42,7 +42,7 @@ Telleregler og faglige beslutninger for Virus Dashboard. En regel sier **hva** s
 
 **Hvorfor:** fryseprøver er ekstrakter med eget LIMS-nummer (f.eks. de fleste influensaprøver). Tas de med, ser det ut som det har kommet inn omtrent dobbelt så mange prøver.
 
-**Avvik:** feltet eksporteres, men 2.0-dokumentasjonen anbefaler ikke filteret. Se `#19`, `E2.1-09`.
+**Rettet:** 2.0-dokumentasjonen anbefalte ikke filteret. Fra 2.1-dev er det filter 2b i utfil-dokumentasjonen (`#19`, `E2.1-09`). Power BI-siden: #51.
 
 ## RG04 Ekskluder kansellerte og avviste prøver
 
@@ -50,7 +50,7 @@ Telleregler og faglige beslutninger for Virus Dashboard. En regel sier **hva** s
 
 **Hvorfor:** kansellerte og avviste prøver er som regel feilregistreringer.
 
-**Avvik:** 2.0-dokumentasjonen sier at C og X skal ekskluderes. Hvis Power BI følger den, forsvinner alle ferdige prøver. Se `#18`, `E2.1-09`.
+**Rettet:** 2.0-dokumentasjonen sa at C og X skulle ekskluderes, så ferdige prøver forsvant hvis Power BI fulgte den. Fra 2.1-dev står X og R (`#18`, `E2.1-09`). Power BI-siden: #51.
 
 ## RG05 Analysert = teknisk godkjent
 
