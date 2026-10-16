@@ -300,6 +300,9 @@ ngs_info <- test %>%
   filter(!is.na(bucket)) %>%
   # Beholde relevante kolonner
   select(SAMPLE_NUMBER, bucket, BATCH) %>% 
+  # Tester uten batch-ID får en fast verdi, så en test alltid gir en ikke-tom celle.
+  # Ellers blir paste() til teksten "NA", som ikke kan skilles fra "ingen test" (#48)
+  mutate(BATCH = if_else(is.na(BATCH) | BATCH == "", "UTEN_BATCH", BATCH)) %>%
   # For hver SAMPLE_NUMBER og bucket, concatenate BATCH med komma
   group_by(SAMPLE_NUMBER, bucket) %>% 
   summarise(value = paste(unique(BATCH), collapse = ","), .groups = "drop") %>% 
@@ -311,7 +314,9 @@ ngs_info <- test %>%
   
 # [S08] Joine med sample-info
 final <- left_join(samples, ngs_info, by = c("SAMPLE_NUMBER" = "SAMPLE_NUMBER")) %>%
-  rename("SAMPLE.STATUS" = STATUS)
+  rename("SAMPLE.STATUS" = STATUS) %>%
+  # Prøver uten tester i en kategori får tom celle, ikke NA, så "ingen test" alltid er tom (#48)
+  mutate(across(matches("^(Auth|NotAuth)_"), ~ coalesce(.x, "")))
 
 # Write File 1: sample-level wide table
 write_tsv(final, outfile_F1)
