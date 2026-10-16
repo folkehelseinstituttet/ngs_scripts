@@ -15,6 +15,7 @@ Nyeste versjon øverst.
 | `vd/40-utelatte-koder` | #40 | `E2.2-01`, `E2.2-02`, `E2.2-03` | Merget (#47), ikke i prod ennå |
 | `vd/42-prove-kode-kobling` | #42 | `E2.2-04`, `E2.2-05` | Merget, ikke i prod ennå |
 | `vd/39-linjeskift-f2` | #39 | `E2.2-06` | Testet |
+| `vd/28-tilkoblingsfeil` | #28 | `E2.2-07` | Testet (bygger på `vd/39-linjeskift-f2`) |
 
 **Testsjekkliste**
 - [x] (#40) F5 finnes, med kodene i `excluded_codes`
@@ -23,6 +24,7 @@ Nyeste versjon øverst.
 - [x] (#40) `reason` i F5 er ren tekst uten tegnfeil (rettet til ASCII etter første testkjøring)
 - [x] (#42) F4 finnes, bare med prøver fra de siste fem årene, og uten kodene i F5
 - [x] (#42) Antall rader og filstørrelse i F4 er håndterbart for Power BI
+- [x] (#28) Vanlig kjøring: ingen `VIRUS_POWERBI_error.txt`, og utfilene som før
 - [x] (#39) F2 har ingen ødelagte rader (alle rader har 8 kolonner), og ellers samme innhold
 - [x] (#42) F1, F2, F3 og F5 er uendret (F3 byte-identisk med #40-kjøringen, F5 med samme koder og nå uten tegnfeil, F1 og F2 med samme filstørrelse)
 - [x] (#40) Ingen advarsel om koder både i en kategoriliste og i `excluded_codes`
@@ -100,6 +102,20 @@ Fil 4 i utfil-dokumentasjonen (med oppsett i Power BI), `S16` og `P04` i `STEPS.
 | **Målt effekt** | Testkjøring av `vd/28-tilkoblingsfeil` (som inneholder #39): alle 400 609 rader i F2 har 8 kolonner, ingen ødelagte rader og ingen parse-advarsel. Før var det 6 ødelagte rader fra 3 verdier med linjeskift |
 | **Krever PBI-endring** | Nei |
 | **Bakoverkompatibel** | Ja |
+
+### E2.2-07 Tilkoblingsfeil skrives til en egen fil, ikke til F1
+
+`S03` skriver feilmeldingen til `VIRUS_POWERBI_error.txt` (`errorfile`, deklarert i `S02`) i stedet for til F1, med tidspunkt. Utfilene fra forrige kjøring blir stående. Når tilkoblingen virker, slettes en gammel feilfil.
+
+| | |
+|---|---|
+| **Saker** | #28 |
+| **Steg / regler / filer** | `S02`, `S03`. F1 |
+| **Faggrupper** | Alle |
+| **Forventet effekt** | Ingen ved vanlig kjøring. Ved tilkoblingsfeil beholder Power BI gårsdagens data i stedet for å laste en feilmelding |
+| **Målt effekt** | Testkjøring av `vd/28-tilkoblingsfeil`: vanlig kjøring, ingen feilfil, og alle utfilene skrevet. Feilsiden (mislykket tilkobling) er bare testet i tørrkjøring: feilfila skrives med tidspunkt, F1 blir stående, og en gammel feilfil slettes ved neste vellykkede tilkobling |
+| **Krever PBI-endring** | Nei |
+| **Bakoverkompatibel** | Ja |
 ---
 
 ## 2.1-dev (under arbeid fra 2026-10-15)
@@ -128,8 +144,8 @@ Fil 4 i utfil-dokumentasjonen (med oppsett i Power BI), `S16` og `P04` i `STEPS.
 - [ ] (#22) `semi_join` virker mot viewene og er ikke tregere enn før
 - [ ] (#20, #21) F1: samme antall rader. Stikkprøve på en prøve med R/X-test og en med IU-test
 - [ ] (#21) F2: ingen `value` er IU / IkkeUtført
-- [ ] (#48) F1: ingen `NA` i `Auth_*` / `NotAuth_*`, og godkjente tester uten batch-ID står som `UTEN_BATCH`
-- [ ] (#48) Prøver med godkjent test per kategori i F1 stemmer med F4 (#42) for de siste fem årene
+- [x] (#48) F1: ingen `NA` i `Auth_*` / `NotAuth_*`, og godkjente tester uten batch-ID står som `UTEN_BATCH`
+- [x] (#48) Prøver med godkjent test per kategori i F1 stemmer med F4 (#42) for de siste fem årene
 - [ ] (alle) æøå ser ut som før i Power BI. For #23: prøvekolonnene i F1 og hele F2 er byte-identiske med 2.0, så ingen endring
 - [ ] (alle) Kjørt med samme R-versjon som serveren
 - [ ] (alle) `virus_dashboard_compare.R` kjørt mot forrige versjon, og tabellen limt inn under *Målt effekt*. Gjort for #23
@@ -314,7 +330,7 @@ Versjon satt til 2.1-dev. F3 i fillisten og ny seksjon "Fil 3". `Auth_SEQ_TYPING
 | **Steg / regler / filer** | `S07`. `RG05`. F1 |
 | **Faggrupper** | Alle |
 | **Forventet effekt** | Antall rader i F1 uendret. Celler som i dag har `NA` for en godkjent eller ikke-godkjent test uten batch-ID, får `UTEN_BATCH`. Flere prøver telles som analysert hvis Power BI har behandlet `NA` som tom |
-| **Målt effekt** | Testet i testmiljøet, og skriptet virker. Tall er ikke registrert |
+| **Målt effekt** | Testkjøring av `vd/28-tilkoblingsfeil` (som inneholder #48): 218 635 celler i bøttekolonnene har `UTEN_BATCH`, tester som før sto som `NA`. For prøvene mottatt de siste fem årene er antall prøver med godkjent test per kategori nå likt i F1 og F4 i alle kategorier (f.eks. PCR 60 175 i begge). Før manglet godkjente tester uten batch-ID i F1 |
 | **Krever PBI-endring** | **Ja.** Sjekk om rapporten tester på teksten `"NA"`, og fjern det. Regelen er: ikke tom = har test |
 | **Bakoverkompatibel** | Ja, hvis rapporten bruker "ikke tom". Visninger som viser batch-ID, viser nå `UTEN_BATCH` |
 
@@ -328,7 +344,7 @@ Versjon satt til 2.1-dev. F3 i fillisten og ny seksjon "Fil 3". `Auth_SEQ_TYPING
 | **Steg / regler / filer** | `S08`, `P03`. F1 |
 | **Faggrupper** | Alle |
 | **Forventet effekt** | Antall rader i F1 uendret. `NA` i bøttekolonnene blir tom. Ingen endring i de andre kolonnene |
-| **Målt effekt** | Testet i testmiljøet, og skriptet virker. Tall er ikke registrert |
+| **Målt effekt** | Testkjøring av `vd/28-tilkoblingsfeil`: ingen `NA` i de 14 bøttekolonnene. F1 er mindre (ca. 114 MB mot 128 MB), fordi `NA` er blitt tomme felt |
 | **Krever PBI-endring** | Samme sjekk som `E2.1-14` |
 | **Bakoverkompatibel** | Ja |
 

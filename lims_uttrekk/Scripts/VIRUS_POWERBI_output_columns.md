@@ -13,6 +13,8 @@ Skriptet produserer **to filer** som begge lastes inn i Power BI, og en tredje f
 
 Filene kobles i Power BI via `SAMPLE_NUMBER` (mange-til-én fra resultatfilen til prøvefilen).
 
+Hvis skriptet ikke får kontakt med LIMS, skrives feilen til `VIRUS_POWERBI_error.txt` i samme mappe, og filene fra forrige kjøring blir stående. Fila slettes ved neste vellykkede kjøring. Finnes den, er dataene fra en tidligere natt.
+
 ---
 
 Kun prøver som tilhører følgende faggrupper (`GROUP_NAME`) er inkludert:

@@ -75,6 +75,10 @@ outfile_F4 <- file.path(outpath, "VIRUS_POWERBI_sample_codes.tsv")
 #     Referanseliste, ikke koblet til prøver. Skrives i [S15]
 outfile_F5 <- file.path(outpath, "VIRUS_POWERBI_excluded_codes.tsv")
 
+# Ikke en datafil: skrives bare hvis tilkoblingen til LIMS feiler [S03], og slettes
+# når tilkoblingen virker. Utfilene fra forrige kjøring blir da stående (#28)
+errorfile <- file.path(outpath, "VIRUS_POWERBI_error.txt")
+
 ## ==================================================
 ## [S03] Establish connection to LIMS
 ## ==================================================
@@ -88,15 +92,20 @@ con <- tryCatch(
     )
   },
   error = function(e) {
+    # Skriv feilen til en egen fil, ikke til F1, så Power BI ikke laster en feilmelding som data (#28)
     cat(
       "ERROR: Unable to connect to database.\n",
+      "Time: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n",
       "Environment: ", run_env, "\n",
-      "Message: ", e$message, "\n", 
-      file = outfile_F1
+      "Message: ", e$message, "\n",
+      file = errorfile
     )
     stop("Connection failed")
   }
 )
+
+# Tilkoblingen virker: fjern en gammel feilfil, så den ikke blir stående
+if (file.exists(errorfile)) file.remove(errorfile)
 
 ## ==================================================
 ## Extract data from LIMS

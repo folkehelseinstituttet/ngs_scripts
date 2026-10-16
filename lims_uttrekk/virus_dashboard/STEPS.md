@@ -53,14 +53,14 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 ### S02 Les variabler og sett utfilnavn
 
-**Gjør:** leser miljøvariablene og stopper hvis `OUTDIR` ikke finnes. Setter alle utfilene samlet: `outpath` (`<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk`) og `outfile_F1` … `outfile_F5`, hver med en kommentar om innhold, formål og hvilket steg som skriver den. Nye utfiler skal deklareres her, med neste ledige F-kode.
+**Gjør:** leser miljøvariablene og stopper hvis `OUTDIR` ikke finnes. Setter alle utfilene samlet: `outpath` (`<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk`) og `outfile_F1` … `outfile_F5`, hver med en kommentar om innhold, formål og hvilket steg som skriver den. Nye utfiler skal deklareres her, med neste ledige F-kode. Feilfila `errorfile` er også her, men har ingen F-kode, fordi den ikke er en datafil (#28).
 
 ### S03 Koble til LIMS
 
 **Gjør:** åpner ODBC-tilkoblingen til LIMS-kopien.
 
 **Kjente svakheter**
-- Hvis tilkoblingen feiler, skriver `tryCatch` feilmeldingen **inn i F1**. Power BI laster da en feilmelding som data, og forrige gyldige F1 er borte. Se `#28`.
+- 2.0: hvis tilkoblingen feilet, skrev `tryCatch` feilmeldingen **inn i F1**, så Power BI lastet en feilmelding som data. *2.2-dev (#28):* feilen skrives til `VIRUS_POWERBI_error.txt` (`errorfile`), og utfilene fra forrige kjøring blir stående. Når tilkoblingen virker, slettes en gammel feilfil.
 - Tekst fra ODBC kommer som Windows-1252, ikke UTF-8. stringr/ICU feiler på æøå. Bruk base-funksjoner med `useBytes = TRUE`, eller konverter først. Se `E2.1-03`.
 
 ### S04 Hent prøver
