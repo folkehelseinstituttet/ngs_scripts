@@ -81,7 +81,7 @@ Dashboardet viser aggregerte tall, aldri resultater for enkeltpasienter. F2 inne
 
 En test kommer bare med i F1 og får bare `analysis_category` i F2 hvis koden står i en av listene i `S06`.
 
-**Konsekvens:** nye eller manglende koder blir usynlige (f.eks. `INFBVY`, forløperen til `INFBVYPCR`, i ti år; #23). Når en analyse får ny kode, må den gamle koden stå i listen så lenge historiske tall skal vises. F3 (`S14`, `E2.1-07`) viser hvilke koder som mangler, og må sjekkes når faggruppene tar i bruk nye analyser.
+**Konsekvens:** nye eller manglende koder blir usynlige (f.eks. `INFBVY`, den eldre koden for samme analyse som `INFBVYPCR`; #23). Når en analyse får ny kode, må den gamle koden stå i listen så lenge historiske tall skal vises. F3 (`S14`, `E2.1-07`) viser hvilke koder som mangler, og må sjekkes når faggruppene tar i bruk nye analyser.
 
 **Slik legges en kode inn:** bare når tilhørigheten er klar (variant eller søsken av en kode som står i en liste, eller et navn som sier hva det er). Ellers samles den i en avklaringssak (som #38) til faggruppen eller LIMS-forvaltningen har svart. En kode skal bare stå i én liste.
 

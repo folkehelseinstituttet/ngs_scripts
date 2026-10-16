@@ -116,7 +116,7 @@ test <- tbl(con, "TEST_VIEW") %>%
 ngs_seq_codes <- c("NGS", "SC2_NGS", "MPX_WGS", "SC2_WGS", "INF_WGS", "RSV_WGS",
                    "ROV_WGS", "HPV_WGS", "UKJVIRUS_WGS", "HCRES_NGS", "HCVNGS",
                    "HCGEN_NGS", "HCVNGS_PROSJ", "SC2_VAR_NGS",
-                   # Lagt til fra Fil 3 2026-10-15 (#23)
+                   # Lagt til fra Fil 3 (#23)
                    "EV_WGS", "HBV_WGS")
 
 extraction_codes <- c("EKSTRAKSJON", "EKSTR", "EXT", "EXTPRI", "EXTFLU", "EXTNEP",
@@ -131,7 +131,7 @@ pcr_codes <- c(
   # Influensa
   "INFABPCR", "INFA_TRICDC", "INFB_TRICDC", "SC2_TRICDC", "INFSC2",
   "INFAH1H3", "INFBVYPCR", "INFB_VIC", "INFB_YAM",
-  # INFBVY er forløperen til INFBVYPCR (i bruk 2014-11 til 2025-09). Lagt til 2026-10-16 (#23)
+  # INFBVY er den eldre koden for samme analyse som INFBVYPCR (#23)
   "INFBVY",
   "IAH1C1", "IAH3C1", "IACDC1", "IBCDC1", "IASAC1",
   "INAH5A", "INAH5B", "INFAH9", "INFAN9", "H7VLA2", "RNPPCR",
@@ -162,7 +162,7 @@ pcr_codes <- c(
   "YFVPCR", "TBEPCR",
   # HPV
   "HPV_QPCR", "HPV_LUMINEX",
-  # Lagt til fra Fil 3 2026-10-15 (#23)
+  # Lagt til fra Fil 3 (#23)
   "ROTARIX_PCR", "ROVPCR", "OPXVPCR"
 )
 
@@ -187,14 +187,14 @@ serology_codes <- c(
   "ZIKGIF", "ZIKMIF", "ZIGEUR", "ZIMEUR",
   "HANGIF", "HANMIF", "SFVGIF", "SFVMIF", "SINGIF", "SINMIF",
   "DEGEUR", "DEMEUR", "CHIMEUR", "CHIGEUR",
-  # Lagt til fra Fil 3 2026-10-15 (#23): varianter (_BG, _FORT, 71, WB-strips) av koder over
+  # Lagt til fra Fil 3 (#23): varianter (_BG, _FORT, 71, WB-strips) av koder over
   "HBCPIE_BG", "HCVB_BG", "HBSEU_BG", "HIAGB_BG", "HIIE_BG",
   "HIAGNB_FORT", "HBSNEU_FORT", "HCVB71", "HAIF71",
   "HIGWB_STRIP", "HIGWB_ENV", "HIGWB_GAG", "HIGWB_POL", "HIGWB_HIV2",
   "PAMENZ", "PAGENZ"
 )
 
-# Sanger-sekvensering, genotyping og resistens (ikke NGS). Lagt til 2026-10-15 (#37).
+# Sanger-sekvensering, genotyping og resistens (ikke NGS) (#37).
 # HCRES_NS*-kodene (én per legemiddel) er bevisst utelatt: de er delresultater av samme analyse (RG12).
 seq_typing_codes <- c(
   # Genotyping
