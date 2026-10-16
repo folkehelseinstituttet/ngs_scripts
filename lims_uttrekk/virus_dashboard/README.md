@@ -21,7 +21,8 @@ LIMS-kopi (SQL Server)
   SAMPLE_VIEW ─┐
   TEST_VIEW  ──┼─> virus_dashboard.R ─┬─> F1  VIRUS_POWERBI_lw_uttrekk.tsv   (én rad per prøve)
   RESULT_VIEW ─┘                      ├─> F2  VIRUS_POWERBI_results.tsv      (én rad per resultat)
-                                      └─> F3  VIRUS_POWERBI_unclassified_codes.tsv  (fra 2.1-dev)
+                                      ├─> F3  VIRUS_POWERBI_unclassified_codes.tsv  (fra 2.1-dev)
+                                      └─> F5  VIRUS_POWERBI_excluded_codes.tsv      (fra 2.2-dev)
                                                    │
                                                    v
                                       Power BI: Virus Dashboard (F1 1:* F2 på SAMPLE_NUMBER)
@@ -40,7 +41,7 @@ Alle ting som skal kunne refereres har en fast kode. Kodene endres aldri, og gje
 | `RG##` | **Regel**: telleregel eller faglig beslutning | `RG03` Ekskluder fryseprøver | `RULES.md` |
 | `#nn` | **Sak** på GitHub (`folkehelseinstituttet/ngs_scripts`, etikett `virus-dashboard`). De midlertidige ID-ene `NY-01`–`NY-19` er nå `#18`–`#36` | `#20` R/X-tester telles som NotAuth | GitHub, `ISSUES.md` |
 | `E<versjon>-##` | **Endring** som er implementert eller foreslått i en versjon | `E2.1-03` Fjern R/X-tester før bøtteinndeling | `CHANGELOG.md` |
-| `F1`–`F3` | **Utfil** | `F2` = `VIRUS_POWERBI_results.tsv` | `STEPS.md` |
+| `F1`–`F5` | **Utfil** | `F2` = `VIRUS_POWERBI_results.tsv` | `STEPS.md` |
 
 Bruk kodene i commit-meldinger, PR-er, saker og kodekommentarer, f.eks. `E2.1-06 (#17, RG07): fjern IU-tester fra F2`. Da kan man søke seg fra en sak til koden og tilbake.
 

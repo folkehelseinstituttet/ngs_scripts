@@ -23,7 +23,8 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 | `S11` | Analysekategori og skriv F2 | `results_file2`, kodelister | **F2** | `RG12` |
 | `S12` | Lukk tilkobling | — | — | — |
 | `S13` | *2.1-dev:* Finn tester som ikke skal telles | `test`, `results` | `excluded_tests` | `RG06`, `RG07` |
-| `S14` | *2.1-dev (#23):* Bygg og skriv F3 | `test`, `samples`, kodelister | **F3** | `RG09`, `RG12` |
+| `S14` | *2.1-dev (#23):* Bygg og skriv F3 | `test`, `samples`, kodelister, `excluded_codes` | **F3** | `RG09`, `RG12`, `RG13` |
+| `S15` | *2.2-dev (#40):* Koder som bevisst ikke telles, og skriv F5 | — | `excluded_codes`, `category_codes`, **F5** | `RG13` |
 | `P01` | Relasjon F1–F2 | F1, F2 | Datamodell | — |
 | `P02` | Default-filtre for prøver | F1 | — | `RG02`, `RG03`, `RG04` |
 | `P03` | Telle analyserte prøver | F1 | Measures | `RG05`, `RG08` |
@@ -35,6 +36,7 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 | `F1` | `VIRUS_POWERBI_lw_uttrekk.tsv` | Én rad per prøve | `S08` |
 | `F2` | `VIRUS_POWERBI_results.tsv` | Én rad per resultatverdi | `S11` |
 | `F3` | `VIRUS_POWERBI_unclassified_codes.tsv` (*2.1-dev*, #23) | Én rad per faggruppe × analysekode. Vedlikeholdsfil, ikke til dashboardet | `S14` |
+| `F5` | `VIRUS_POWERBI_excluded_codes.tsv` (*2.2-dev*, #40) | Én rad per analysekode. Koder som bevisst ikke telles, ikke koblet til prøver | `S15` |
 
 Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [`../Scripts/VIRUS_POWERBI_output_columns.md`](../Scripts/VIRUS_POWERBI_output_columns.md).
 
@@ -132,10 +134,22 @@ Brukes i S07 og S10.
 **Gjør:** teller alle analysekoder på virusprøver som ikke står i noen liste i S06, per faggruppe (prøvens `GROUP_NAME`): `n_tests`, `n_samples`, `last_change` (siste `CHANGED_ON`, NA hvis ingen test har dato).
 
 **Merk**
+- *2.2-dev (#40):* koder i `excluded_codes` (`S15`) er ikke med, så F3 bare viser koder som ikke er avklart.
 - F3 filtrerer selv til virusprøvene (`samples_sample_number`), fordi `test` i 2.0 inneholder hele `TEST_VIEW`. Filteret blir overflødig, men ufarlig, når #22 filtrerer i databasen.
 - F3 er ellers ikke filtrert som dashboardet. Den tar med barne-, fryse- og kansellerte prøver og tester med R/X eller IU, så ingen kode går tapt.
 - Den inneholder bare aggregerte tall, og er en vedlikeholdsfil, ikke en del av dashboardet.
 - `last_change` bruker `CHANGED_ON[NA_integer_]` i stedet for `NA` når alle datoer mangler, så kolonnen har samme type i alle grupper uansett dplyr-versjon.
+
+### S15 Koder som bevisst ikke telles, og skriv F5 (*2.2-dev*, #40)
+
+**Gjør:** to seksjoner i koden.
+- Rett etter kodelistene (`S06`): en hardkodet liste `excluded_codes` med analysekode og begrunnelse (`RG13`), og `category_codes`, alle koder som står i en kategoriliste. Hvis en kode står i begge, gir skriptet en advarsel, og koden telles.
+- Etter F3: skriver lista til F5.
+
+**Merk**
+- Bare eksakte koder, ingen mønstre. En ny administrativ eller utgått kode dukker derfor opp i F3 til noen legger den inn.
+- Lista påvirker bare F3 (og senere F4, #42). F1 og F2 er uendret, fordi de bare teller koder i kategorilistene.
+- Per-legemiddel-kodene `HCRES_NS*` står ikke i lista. De blir stående i F3 (`RG12`).
 
 ---
 

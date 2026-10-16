@@ -6,6 +6,57 @@ Nyeste versjon øverst.
 
 ---
 
+## 2.2-dev (under arbeid)
+
+**Status:** ikke i prod. Milepæl [*Virus Dashboard 2.2*](https://github.com/folkehelseinstituttet/ngs_scripts/milestone/2). Deler av 2.1 (#20–#22, #18, #19, #24) er ikke ferdige ennå, så skripthodet sier fortsatt 2.1-dev, med en egen linje for 2.2.
+
+| Gren | Saker | Endringer | Status |
+|---|---|---|---|
+| `vd/40-utelatte-koder` | #40 | `E2.2-01`, `E2.2-02`, `E2.2-03` | Pågår |
+
+**Testsjekkliste**
+- [ ] (#40) F5 finnes, med kodene i `excluded_codes`
+- [ ] (#40) F3 har ingen av kodene i F5, og ellers de samme kodene som før
+- [ ] (#40) F1 og F2 er uendret (`virus_dashboard_compare.R`)
+- [ ] (#40) Ingen advarsel om koder både i en kategoriliste og i `excluded_codes`
+
+### E2.2-01 Liste over koder som bevisst ikke telles
+
+Nytt steg `S15`. Hardkodet liste `excluded_codes` med eksakte analysekoder og begrunnelse: administrative koder og arbeidsflyt (inkludert `N_*4KOM`-kodene) og utgåtte `Z_`-koder. Ny vektor `category_codes` med alle koder i kategorilistene, og en advarsel hvis en kode står begge steder.
+
+| | |
+|---|---|
+| **Saker** | #40 |
+| **Steg / regler / filer** | `S15` (nytt). `RG13` (ny) |
+| **Faggrupper** | Alle |
+| **Forventet effekt** | Ingen på F1 og F2 |
+| **Krever PBI-endring** | Nei |
+
+### E2.2-02 F3 tar ikke med koder som bevisst ikke telles, og F5 skrives
+
+`S14` filtrerer bort kodene i `excluded_codes`. `S15` skriver `VIRUS_POWERBI_excluded_codes.tsv` (F5) med kolonnene `ANALYSIS`, `reason` og `rule`.
+
+| | |
+|---|---|
+| **Saker** | #40 |
+| **Steg / regler / filer** | `S14`, `S15`. `RG13`. F3, F5 (ny) |
+| **Faggrupper** | Alle |
+| **Forventet effekt** | F3 blir mindre: kodene i lista er borte, resten er uendret. F5 er ny. F1 og F2 uendret |
+| **Målt effekt** | *Fylles inn etter test* |
+| **Krever PBI-endring** | Nei. F5 kan lastes som referansetabell hvis det er ønskelig |
+| **Bakoverkompatibel** | Ja |
+
+### E2.2-03 Dokumentasjon av F5 og RG13
+
+Fil 5 i utfil-dokumentasjonen, `S15` i `STEPS.md`, `RG13` i `RULES.md`, og F5 i oversikten i `README.md`.
+
+| | |
+|---|---|
+| **Saker** | #40 |
+| **Krever PBI-endring** | Nei |
+
+---
+
 ## 2.1-dev (under arbeid fra 2026-10-15)
 
 **Status:** ikke i prod. Milepæl [*Virus Dashboard 2.1*](https://github.com/folkehelseinstituttet/ngs_scripts/milestone/1). Endringene er delt i én gren per sak, og 2.1 er ferdig når alle grenene er merget:

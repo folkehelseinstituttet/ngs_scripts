@@ -8,6 +8,7 @@ Skriptet produserer **to filer** som begge lastes inn i Power BI, og en tredje f
 | `VIRUS_POWERBI_lw_uttrekk.tsv` | Tab-separert, én rad per prøve (wide) | Prøvenivå |
 | `VIRUS_POWERBI_results.tsv` | Tab-separert, én rad per resultat (long) | Resultatnivå |
 | `VIRUS_POWERBI_unclassified_codes.tsv` | Tab-separert, én rad per faggruppe og analysekode | Aggregert (kun tellinger). Ikke til Dashboardet |
+| `VIRUS_POWERBI_excluded_codes.tsv` | Tab-separert, én rad per analysekode | Liste over koder som bevisst ikke telles. Ikke koblet til prøver |
 
 Filene kobles i Power BI via `SAMPLE_NUMBER` (mange-til-én fra resultatfilen til prøvefilen).
 
@@ -123,6 +124,24 @@ Merk:
 - Lista er **ikke** en feilliste. Mange koder er administrative og skal bevisst ikke klassifiseres. Faggruppen avgjør per kode om den skal inn i en liste eller ignoreres.
 - Fila er **ufiltrert** innenfor virusprøvene: den inkluderer barneprøver, fryseprøver, kansellerte prøver og tester med R/X eller "Ikke utført", slik at ingen koder blir oversett. Tallene er derfor høyere enn i Dashboardet.
 - Den viser bare koder som mangler i listene, ikke koder som står i listene men aldri brukes (eller er feilstavet).
+- Koder som bevisst ikke telles (Fil 5), er ikke med.
+
+---
+
+## Fil 5: `VIRUS_POWERBI_excluded_codes.tsv`
+
+Liste over analysekoder som bevisst ikke telles, for eksempel administrative koder og utgåtte koder. Lista er hardkodet i `virus_dashboard.R` og skrives ut hver natt, så fila alltid viser det skriptet faktisk gjør. Den er ikke koblet til prøver, og kan lastes i Power BI som en egen referansetabell.
+
+| Kolonne | Beskrivelse |
+|---|---|
+| `ANALYSIS` | Analysekode. |
+| `reason` | Hvorfor koden ikke telles, f.eks. `Administrativ` eller `Utgått kode`. |
+| `rule` | Regelen som gjelder (`RG13`). |
+
+Merk:
+
+- Kodene i Fil 5 står ikke i noen kategori, telles ikke i `Auth_*`/`NotAuth_*`, og er ikke med i Fil 3.
+- Hver analysekode står ett sted: i en kategori (telles), i Fil 5 (bevisst utelatt), eller i Fil 3 (ikke avklart ennå).
 
 ---
 
