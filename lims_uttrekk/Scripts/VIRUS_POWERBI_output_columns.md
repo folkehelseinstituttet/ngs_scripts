@@ -145,7 +145,7 @@ Merk:
 
 - Bare prøver mottatt de siste fem årene (rullerende, etter `RECD_DATE`). Prøver uten mottaksdato er ikke med.
 - Koder i Fil 5 er ikke med.
-- Fila har ingen pasient-ID og ingen resultater. `PATIENT` fra Fil 1 skal ikke vises i visninger av enkeltprøver.
+- Fila har ingen pasient-ID og ingen resultater. Resultater for en prøve hentes fra Fil 2 (tillatt fra #53). `PATIENT` fra Fil 1 skal ikke vises i visninger av enkeltprøver.
 - Tester med `X_TECH_REVIEW` R eller X, og tester med resultat "Ikke utført", er foreløpig med i `n_tests`, som i Fil 1.
 
 ### Oppsett i Power BI

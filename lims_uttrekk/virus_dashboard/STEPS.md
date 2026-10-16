@@ -183,8 +183,8 @@ Skal implementere `RG02` (barneprøver), `RG03` (fryseprøver) og `RG04` (kansel
 
 ### P03 Telle analyserte prøver
 
-En prøve regnes som analysert i en kategori hvis `Auth_<kategori>` ikke er tom (`RG05`). Dashboardet viser tellinger, og enkeltprøver bare med prøvenummer og analysekoder, uten `PATIENT` (`RG08`).
+En prøve regnes som analysert i en kategori hvis `Auth_<kategori>` ikke er tom (`RG05`). Dashboardet viser tellinger, og enkeltprøver med prøvenummer, analysekoder og resultater, uten `PATIENT` (`RG08`).
 
 ### P04 Fra analysekode til prøver, og fra prøve til analysekoder (*2.2-dev*, #42)
 
-Utsnitt på `F4[ANALYSIS]` som filtrerer F1, og en tabell over F4 for valgt prøve. Relasjonen F1–F4 må filtrere begge veier, eller et measure må håndtere det. `PATIENT` vises ikke, og eksport er blokkert (`RG08`, #43).
+Utsnitt på `F4[ANALYSIS]` som filtrerer F1, og en tabell over F4 for valgt prøve. Relasjonen F1–F4 må filtrere begge veier, eller et measure må håndtere det. Resultatene for valgt prøve kan vises fra F2, som er koblet til F1 på `SAMPLE_NUMBER` (#53). `PATIENT` vises ikke, alle visninger av enkeltprøver dekker de siste fem årene, og eksport er blokkert (`RG08`, #43).

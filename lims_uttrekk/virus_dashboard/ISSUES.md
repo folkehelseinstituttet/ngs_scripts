@@ -69,5 +69,6 @@ Milepæler samler sakene som løses i en versjon (f.eks. *Virus Dashboard 2.1*).
 | `#46` | | Whitelist-feltet "Kvalitet på sekvensen" kommer aldri med i F2 | Uttrekk | `S09`, `S10`, F2. Trolig tegnkoding (#32). Finnes fra 2.0 |
 | `#48` | | F1: "NA" betyr både "ingen test" og "test uten batch-ID" | Begge | `S07`, `S08`, `P03`, `RG05`, F1. Funnet ved sammenligning med F4. Finnes fra 2.0. 2.1 |
 | `#51` | | Default-filtre i Power BI: behold ferdige prøver, ta bort fryseprøver | PBI | `P02`, `RG02`–`RG04`. Power BI-delen av #18, #19. 2.1 |
+| `#53` | | Regelendring: resultater for enkeltprøver kan vises i dashboardet | Begge | `RG08`, `RG10`, F2, `P04`. Besluttet. Lukket |
 
 **Ny sak:** opprett den på GitHub med malen *Virus Dashboard* (tittel `[VD] …`, etiketten `virus-dashboard` settes automatisk). Sett side-, type- og statusetiketter, og legg til en rad her hvis saken berører steg, regler eller endringer.
