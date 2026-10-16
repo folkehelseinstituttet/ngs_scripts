@@ -96,7 +96,7 @@ Fil 4 i utfil-dokumentasjonen (med oppsett i Power BI), `S16` og `P04` i `STEPS.
 | `vd/21-ekskluderte-tester` | #20, #21, #22 | `E2.1-02`, `E2.1-03`, `E2.1-05`, `E2.1-06`, `E2.1-08` | Ikke startet |
 | `vd/18-dokumenterte-filtre` | #18, #19, #24 | `E2.1-09`, `E2.1-10` | Ikke startet |
 | (main) | — | `E2.1-11` | Merget 2026-10-15 |
-| `vd/48-na-i-f1` | #48 | `E2.1-14`, `E2.1-15` | Pågår |
+| `vd/48-na-i-f1` | #48 | `E2.1-14`, `E2.1-15` | Merget, ikke i prod ennå |
 
 **Sammendrag:** flere analysekoder og en ny kategori for Sanger-sekvensering, genotyping og resistens, en ny fil (F3) som viser koder som mangler, fjerning av tester som ikke skal telles (R/X og "Ikke utført"), filtrering i databasen i stedet for i R, og riktige filterråd i dokumentasjonen.
 
@@ -298,7 +298,7 @@ Versjon satt til 2.1-dev. F3 i fillisten og ny seksjon "Fil 3". `Auth_SEQ_TYPING
 | **Steg / regler / filer** | `S07`. `RG05`. F1 |
 | **Faggrupper** | Alle |
 | **Forventet effekt** | Antall rader i F1 uendret. Celler som i dag har `NA` for en godkjent eller ikke-godkjent test uten batch-ID, får `UTEN_BATCH`. Flere prøver telles som analysert hvis Power BI har behandlet `NA` som tom |
-| **Målt effekt** | *Fylles inn etter test* |
+| **Målt effekt** | Testet i testmiljøet, og skriptet virker. Tall er ikke registrert |
 | **Krever PBI-endring** | **Ja.** Sjekk om rapporten tester på teksten `"NA"`, og fjern det. Regelen er: ikke tom = har test |
 | **Bakoverkompatibel** | Ja, hvis rapporten bruker "ikke tom". Visninger som viser batch-ID, viser nå `UTEN_BATCH` |
 
@@ -312,7 +312,7 @@ Versjon satt til 2.1-dev. F3 i fillisten og ny seksjon "Fil 3". `Auth_SEQ_TYPING
 | **Steg / regler / filer** | `S08`, `P03`. F1 |
 | **Faggrupper** | Alle |
 | **Forventet effekt** | Antall rader i F1 uendret. `NA` i bøttekolonnene blir tom. Ingen endring i de andre kolonnene |
-| **Målt effekt** | *Fylles inn etter test* |
+| **Målt effekt** | Testet i testmiljøet, og skriptet virker. Tall er ikke registrert |
 | **Krever PBI-endring** | Samme sjekk som `E2.1-14` |
 | **Bakoverkompatibel** | Ja |
 
