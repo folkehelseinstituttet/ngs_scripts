@@ -11,7 +11,7 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 | Kode | Steg | Leser | Skriver | Regler |
 |---|---|---|---|---|
 | `S01` | Valider miljøvariabler | Miljø | — | — |
-| `S02` | Les variabler og sett utfilnavn | Miljø | `outfile`, `outfile2` | — |
+| `S02` | Les variabler og sett utfilnavn | Miljø | `outpath`, `outfile_F1` … `outfile_F5` | — |
 | `S03` | Koble til LIMS | SQL Server | `con` | — |
 | `S04` | Hent prøver | `SAMPLE_VIEW` | `samples`, `samples_sample_number` | `RG01`, flagg for `RG02` |
 | `S05` | Hent tester | `TEST_VIEW` | `test` | — |
@@ -53,7 +53,7 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 ### S02 Les variabler og sett utfilnavn
 
-**Gjør:** leser miljøvariablene og stopper hvis `OUTDIR` ikke finnes. Setter stiene til F1 og F2 (og F3 fra 2.1-dev).
+**Gjør:** leser miljøvariablene og stopper hvis `OUTDIR` ikke finnes. Setter alle utfilene samlet: `outpath` (`<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk`) og `outfile_F1` … `outfile_F5`, hver med en kommentar om innhold, formål og hvilket steg som skriver den. Nye utfiler skal deklareres her, med neste ledige F-kode.
 
 ### S03 Koble til LIMS
 

@@ -78,7 +78,7 @@ Nytt steg `S16`. `VIRUS_POWERBI_sample_codes.tsv`: én rad per prøve og analyse
 
 ### E2.2-05 Dokumentasjon av F4
 
-Fil 4 i utfil-dokumentasjonen (med oppsett i Power BI), `S16` og `P04` i `STEPS.md`, F4 i `RULES.md` (`RG08`, `RG13`) og i oversikten i `README.md`. Variablene for utfilene heter nå `outfile_F1` … `outfile_F5`, etter kodene i dokumentasjonen.
+Fil 4 i utfil-dokumentasjonen (med oppsett i Power BI), `S16` og `P04` i `STEPS.md`, F4 i `RULES.md` (`RG08`, `RG13`) og i oversikten i `README.md`. Variablene for utfilene heter nå `outfile_F1` … `outfile_F5`, etter kodene i dokumentasjonen, og alle er deklarert samlet i `S02` med en kommentar om innhold og formål. Stiene er uendret.
 
 | | |
 |---|---|
