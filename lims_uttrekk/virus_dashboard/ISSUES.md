@@ -60,5 +60,6 @@ Milepæler samler sakene som løses i en versjon (f.eks. *Virus Dashboard 2.1*).
 | `#36` | NY-19 | Bruke `SAMPLE.STATUS` / `X_MEDICAL_REVIEW` til å finne prøver som "henger" | PBI | `RG05` |
 | `#37` | | Ny kategori SEQ_TYPING (Sanger, genotyping, resistens) | Begge | `S06`, `S07`, `S11`, `RG12`, `E2.1-12`. Del av #23. Krever PBI-endring (nye kolonner) |
 | `#38` | | Avklare usikre analysekoder fra første F3-kjøring | Uttrekk | `S06`, `RG09`. Oppfølging av #23. Spørsmål til faggruppene og LIMS-forvaltningen (`N_`-prefiks, suffikser, `INFBVY`) |
+| `#39` | | Linjeskift i resultatverdier ødelegger rader i F2 | Uttrekk | `S10`, F2. Finnes fra 2.0 |
 
 **Ny sak:** opprett den på GitHub med malen *Virus Dashboard* (tittel `[VD] …`, etiketten `virus-dashboard` settes automatisk). Sett side-, type- og statusetiketter, og legg til en rad her hvis saken berører steg, regler eller endringer.

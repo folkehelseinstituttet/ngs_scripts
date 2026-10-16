@@ -22,16 +22,17 @@ Nyeste versjon øverst.
 **Samlet effekt (forventet):** F1 har like mange rader som før. Innholdet i `Auth_*` og `NotAuth_*` endres, og `Auth_SEQ_TYPING` / `NotAuth_SEQ_TYPING` er nye. F2 får færre rader. F3 er ny. Power BI må endre default-filtrene (`P02`) og ta inn de nye kolonnene.
 
 **Testsjekkliste**
-- [ ] (#23) F1: samme antall rader som 2.0, og `*_SEQ_TYPING`-kolonnene finnes. Stikkprøve på en prøve med `HAGEN1`
-- [ ] (#23) F3: kodene som er lagt til i `E2.1-04` og `E2.1-12` er ikke med, og resten ser rimelige ut
-- [ ] (#23, #38) Finnes `BVYPCR` i dataene, eller heter koden `INFBVY`?
+- [x] (#23) F1: samme antall rader som 2.0 (944 719), og `*_SEQ_TYPING`-kolonnene finnes
+- [ ] (#23) Stikkprøve på en prøve med `HAGEN1`
+- [x] (#23) F3: kodene som er lagt til i `E2.1-04` og `E2.1-12` er ikke med, og resten ser rimelige ut
+- [ ] (#23, #38) Finnes `BVYPCR` i dataene, eller heter koden `INFBVY`? Ingen endring i INFLUENSA-PCR, og `INFBVY` står i F3. Må avklares
 - [ ] (#21) Hvordan "Ikke utført" faktisk ser ut i `ENTRY` / `FORMATTED_ENTRY` (juster mønsteret i `E2.1-03` ved behov)
 - [ ] (#22) `semi_join` virker mot viewene og er ikke tregere enn før
 - [ ] (#20, #21) F1: samme antall rader. Stikkprøve på en prøve med R/X-test og en med IU-test
 - [ ] (#21) F2: ingen `value` er IU / IkkeUtført
-- [ ] (alle) æøå ser ut som før i Power BI
+- [ ] (alle) æøå ser ut som før i Power BI. For #23: prøvekolonnene i F1 og hele F2 er byte-identiske med 2.0, så ingen endring
 - [ ] (alle) Kjørt med samme R-versjon som serveren
-- [ ] (alle) `virus_dashboard_compare.R` kjørt mot forrige versjon, og tabellen limt inn under *Målt effekt*
+- [ ] (alle) `virus_dashboard_compare.R` kjørt mot forrige versjon, og tabellen limt inn under *Målt effekt*. Gjort for #23
 
 ### E2.1-01 Versjon i skripthodet
 
@@ -90,10 +91,10 @@ Usikre koder er ikke lagt inn. De er samlet i #38.
 | **Steg / regler / filer** | `S06`. `RG09`. F1, F3 |
 | **Faggrupper** | Mest HEP_HIV (serologivariantene), deretter MMR (`PAMENZ`, `PAGENZ`), ROTA (`ROTARIX_PCR`, `ROVPCR`), POL_ENT (`EV_WGS`) og INFLUENSA (`BVYPCR`) |
 | **Forventet effekt** | Antall rader i F1 uendret. Flere prøver med noe i `Auth_SEROLOGY` / `NotAuth_SEROLOGY`, `*_PCR` og `*_NGS_SEQ`. Størrelse fra F3-kjøringen (alle år, ufiltrert, tester, ikke prøver): ca. 12 300 serologitester, 1 500 PCR-tester og 120 NGS-tester. Kodene forsvinner fra F3. F2 uendret, fordi ingen av kodene står i whitelisten (`S09`) |
-| **Målt effekt** | *Fylles inn etter test* |
+| **Målt effekt** | Testkjøring 2026-10-15, 2.0-dev mot `vd/23-analysekoder`, samme data (0 prøver bare i én kjøring). Antall prøver med noe i kolonnen, etter dashboardets default-filtre (`RG02`–`RG04`). F1: 944 719 rader i begge. <br>• HEP_HIV: `Auth_SEROLOGY` 18 804 → 21 120 (+2 316, +12,3 %), `NotAuth_SEROLOGY` 9 133 → 10 702 (+1 569, +17,2 %) <br>• MMR: `Auth_SEROLOGY` 28 844 → 29 883 (+1 039, +3,6 %), `NotAuth_SEROLOGY` 11 739 → 12 044 (+305, +2,6 %), `NotAuth_PCR` +3 <br>• ROTA: `Auth_PCR` 1 831 → 2 580 (+749, +40,9 %), `NotAuth_PCR` 380 → 387 (+7) <br>• Uendret: `*_NGS_SEQ` i alle faggrupper (prøvene med `EV_WGS` / `HBV_WGS` hadde allerede en NGS-kode), og PCR i INFLUENSA (så `BVYPCR` finnes ikke, eller bare på prøver som allerede hadde PCR) <br>• F2 byte-identisk. Prøvekolonnene i F1 byte-identiske |
 | **Krever PBI-endring** | Nei. Tallene i dashboardet endres |
 | **Bakoverkompatibel** | Ja |
-| **Åpent** | `BVYPCR` finnes kanskje ikke. Influensakoden i dataene kan være `INFBVY` (ca. 12 000 tester). Sjekkes i testen, se #38. Fjern `BVYPCR` hvis den ikke finnes |
+| **Åpent** | `BVYPCR` ga ingen endring i INFLUENSA. `INFBVY` står i F3 med 11 955 tester på 11 794 prøver, sist endret 2025-09-09. Avklares i #38. Fjern `BVYPCR` hvis den ikke finnes |
 
 ### E2.1-05 Fjern ekskluderte tester før bøtteinndeling
 
@@ -130,7 +131,7 @@ Nytt steg `S14`. `VIRUS_POWERBI_unclassified_codes.tsv`: én rad per faggruppe �
 | **Steg / regler / filer** | `S05`, `S14` (nytt). `RG09`, `RG12`. F3 (ny) |
 | **Faggrupper** | Alle |
 | **Forventet effekt** | Ingen på F1 og F2. F3 er ny, og har ikke kodene fra `E2.1-04` og `E2.1-12` |
-| **Målt effekt** | *Fylles inn etter test: antall koder i F3 per faggruppe* |
+| **Målt effekt** | Testkjøring 2026-10-15: 234 koder. HEP_HIV 154, INFLUENSA 34, POL_ENT 23, MMR 18, ROTA 4, HPV 1, VIRUS_CMN 0. Ingen rader uten faggruppe. Ingen av kodene fra `E2.1-04` og `E2.1-12` er med. De 15 `HCRES_NS*`-kodene er med (`RG12`). Største rad: `N_DELT` (246 639 tester, #38) |
 | **Krever PBI-endring** | Nei (filen er til vedlikehold, ikke til dashboardet) |
 | **Merk** | F3 filtrerer selv til virusprøvene, fordi `test` ennå ikke er filtrert i databasen (#22). Ellers ufiltrert og for all tid. Ikke en feilliste: mange koder er utenfor scope med vilje. `last_change` gir NA (ikke `-Inf`) når en gruppe bare har tomme datoer, med samme type i alle grupper |
 
@@ -188,7 +189,7 @@ Ny kodeliste `seq_typing_codes` i `S06`: genotyping (`HAGEN1`, `HCGEN`, `HCGENA`
 | **Steg / regler / filer** | `S06`, `S07`, `S11`. `RG12`. F1, F2, F3 |
 | **Faggrupper** | Mest HEP_HIV (`HCGR3`, `HCGEN`, `N_HCSEK`, `HBRES`), deretter VIRUS_CMN / INFLUENSA (`SC2_VAR_SANG`), POL_ENT (`ENTERO_SEKVENS`) og hepatitt A/E (`HAGEN1`, `HEVGEN`) |
 | **Forventet effekt** | To nye kolonner i F1, `Auth_SEQ_TYPING` og `NotAuth_SEQ_TYPING`. Ca. 29 000 tester fra F3-kjøringen (alle år, ufiltrert) kommer med. Kodene forsvinner fra F3. F2 uendret: `Seq_typing` dukker bare opp hvis whitelisten får par for disse kodene |
-| **Målt effekt** | *Fylles inn etter test* |
+| **Målt effekt** | Testkjøring 2026-10-15, 2.0-dev mot `vd/23-analysekoder`, samme data (0 prøver bare i én kjøring). Antall prøver med noe i kolonnen, etter dashboardets default-filtre (`RG02`–`RG04`). F1: 944 719 rader i begge. <br>• `Auth_SEQ_TYPING`: INFLUENSA 6 718, HEP_HIV 2 030, POL_ENT 1 069, ROTA 40. Totalt 9 857 (10 104 uten filtre) <br>• `NotAuth_SEQ_TYPING`: INFLUENSA 1 058, HEP_HIV 212, POL_ENT 50. Totalt 1 320 (1 324 uten filtre) <br>• Begge kolonnene finnes i F1. F2 uendret, som forventet |
 | **Krever PBI-endring** | **Ja.** Ta inn de to nye kolonnene. Sjekk at Power Query-kilden ikke har et fast antall kolonner (`Columns=` i `Csv.Document`), ellers forsvinner de uten feilmelding |
 | **Bakoverkompatibel** | Ja, hvis rapporten bruker kolonnenavn og ikke posisjon |
 | **Åpent** | `HCGR3` antas å være HCV-genotyping. `N_HCSEK`, `N_HIRSEK`, `N_HIDSEK` avhenger av hva `N_`-prefikset betyr (#38) |
