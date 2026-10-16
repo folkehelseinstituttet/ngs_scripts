@@ -90,7 +90,7 @@ Kun et utvalg av `(ANALYSIS, NAME)`-par med diagnostisk verdi er inkludert. Rene
 | `ANALYSIS` | Analysekode (f.eks. `INFA_TRICDC`, `MOGENZ`, `NGS`). |
 | `analysis_category` | Overordnet kategori for analysen. Verdier: `PCR`, `Serology`, `NGS_SEQ`, `NGS_PREP`, `Extraction`, `Culture`, `Seq_typing`. Brukes til hierarkisk filtrering i Power BI. |
 | `NAME` | Navn på resultatparameter (f.eks. `Resultat`, `ct. INFA`, `Titer`, `Clade`). |
-| `value` | Resultaverdi. Tekst eller tall avhengig av analyse. |
+| `value` | Resultaverdi. Tekst eller tall avhengig av analyse. Linjeskift i verdien er byttet med mellomrom. |
 | `ENTERED_ON` | Tidspunkt da resultatet ble registrert. |
 | `CHANGED_ON` | Tidspunkt da resultatet sist ble endret. |
 

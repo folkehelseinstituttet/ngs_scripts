@@ -444,6 +444,9 @@ results_file2 <- tbl(con, "RESULT_VIEW") %>%
     )
   ) %>%
   filter(!is.na(value)) %>%
+  # Linjeskift i en verdi deler raden i to i TSV-fila. Byttes med mellomrom (#39).
+  # useBytes, fordi teksten fra LIMS er Windows-1252 (andre bytes endres ikke)
+  mutate(value = gsub("[\r\n]+", " ", value, useBytes = TRUE)) %>%
   select(SAMPLE_NUMBER, TEST_NUMBER, ANALYSIS, NAME, value, ENTERED_ON, CHANGED_ON)
 
 # [S11] Map each ANALYSIS code to a broad category so Power BI can offer
