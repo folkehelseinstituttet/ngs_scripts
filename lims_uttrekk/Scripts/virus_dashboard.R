@@ -10,6 +10,7 @@ library(lubridate)
 # Versjon 2 legger på mer info om analyser og resultater. 
 # Versjon 2.1: ny kategori SEQ_TYPING (Sanger/genotyping/resistens), flere analysekoder,
 #   og Fil 3 med uklassifiserte koder (#23, #37).
+# Versjon 2.2 (under arbeid): liste over analysekoder som bevisst ikke telles, og Fil 5 (#40).
 
 ## ==================================================
 ## [S01] Validate required environment variables
@@ -207,6 +208,48 @@ seq_typing_codes <- c(
 )
 
 ## ==================================================
+## [S15] Codes deliberately not counted
+## ==================================================
+
+# Analysekoder som bevisst ikke telles (RG13, #40). De står ikke i noen kategoriliste,
+# tas ikke med i Fil 3, og skrives til Fil 5. Bare eksakte koder.
+excluded_codes <- tribble(
+  ~ANALYSIS,           ~reason,
+  # Administrative koder og arbeidsflyt
+  "SC2_STAMMENR",      "Administrativ",
+  "LVAKONKL",          "Administrativ",
+  "FECESFORB",         "Administrativ",
+  "DONOR",             "Administrativ",
+  "VHBBEH",            "Administrativ",
+  "VHCBEH",            "Administrativ",
+  "HBVAKM",            "Administrativ",
+  "EAE",               "Administrativ",
+  "ZZ_SABEPCR_FYR_QC", "Administrativ",
+  "N_HA4KOM",          "Administrativ",
+  "N_HB4KOM",          "Administrativ",
+  "N_HC4KOM",          "Administrativ",
+  "N_HD4KOM",          "Administrativ",
+  "N_HE4KOM",          "Administrativ",
+  "N_HT4KOM",          "Administrativ",
+  # Utgåtte koder
+  "Z_HCNGS",           "Utgått kode",
+  "Z_SC2_DEL6970",     "Utgått kode",
+  "Z_SC2_TRI_OMIKRON", "Utgått kode"
+) %>%
+  mutate(rule = "RG13")
+
+# Alle koder som telles i en kategori
+category_codes <- c("NGS_PREP", ngs_seq_codes, extraction_codes, culture_codes,
+                    pcr_codes, serology_codes, seq_typing_codes)
+
+# En kode skal bare stå ett sted. Står den både i en kategoriliste og her, telles den
+both <- intersect(excluded_codes$ANALYSIS, category_codes)
+if (length(both) > 0) {
+  warning("Koder både i en kategoriliste og i excluded_codes (telles): ",
+          paste(both, collapse = ", "))
+}
+
+## ==================================================
 ## [S07] Classify tests into buckets
 ## ==================================================
 
@@ -398,7 +441,8 @@ write_tsv(results_file2, outfile2)
 
 ## ==================================================
 ## [S14] File 3: VIRUS_POWERBI_unclassified_codes.tsv
-## Analysekoder på virusprøver som ikke er i noen kategori (for å finne manglende koder, #23)
+## Analysekoder på virusprøver som ikke er i noen kategori, og ikke bevisst utelatt
+## (for å finne manglende koder, #23, #40)
 ## ==================================================
 
 outfile3 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_unclassified_codes.tsv"))
@@ -406,9 +450,8 @@ outfile3 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", 
 unclassified <- test %>%
   # Behold virusprøver. Ellers kommer koder fra alle faggrupper i LIMS med
   filter(SAMPLE_NUMBER %in% samples_sample_number) %>%
-  filter(!ANALYSIS %in% c("NGS_PREP", ngs_seq_codes, extraction_codes,
-                          culture_codes, pcr_codes, serology_codes,
-                          seq_typing_codes)) %>%
+  filter(!ANALYSIS %in% category_codes,
+         !ANALYSIS %in% excluded_codes$ANALYSIS) %>%
   left_join(distinct(samples, SAMPLE_NUMBER, GROUP_NAME), by = "SAMPLE_NUMBER") %>%
   group_by(GROUP_NAME, ANALYSIS) %>%
   summarise(n_tests     = n(),
@@ -420,6 +463,15 @@ unclassified <- test %>%
   arrange(desc(n_tests))
 
 write_tsv(unclassified, outfile3)
+
+## ==================================================
+## [S15] File 5: VIRUS_POWERBI_excluded_codes.tsv
+## Analysekoder som bevisst ikke telles (#40). Ikke koblet til prøver
+## ==================================================
+
+outfile5 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_excluded_codes.tsv"))
+
+write_tsv(excluded_codes %>% arrange(rule, reason, ANALYSIS), outfile5)
 
 # [S12] Close connection
 odbc::dbDisconnect(con)
