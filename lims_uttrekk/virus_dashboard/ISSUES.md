@@ -5,7 +5,7 @@ Alle saker for Virus Dashboard ligger på GitHub med etiketten [`virus-dashboard
 **Nyttige filtre**
 - [Åpne saker](https://github.com/folkehelseinstituttet/ngs_scripts/issues?q=is%3Aopen+label%3Avirus-dashboard)
 - [Til test](https://github.com/folkehelseinstituttet/ngs_scripts/issues?q=is%3Aopen+label%3A%22status%3A+til+test%22)
-- [Milepæl Virus Dashboard 2.1](https://github.com/folkehelseinstituttet/ngs_scripts/milestone/1)
+- [Milepæl Virus Dashboard 2.1](https://github.com/folkehelseinstituttet/ngs_scripts/milestone/1) / [2.2](https://github.com/folkehelseinstituttet/ngs_scripts/milestone/2)
 - [Uttrekkssiden](https://github.com/folkehelseinstituttet/ngs_scripts/issues?q=is%3Aopen+label%3A%22side%3A+uttrekk%22) / [Power BI-siden](https://github.com/folkehelseinstituttet/ngs_scripts/issues?q=is%3Aopen+label%3A%22side%3A+power-bi%22)
 
 ## Etiketter
@@ -44,7 +44,7 @@ Milepæler samler sakene som løses i en versjon (f.eks. *Virus Dashboard 2.1*).
 | `#20` | NY-03 | R/X-tester telles i `NotAuth_*` | Uttrekk | `RG06`, `S07`, `S13`, `E2.1-03`, `E2.1-05` |
 | `#21` | NY-04 | Tester med "Ikke utført" telles som analysert | Uttrekk | `RG07`, `S07`, `S10`, `S13`, `E2.1-03`, `E2.1-05`, `E2.1-06` |
 | `#22` | NY-05 | Hele `TEST_VIEW` og `RESULT_VIEW` hentes inn i R | Uttrekk | `S04`, `S05`, `S10`, `E2.1-02`, `E2.1-03` |
-| `#23` | NY-06 | Manglende analysekoder (f.eks. `BVYPCR`) | Uttrekk | `RG09`, `S06`, `E2.1-04`, `E2.1-07` |
+| `#23` | NY-06 | Manglende analysekoder, og ingen oversikt over hvilke som mangler | Uttrekk | `RG09`, `S06`, `S14`, `E2.1-04`, `E2.1-07`, `E2.1-13`. Gren `vd/23-analysekoder`. Se #37, #38 |
 | `#24` | NY-07 | `LIMS-kopi_tabeller.md` sier `RESULTS_VIEW`, koden bruker `RESULT_VIEW` | Uttrekk | `E2.1-10` |
 | `#25` | NY-08 | Skal én IU på et delresultat utelukke hele testen? | Uttrekk | `RG07`, `S13`. Avhenger av Instrument Series-tabellen (bestilt 2026-03-20) |
 | `#26` | NY-09 | Hent kodelister fra ANALYSIS-mastertabellen | Begge | `RG09`, `S06`. Venter på view (bestilt 2026-03-20) |
@@ -58,5 +58,13 @@ Milepæler samler sakene som løses i en versjon (f.eks. *Virus Dashboard 2.1*).
 | `#34` | NY-17 | Prøver uten dato | Begge | `S04` |
 | `#35` | NY-18 | Finne registreringsfeil (f.eks. mottaksdato før prøvetakingsdato) | Begge | `S04` |
 | `#36` | NY-19 | Bruke `SAMPLE.STATUS` / `X_MEDICAL_REVIEW` til å finne prøver som "henger" | PBI | `RG05` |
+| `#37` | | Ny kategori SEQ_TYPING (Sanger, genotyping, resistens) | Begge | `S06`, `S07`, `S11`, `RG12`, `E2.1-12`. Del av #23. Krever PBI-endring (nye kolonner) |
+| `#38` | | Avklare usikre analysekoder fra første F3-kjøring | Uttrekk | `S06`, `RG09`. Oppfølging av #23. Spørsmål til faggruppene og LIMS-forvaltningen (`N_`-prefiks, suffikser). `INFBVY` avklart og lagt til under #23 |
+| `#39` | | Linjeskift i resultatverdier ødelegger rader i F2 | Uttrekk | `S10`, F2. Finnes fra 2.0 |
+| `#40` | | Liste over analysekoder som bevisst ikke tas med (F5) | Uttrekk | `S15` (nytt), `RG13` (ny), `RG12`, F3, F5 (ny). 2.2 |
+| `#41` | | Regelavklaring: skal dashboardet vise enkeltprøver og analysekodene deres? | Begge | `RG08`, `P01`, `P03`. Avklart: enkeltprøver tillatt, se `RG08`. Lukket |
+| `#42` | | F4: kobling mellom prøver og analysekoder | Begge | `S16` (nytt), F4 (ny), `RG08`, `RG09`, `RG13`. Avhenger av #40. Siste fem år, uten `PATIENT` (`RG08`). 2.2 |
+| `#43` | | Blokker eksport av data fra dashboardet | PBI | `RG08`, `P01`. 2.2 |
+| `#44` | | Ta inn kolonnene `Auth_SEQ_TYPING` og `NotAuth_SEQ_TYPING` i dashboardet | PBI | `P01`, `P03`, F1, `E2.1-12`. Power BI-delen av #37. 2.1 |
 
 **Ny sak:** opprett den på GitHub med malen *Virus Dashboard* (tittel `[VD] …`, etiketten `virus-dashboard` settes automatisk). Sett side-, type- og statusetiketter, og legg til en rad her hvis saken berører steg, regler eller endringer.

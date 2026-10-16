@@ -5,9 +5,11 @@ library(odbc)
 library(tidyverse)
 library(lubridate)
 
-# Version 2.0-dev
+# Version 2.1-dev
 # Versjon 1 inneholdt kun info om prøvedato og sekvensering.
 # Versjon 2 legger på mer info om analyser og resultater. 
+# Versjon 2.1: ny kategori SEQ_TYPING (Sanger/genotyping/resistens), flere analysekoder,
+#   og Fil 3 med uklassifiserte koder (#23, #37).
 
 ## ==================================================
 ## [S01] Validate required environment variables
@@ -103,7 +105,8 @@ samples_sample_number <- samples %>% distinct(SAMPLE_NUMBER) %>% pull(SAMPLE_NUM
 # [S05] Hent tester
 # Finne batch eller sekvenserings run
 test <- tbl(con, "TEST_VIEW") %>% 
-  select("TEST_NUMBER", "SAMPLE_NUMBER", "ANALYSIS", "X_TECH_REVIEW", "BATCH") %>% 
+  # CHANGED_ON brukes bare i Fil 3 [S14]
+  select("TEST_NUMBER", "SAMPLE_NUMBER", "ANALYSIS", "X_TECH_REVIEW", "BATCH", "CHANGED_ON") %>% 
   collect()
 
 ## ==================================================
@@ -112,7 +115,9 @@ test <- tbl(con, "TEST_VIEW") %>%
 
 ngs_seq_codes <- c("NGS", "SC2_NGS", "MPX_WGS", "SC2_WGS", "INF_WGS", "RSV_WGS",
                    "ROV_WGS", "HPV_WGS", "UKJVIRUS_WGS", "HCRES_NGS", "HCVNGS",
-                   "HCGEN_NGS", "HCVNGS_PROSJ", "SC2_VAR_NGS")
+                   "HCGEN_NGS", "HCVNGS_PROSJ", "SC2_VAR_NGS",
+                   # Lagt til fra Fil 3 (#23)
+                   "EV_WGS", "HBV_WGS")
 
 extraction_codes <- c("EKSTRAKSJON", "EKSTR", "EXT", "EXTPRI", "EXTFLU", "EXTNEP",
                       "EXT_MOR", "EXT_PAR", "EXT_ROTA", "EXT_ROTA_S",
@@ -126,6 +131,8 @@ pcr_codes <- c(
   # Influensa
   "INFABPCR", "INFA_TRICDC", "INFB_TRICDC", "SC2_TRICDC", "INFSC2",
   "INFAH1H3", "INFBVYPCR", "INFB_VIC", "INFB_YAM",
+  # INFBVY er den eldre koden for samme analyse som INFBVYPCR (#23)
+  "INFBVY",
   "IAH1C1", "IAH3C1", "IACDC1", "IBCDC1", "IASAC1",
   "INAH5A", "INAH5B", "INFAH9", "INFAN9", "H7VLA2", "RNPPCR",
   # Luftveir / VIRUS_CMN
@@ -154,7 +161,9 @@ pcr_codes <- c(
   "CHIPCR-IH", "CHIPCR-ALT", "ZIKPCR-ALTO", "VNVPCR-IH",
   "YFVPCR", "TBEPCR",
   # HPV
-  "HPV_QPCR", "HPV_LUMINEX"
+  "HPV_QPCR", "HPV_LUMINEX",
+  # Lagt til fra Fil 3 (#23)
+  "ROTARIX_PCR", "ROVPCR", "OPXVPCR"
 )
 
 serology_codes <- c(
@@ -177,7 +186,24 @@ serology_codes <- c(
   "JEVGIF", "JEVMIF", "VNVGIF", "VNVMIF",
   "ZIKGIF", "ZIKMIF", "ZIGEUR", "ZIMEUR",
   "HANGIF", "HANMIF", "SFVGIF", "SFVMIF", "SINGIF", "SINMIF",
-  "DEGEUR", "DEMEUR", "CHIMEUR", "CHIGEUR"
+  "DEGEUR", "DEMEUR", "CHIMEUR", "CHIGEUR",
+  # Lagt til fra Fil 3 (#23): varianter (_BG, _FORT, 71, WB-strips) av koder over
+  "HBCPIE_BG", "HCVB_BG", "HBSEU_BG", "HIAGB_BG", "HIIE_BG",
+  "HIAGNB_FORT", "HBSNEU_FORT", "HCVB71", "HAIF71",
+  "HIGWB_STRIP", "HIGWB_ENV", "HIGWB_GAG", "HIGWB_POL", "HIGWB_HIV2",
+  "PAMENZ", "PAGENZ"
+)
+
+# Sanger-sekvensering, genotyping og resistens (ikke NGS) (#37).
+# HCRES_NS*-kodene (én per legemiddel) er bevisst utelatt: de er delresultater av samme analyse (RG12).
+seq_typing_codes <- c(
+  # Genotyping
+  "HAGEN1", "HCGEN", "HCGENA", "HCGR3", "HEVGEN",
+  # Sanger / annen sekvensering
+  "SC2_VAR_SANG", "ENTERO_SEKVENS", "NORO_SEKVENS", "NOROSEK", "ROTAVIRUS_SEKV",
+  "N_HCSEK", "N_HIRSEK", "N_HIDSEK", "INF_PYRO",
+  # Resistens
+  "HBRES", "HCRES"
 )
 
 ## ==================================================
@@ -190,7 +216,7 @@ ngs_info <- test %>%
   # Behold relevante analysekoder
   filter(ANALYSIS %in% c("NGS_PREP", ngs_seq_codes,
                          extraction_codes, culture_codes,
-                         pcr_codes, serology_codes)) %>%
+                         pcr_codes, serology_codes, seq_typing_codes)) %>%
   # Gruppere prøvene etter bucket
   mutate(bucket = case_when(
     ANALYSIS == "NGS_PREP" & X_TECH_REVIEW == "A"          ~ "Auth_NGS_PREP",
@@ -205,6 +231,8 @@ ngs_info <- test %>%
     ANALYSIS %in% pcr_codes                                ~ "NotAuth_PCR",
     ANALYSIS %in% serology_codes & X_TECH_REVIEW == "A"    ~ "Auth_SEROLOGY",
     ANALYSIS %in% serology_codes                           ~ "NotAuth_SEROLOGY",
+    ANALYSIS %in% seq_typing_codes & X_TECH_REVIEW == "A"  ~ "Auth_SEQ_TYPING",
+    ANALYSIS %in% seq_typing_codes                         ~ "NotAuth_SEQ_TYPING",
     TRUE                                                  ~ NA_character_
   )) %>%
   filter(!is.na(bucket)) %>%
@@ -359,13 +387,39 @@ category_lookup <- bind_rows(
   tibble(ANALYSIS = extraction_codes, analysis_category = "Extraction"),
   tibble(ANALYSIS = culture_codes,    analysis_category = "Culture"),
   tibble(ANALYSIS = pcr_codes,        analysis_category = "PCR"),
-  tibble(ANALYSIS = serology_codes,   analysis_category = "Serology")
+  tibble(ANALYSIS = serology_codes,   analysis_category = "Serology"),
+  tibble(ANALYSIS = seq_typing_codes, analysis_category = "Seq_typing")
 )
 
 results_file2 <- left_join(results_file2, category_lookup, by = "ANALYSIS")
 
 # Write File 2: long-format results table
 write_tsv(results_file2, outfile2)
+
+## ==================================================
+## [S14] File 3: VIRUS_POWERBI_unclassified_codes.tsv
+## Analysekoder på virusprøver som ikke er i noen kategori (for å finne manglende koder, #23)
+## ==================================================
+
+outfile3 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_unclassified_codes.tsv"))
+
+unclassified <- test %>%
+  # Behold virusprøver. Ellers kommer koder fra alle faggrupper i LIMS med
+  filter(SAMPLE_NUMBER %in% samples_sample_number) %>%
+  filter(!ANALYSIS %in% c("NGS_PREP", ngs_seq_codes, extraction_codes,
+                          culture_codes, pcr_codes, serology_codes,
+                          seq_typing_codes)) %>%
+  left_join(distinct(samples, SAMPLE_NUMBER, GROUP_NAME), by = "SAMPLE_NUMBER") %>%
+  group_by(GROUP_NAME, ANALYSIS) %>%
+  summarise(n_tests     = n(),
+            n_samples   = n_distinct(SAMPLE_NUMBER),
+            # Unngår -Inf og advarsel når alle CHANGED_ON er NA. CHANGED_ON[NA_integer_]
+            # er NA med samme klasse som CHANGED_ON, så typen er lik i alle grupper
+            last_change = if (all(is.na(CHANGED_ON))) CHANGED_ON[NA_integer_] else max(CHANGED_ON, na.rm = TRUE),
+            .groups = "drop") %>%
+  arrange(desc(n_tests))
+
+write_tsv(unclassified, outfile3)
 
 # [S12] Close connection
 odbc::dbDisconnect(con)

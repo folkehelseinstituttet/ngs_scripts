@@ -1,12 +1,13 @@
 # Dokumentasjon for LIMS-uttrekksfiler til Virus Dashboard
 
-Generert av `virus_dashboard.R` (v2.0).  
-Skriptet produserer **to filer** som begge lastes inn i Power BI:
+Generert av `virus_dashboard.R` (v2.1-dev).  
+Skriptet produserer **to filer** som begge lastes inn i Power BI, og en tredje fil til vedlikehold av analysekodelistene:
 
 | Fil | Format | Granularitet |
 |---|---|---|
 | `VIRUS_POWERBI_lw_uttrekk.tsv` | Tab-separert, én rad per prøve (wide) | Prøvenivå |
 | `VIRUS_POWERBI_results.tsv` | Tab-separert, én rad per resultat (long) | Resultatnivå |
+| `VIRUS_POWERBI_unclassified_codes.tsv` | Tab-separert, én rad per faggruppe og analysekode | Aggregert (kun tellinger). Ikke til Dashboardet |
 
 Filene kobles i Power BI via `SAMPLE_NUMBER` (mange-til-én fra resultatfilen til prøvefilen).
 
@@ -67,6 +68,8 @@ Alle `Auth_*`- og `NotAuth_*`-kolonner inneholder kommaseparerte batch-IDer ders
 | `NotAuth_PCR` | PCR-analyse og `X_TECH_REVIEW != "A"` | Ikke-godkjent PCR. |
 | `Auth_SEROLOGY` | Serologianalyse og `X_TECH_REVIEW == "A"` | Godkjent serologi. Dekker EIA, IgG/IgM, HI-test, Western blot m.fl. på tvers av alle faggrupper. |
 | `NotAuth_SEROLOGY` | Serologianalyse og `X_TECH_REVIEW != "A"` | Ikke-godkjent serologi. |
+| `Auth_SEQ_TYPING` | Sanger-/genotyping-/resistensanalyse og `X_TECH_REVIEW == "A"` | Godkjent sekvensering som ikke er NGS. Dekker HAGEN1, HCGEN, HEVGEN, SC2_VAR_SANG, ENTERO_SEKVENS, NORO_SEKVENS, HBRES, HCRES m.fl. |
+| `NotAuth_SEQ_TYPING` | Sanger-/genotyping-/resistensanalyse og `X_TECH_REVIEW != "A"` | Ikke-godkjent sekvensering som ikke er NGS. |
 
 ---
 
@@ -83,7 +86,7 @@ Kun et utvalg av `(ANALYSIS, NAME)`-par med diagnostisk verdi er inkludert. Rene
 | `SAMPLE_NUMBER` | LIMS-nummer. Kobling til Fil 1. |
 | `TEST_NUMBER` | LIMS test-ID. |
 | `ANALYSIS` | Analysekode (f.eks. `INFA_TRICDC`, `MOGENZ`, `NGS`). |
-| `analysis_category` | Overordnet kategori for analysen. Verdier: `PCR`, `Serology`, `NGS_SEQ`, `NGS_PREP`, `Extraction`, `Culture`. Brukes til hierarkisk filtrering i Power BI. |
+| `analysis_category` | Overordnet kategori for analysen. Verdier: `PCR`, `Serology`, `NGS_SEQ`, `NGS_PREP`, `Extraction`, `Culture`, `Seq_typing`. Brukes til hierarkisk filtrering i Power BI. |
 | `NAME` | Navn på resultatparameter (f.eks. `Resultat`, `ct. INFA`, `Titer`, `Clade`). |
 | `value` | Resultaverdi. Tekst eller tall avhengig av analyse. |
 | `ENTERED_ON` | Tidspunkt da resultatet ble registrert. |
@@ -100,6 +103,26 @@ Kun et utvalg av `(ANALYSIS, NAME)`-par med diagnostisk verdi er inkludert. Rene
 | Serologi HEP_HIV | `HIAGB`, `HAIFV`, `HCVB` | `Konklusjon`, `Result_num`, `S/CO prosent`, `Resultat_num` |
 | NGS/WGS typing og QC | `NGS`, `NGS_PREP`, `SC2_NGS`, `INF_WGS`, `RSV_WGS`, `MPX_WGS` | `Genotype fra skript`, `Clade`, `Dekning % av genomet`, `Gj. snittlig dybde`, `NGS-status`, `Genetisk variant` |
 | Dyrking | `VDYRKE`, `VDYRKA` | `Konklusjon`, `Funn`, `eMSIS status` |
+
+---
+
+## Fil 3: `VIRUS_POWERBI_unclassified_codes.tsv`
+
+Vedlikeholdsfil, ikke til Dashboardet. Viser alle analysekoder brukt på virusprøver (de sju faggruppene over) som **ikke** ligger i noen av kategorilistene i `virus_dashboard.R`. Disse testene kommer ikke med i `Auth_*`/`NotAuth_*`-kolonnene, og er dermed usynlige i Dashboardet.
+
+| Kolonne | Beskrivelse |
+|---|---|
+| `GROUP_NAME` | Faggruppe til **prøven** (ikke testen). |
+| `ANALYSIS` | Analysekode. |
+| `n_tests` | Antall tester (inkl. replikater og gjentak). |
+| `n_samples` | Antall unike prøver. |
+| `last_change` | Siste `CHANGED_ON` for koden. Skiller koder i bruk fra utgåtte koder. Tom hvis ingen av testene har dato. |
+
+Merk:
+
+- Lista er **ikke** en feilliste. Mange koder er administrative og skal bevisst ikke klassifiseres. Faggruppen avgjør per kode om den skal inn i en liste eller ignoreres.
+- Fila er **ufiltrert** innenfor virusprøvene: den inkluderer barneprøver, fryseprøver, kansellerte prøver og tester med R/X eller "Ikke utført", slik at ingen koder blir oversett. Tallene er derfor høyere enn i Dashboardet.
+- Den viser bare koder som mangler i listene, ikke koder som står i listene men aldri brukes (eller er feilstavet).
 
 ---
 
@@ -131,6 +154,7 @@ Bruk `Auth_*`-kolonnene som ja/nei-indikator: en prøve regnes som analysert der
 | Serologi utført | `Auth_SEROLOGY` ikke tom |
 | Dyrking utført | `Auth_CULTURE` ikke tom |
 | Ekstraksjon utført | `Auth_EXTRACTION` ikke tom |
+| Sanger-sekvensert / genotypet / resistenstestet | `Auth_SEQ_TYPING` ikke tom |
 
 ---
 
