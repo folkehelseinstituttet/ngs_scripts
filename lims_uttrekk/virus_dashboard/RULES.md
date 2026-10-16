@@ -15,7 +15,7 @@ Telleregler og faglige beslutninger for Virus Dashboard. En regel sier **hva** s
 | `RG05` | Analysert = teknisk godkjent | Implementert 2.0 | `S07`, `P03` | Møte 2026-02-24 |
 | `RG06` | Tester med `X_TECH_REVIEW` R eller X telles ikke | **Avvik (2.0)**. Foreslått i 2.1-dev | `S13`, `S07`, `S10` | Møte 2026-03-20 |
 | `RG07` | Tester med resultat "Ikke utført" telles ikke | **Avvik (2.0)**. Foreslått i 2.1-dev | `S13`, `S07`, `S10` | Møte 2026-03-20 |
-| `RG08` | Dashboardet viser bare tellinger | Vedtatt | `P03` | Møte 2026-02-24 |
+| `RG08` | Dashboardet viser tellinger, og enkeltprøver med prøvenummer og analysekoder | Vedtatt (endret i #41) | `P03`, F4 (#42), eksport (#43) | Møte 2026-02-24, #41 |
 | `RG09` | Bare analysekoder i kodelistene telles | Implementert 2.0. **Midlertidig**. F3 viser det som mangler fra 2.1-dev | `S06`, `S14` | Designvalg 2.0 |
 | `RG10` | F2 har bare whitelistede resultatfelt | Implementert 2.0 | `S09`, `S10` | Designvalg 2.0 (#11) |
 | `RG11` | Avviste tester i dashboardet? | **Åpen** | — | Møte 2026-03-20 |
@@ -73,9 +73,21 @@ En test med resultat IU (kode) / "IkkeUtført" (tekst) i `RESULT.ENTRY` er ikke 
 
 **Åpent:** hele testen ekskluderes hvis **ett** delresultat er IU. Om det er riktig, avhenger av hvilket resultat som er hovedresultatet. Se `#25`.
 
-## RG08 Dashboardet viser bare tellinger
+## RG08 Hva dashboardet viser
 
-Dashboardet viser aggregerte tall, aldri resultater for enkeltpasienter. F2 inneholder resultatverdier for å kunne telle (f.eks. positive), men de skal ikke vises enkeltvis.
+Dashboardet viser aggregerte tall. I tillegg kan det vise **enkeltprøver med LIMS-prøvenummer og analysekoder**, for eksempel fra en analysekode til prøvene som har den, og fra en prøve til alle kodene den har (#42).
+
+- **Aldri resultater for enkeltprøver.** F2 inneholder resultatverdier for å kunne telle (f.eks. positive), men de skal ikke vises enkeltvis.
+- **`PATIENT` vises ikke** i visninger av enkeltprøver.
+- **Alle faggrupper** er med.
+- **De siste fem årene:** visninger av enkeltprøver dekker en rullerende periode på fem år, etter mottaksdato (`RECD_DATE`).
+- **Eksport av underliggende data fra dashboardet er blokkert** (#43).
+
+**Hvorfor:** dashboardet har allerede begrenset tilgang, og vedlikehold av kodelistene og oppfølging av prøver trenger å se hvilke prøver som har hvilke koder.
+
+**Kan endres:** om noe må tas ut av visningen (f.eks. enkelte koder eller faggrupper), avgjøres senere.
+
+**Kilde:** opprinnelig regel fra møte 2026-02-24 (bare tellinger), endret i #41.
 
 ## RG09 Bare analysekoder i kodelistene telles
 

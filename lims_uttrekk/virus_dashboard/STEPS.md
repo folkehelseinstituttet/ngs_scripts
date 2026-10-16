@@ -153,4 +153,4 @@ Skal implementere `RG02` (barneprøver), `RG03` (fryseprøver) og `RG04` (kansel
 
 ### P03 Telle analyserte prøver
 
-En prøve regnes som analysert i en kategori hvis `Auth_<kategori>` ikke er tom (`RG05`). Dashboardet viser bare tellinger (`RG08`).
+En prøve regnes som analysert i en kategori hvis `Auth_<kategori>` ikke er tom (`RG05`). Dashboardet viser tellinger, og enkeltprøver bare med prøvenummer og analysekoder, uten `PATIENT` (`RG08`).
