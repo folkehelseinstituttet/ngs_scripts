@@ -135,7 +135,7 @@ Liste over analysekoder som bevisst ikke telles, for eksempel administrative kod
 | Kolonne | Beskrivelse |
 |---|---|
 | `ANALYSIS` | Analysekode. |
-| `reason` | Hvorfor koden ikke telles, f.eks. `Administrativ` eller `Utgått kode`. |
+| `reason` | Hvorfor koden ikke telles: `Administrativ` eller `Ikke i bruk`. Uten æøå, så verdiene ser like ut uansett hvordan fila leses. |
 | `rule` | Regelen som gjelder (`RG13`). |
 
 Merk:

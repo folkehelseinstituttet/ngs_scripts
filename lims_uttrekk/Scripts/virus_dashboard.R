@@ -213,6 +213,7 @@ seq_typing_codes <- c(
 
 # Analysekoder som bevisst ikke telles (RG13, #40). De står ikke i noen kategoriliste,
 # tas ikke med i Fil 3, og skrives til Fil 5. Bare eksakte koder.
+# Begrunnelsene er bare ASCII: æøå i tekst i skriptet blir feil når skriptet kjøres på serveren.
 excluded_codes <- tribble(
   ~ANALYSIS,           ~reason,
   # Administrative koder og arbeidsflyt
@@ -231,10 +232,10 @@ excluded_codes <- tribble(
   "N_HD4KOM",          "Administrativ",
   "N_HE4KOM",          "Administrativ",
   "N_HT4KOM",          "Administrativ",
-  # Utgåtte koder
-  "Z_HCNGS",           "Utgått kode",
-  "Z_SC2_DEL6970",     "Utgått kode",
-  "Z_SC2_TRI_OMIKRON", "Utgått kode"
+  # Koder som ikke er i bruk lenger
+  "Z_HCNGS",           "Ikke i bruk",
+  "Z_SC2_DEL6970",     "Ikke i bruk",
+  "Z_SC2_TRI_OMIKRON", "Ikke i bruk"
 ) %>%
   mutate(rule = "RG13")
 
@@ -245,7 +246,7 @@ category_codes <- c("NGS_PREP", ngs_seq_codes, extraction_codes, culture_codes,
 # En kode skal bare stå ett sted. Står den både i en kategoriliste og her, telles den
 both <- intersect(excluded_codes$ANALYSIS, category_codes)
 if (length(both) > 0) {
-  warning("Koder både i en kategoriliste og i excluded_codes (telles): ",
+  warning("Koder b\u00e5de i en kategoriliste og i excluded_codes (telles): ",
           paste(both, collapse = ", "))
 }
 

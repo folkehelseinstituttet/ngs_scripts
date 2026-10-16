@@ -15,14 +15,15 @@ Nyeste versjon øverst.
 | `vd/40-utelatte-koder` | #40 | `E2.2-01`, `E2.2-02`, `E2.2-03` | Pågår |
 
 **Testsjekkliste**
-- [ ] (#40) F5 finnes, med kodene i `excluded_codes`
-- [ ] (#40) F3 har ingen av kodene i F5, og ellers de samme kodene som før
-- [ ] (#40) F1 og F2 er uendret (`virus_dashboard_compare.R`)
+- [x] (#40) F5 finnes, med kodene i `excluded_codes`
+- [x] (#40) F3 har ingen av kodene i F5, og ellers de samme kodene som før
+- [x] (#40) F1 og F2 er uendret (`virus_dashboard_compare.R`, prøvene som finnes i begge kjøringene)
+- [x] (#40) `reason` i F5 er ren tekst uten tegnfeil (rettet til ASCII etter første testkjøring)
 - [ ] (#40) Ingen advarsel om koder både i en kategoriliste og i `excluded_codes`
 
 ### E2.2-01 Liste over koder som bevisst ikke telles
 
-Nytt steg `S15`. Hardkodet liste `excluded_codes` med eksakte analysekoder og begrunnelse: administrative koder og arbeidsflyt (inkludert `N_*4KOM`-kodene) og utgåtte `Z_`-koder. Ny vektor `category_codes` med alle koder i kategorilistene, og en advarsel hvis en kode står begge steder.
+Nytt steg `S15`. Hardkodet liste `excluded_codes` med eksakte analysekoder og begrunnelse: administrative koder og arbeidsflyt (inkludert `N_*4KOM`-kodene) og `Z_`-koder som ikke er i bruk. Begrunnelsene er bare ASCII, fordi æøå i tekst i skriptet ble dobbeltkodet i første testkjøring. Ny vektor `category_codes` med alle koder i kategorilistene, og en advarsel hvis en kode står begge steder.
 
 | | |
 |---|---|
@@ -42,7 +43,7 @@ Nytt steg `S15`. Hardkodet liste `excluded_codes` med eksakte analysekoder og be
 | **Steg / regler / filer** | `S14`, `S15`. `RG13`. F3, F5 (ny) |
 | **Faggrupper** | Alle |
 | **Forventet effekt** | F3 blir mindre: kodene i lista er borte, resten er uendret. F5 er ny. F1 og F2 uendret |
-| **Målt effekt** | *Fylles inn etter test* |
+| **Målt effekt** | Testkjøring av `vd/40-utelatte-koder` mot 2.1 dagen før. F3: 234 → 214 rader. 19 rader er de utelatte kodene (én kode står i to faggrupper), og 1 er `INFBVY`, som nå telles (`E2.1-04`). Ingen nye koder i F3, og ingen F5-koder igjen i F3. F5: 18 rader. F1 og F2: for prøvene som finnes i begge kjøringene, er de eneste endringene `INFBVY` og vanlig aktivitet mellom kjøringene (tester godkjent, nye ekstraksjoner) |
 | **Krever PBI-endring** | Nei. F5 kan lastes som referansetabell hvis det er ønskelig |
 | **Bakoverkompatibel** | Ja |
 
@@ -77,7 +78,7 @@ Fil 5 i utfil-dokumentasjonen, `S15` i `STEPS.md`, `RG13` i `RULES.md`, og F5 i 
 - [ ] (#23) Stikkprøve på en prøve med `HAGEN1`
 - [x] (#23) F3: kodene som er lagt til i `E2.1-04` og `E2.1-12` er ikke med, og resten ser rimelige ut
 - [x] (#23, #38) Finnes `BVYPCR` i dataene, eller heter koden `INFBVY`? `BVYPCR` finnes ikke. `INFBVY` er den eldre koden for samme analyse som `INFBVYPCR`, og er lagt til
-- [ ] (#23) Ny testkjøring etter at `INFBVY` er lagt til: INFLUENSA `Auth_PCR` / `NotAuth_PCR` går opp, og `INFBVY` er borte fra F3. Måles ved første kjøring i prod
+- [x] (#23) Ny testkjøring etter at `INFBVY` er lagt til: INFLUENSA `Auth_PCR` / `NotAuth_PCR` går opp, og `INFBVY` er borte fra F3. Målt i testkjøringen av #40
 - [ ] (#21) Hvordan "Ikke utført" faktisk ser ut i `ENTRY` / `FORMATTED_ENTRY` (juster mønsteret i `E2.1-03` ved behov)
 - [ ] (#22) `semi_join` virker mot viewene og er ikke tregere enn før
 - [ ] (#20, #21) F1: samme antall rader. Stikkprøve på en prøve med R/X-test og en med IU-test
@@ -143,7 +144,7 @@ Usikre koder er ikke lagt inn. De er samlet i #38.
 | **Steg / regler / filer** | `S06`. `RG09`. F1, F3 |
 | **Faggrupper** | Mest HEP_HIV (serologivariantene), deretter MMR (`PAMENZ`, `PAGENZ`), ROTA (`ROTARIX_PCR`, `ROVPCR`), POL_ENT (`EV_WGS`) og INFLUENSA (`INFBVY`) |
 | **Forventet effekt** | Antall rader i F1 uendret. Flere prøver med noe i `Auth_SEROLOGY` / `NotAuth_SEROLOGY`, `*_PCR` og `*_NGS_SEQ`. Kodene forsvinner fra F3. F2 uendret, fordi ingen av kodene står i whitelisten (`S09`) |
-| **Målt effekt** | Testkjøring 2026-10-15, 2.0-dev mot `vd/23-analysekoder`, samme data (0 prøver bare i én kjøring). Antall prøver med noe i kolonnen, etter dashboardets default-filtre (`RG02`–`RG04`). F1: 944 719 rader i begge. <br>• HEP_HIV: `Auth_SEROLOGY` 18 804 → 21 120 (+2 316, +12,3 %), `NotAuth_SEROLOGY` 9 133 → 10 702 (+1 569, +17,2 %) <br>• MMR: `Auth_SEROLOGY` 28 844 → 29 883 (+1 039, +3,6 %), `NotAuth_SEROLOGY` 11 739 → 12 044 (+305, +2,6 %), `NotAuth_PCR` +3 <br>• ROTA: `Auth_PCR` 1 831 → 2 580 (+749, +40,9 %), `NotAuth_PCR` 380 → 387 (+7) <br>• Uendret: `*_NGS_SEQ` i alle faggrupper (prøvene med `EV_WGS` / `HBV_WGS` hadde allerede en NGS-kode), og PCR i INFLUENSA (kjøringen hadde `BVYPCR`, som ikke finnes, og ikke `INFBVY`) <br>• **INFLUENSA-PCR må måles på nytt** etter at `INFBVY` er lagt til. Tallene over gjelder resten <br>• F2 byte-identisk. Prøvekolonnene i F1 byte-identiske |
+| **Målt effekt** | Testkjøring 2026-10-15, 2.0-dev mot `vd/23-analysekoder`, samme data (0 prøver bare i én kjøring). Antall prøver med noe i kolonnen, etter dashboardets default-filtre (`RG02`–`RG04`). F1: 944 719 rader i begge. <br>• HEP_HIV: `Auth_SEROLOGY` 18 804 → 21 120 (+2 316, +12,3 %), `NotAuth_SEROLOGY` 9 133 → 10 702 (+1 569, +17,2 %) <br>• MMR: `Auth_SEROLOGY` 28 844 → 29 883 (+1 039, +3,6 %), `NotAuth_SEROLOGY` 11 739 → 12 044 (+305, +2,6 %), `NotAuth_PCR` +3 <br>• ROTA: `Auth_PCR` 1 831 → 2 580 (+749, +40,9 %), `NotAuth_PCR` 380 → 387 (+7) <br>• Uendret: `*_NGS_SEQ` i alle faggrupper (prøvene med `EV_WGS` / `HBV_WGS` hadde allerede en NGS-kode), og PCR i INFLUENSA (kjøringen hadde `BVYPCR`, som ikke finnes, og ikke `INFBVY`) <br>• **`INFBVY`** (målt i testkjøringen av #40, mot 2.1 dagen før, bare prøver som finnes i begge): 9 388 INFLUENSA-prøver får `Auth_PCR` (60 222 → 69 610 etter filtrene, +15,6 %), og 2 158 som allerede hadde PCR, får en batch-ID til. `INFBVY` er borte fra F3 <br>• F2 byte-identisk. Prøvekolonnene i F1 byte-identiske |
 | **Krever PBI-endring** | Nei. Tallene i dashboardet endres |
 | **Bakoverkompatibel** | Ja |
 | **Avklart** | `BVYPCR` finnes ikke som analysekode. Navnet som ble meldt var trolig visningsnavnet for B Victoria/Yamagata-PCR, som har kodene `INFBVY` (eldre) og `INFBVYPCR` (nåværende). `INFBVY` brukes også utenfor dashboardets faggrupper (`RG01`), som ikke endres |
