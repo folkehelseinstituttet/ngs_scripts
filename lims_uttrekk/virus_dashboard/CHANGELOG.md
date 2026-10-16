@@ -20,9 +20,9 @@ Nyeste versjon øverst.
 - [x] (#40) F3 har ingen av kodene i F5, og ellers de samme kodene som før
 - [x] (#40) F1 og F2 er uendret (`virus_dashboard_compare.R`, prøvene som finnes i begge kjøringene)
 - [x] (#40) `reason` i F5 er ren tekst uten tegnfeil (rettet til ASCII etter første testkjøring)
-- [ ] (#42) F4 finnes, bare med prøver fra de siste fem årene, og uten kodene i F5
-- [ ] (#42) Antall rader og filstørrelse i F4 er håndterbart for Power BI
-- [ ] (#42) F1, F2, F3 og F5 er uendret
+- [x] (#42) F4 finnes, bare med prøver fra de siste fem årene, og uten kodene i F5
+- [x] (#42) Antall rader og filstørrelse i F4 er håndterbart for Power BI
+- [x] (#42) F1, F2, F3 og F5 er uendret (F3 byte-identisk med #40-kjøringen, F5 med samme koder og nå uten tegnfeil, F1 og F2 med samme filstørrelse)
 - [x] (#40) Ingen advarsel om koder både i en kategoriliste og i `excluded_codes`
 
 ### E2.2-01 Liste over koder som bevisst ikke telles
@@ -71,7 +71,7 @@ Nytt steg `S16`. `VIRUS_POWERBI_sample_codes.tsv`: én rad per prøve og analyse
 | **Steg / regler / filer** | `S16` (nytt), `P04` (nytt). `RG08`, `RG13`. F4 (ny) |
 | **Faggrupper** | Alle |
 | **Forventet effekt** | Ingen på F1, F2, F3 og F5. F4 er ny, og trolig den største fila etter F1 |
-| **Målt effekt** | *Fylles inn etter test: antall rader og filstørrelse* |
+| **Målt effekt** | Testkjøring av `vd/42-prove-kode-kobling`. F4: 673 621 rader, 19,4 MB, 190 011 prøver og 216 koder. Ingen duplikater, ingen F5-koder, alle prøvene finnes i F1. Tidligste mottaksdato er like etter femårsgrensen. Av prøvene mottatt de siste fem årene mangler bare de uten tester. Alle `Ukategorisert`-koder finnes i F3. <br>• **Sammenligning med F1** (prøver med godkjent test per kategori): F4 har flere i alle kategorier, aldri færre. Forskjellen er godkjente tester uten batch-ID, som står som `NA` i F1, det samme som "ingen test" (#48). F4 er riktig |
 | **Krever PBI-endring** | **Ja.** Ta inn F4, relasjon til F1 som filtrerer begge veier, og visningene i `P04`. `PATIENT` skal ikke vises, og eksport skal være blokkert (#43) |
 | **Bakoverkompatibel** | Ja. Eksisterende visninger påvirkes ikke |
 | **Åpent** | Tester med R/X eller "Ikke utført" er med inntil #20/#21 også brukes her |

@@ -97,6 +97,7 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 - 2.0: `NotAuth_*` tar med alt som ikke er A, også R (avvist) og X (kansellert). Det bryter `RG06`. *2.1-dev* fjerner dem (`E2.1-05`).
 - 2.0: tester med resultat "Ikke utført" telles som analysert. Det bryter `RG07`. *2.1-dev* fjerner dem (`E2.1-05`).
 - Hvis en bøtte ikke finnes for noen prøve, mangler kolonnen helt i F1 (`pivot_wider` lager bare kolonner som har data).
+- En test uten `BATCH` gir teksten `NA` i bøtta, det samme som "ingen test" etter `S08` (#48).
 
 ### S08 Bygg og skriv F1
 
