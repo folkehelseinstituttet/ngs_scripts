@@ -1,13 +1,11 @@
 """Run only the wrapper's offline reference check, never a sequencing pipeline."""
 
 import os
-from pathlib import Path
 import subprocess
 
 import pytest
 
 
-WRAPPER = Path(__file__).resolve().parents[1] / "fluseq_wrapper.sh"
 TABLE_HEADER = "Subtype;Reference;Type;GISAID_EPI\n"
 TABLE_ROW = "H1N1;A/Example/1/2025;human;EPI_ISL_123456\n"
 FASTA_HEADER = "A/Example/1/2025|EPI_ISL_123456_HA1"
@@ -25,17 +23,21 @@ def bundle(tmp_path):
     return root, table, fasta
 
 
-def check(bundle, *extra):
-    root, table, _ = bundle
-    return subprocess.run(
-        ["bash", str(WRAPPER), "--check-references", str(root), str(table), *extra],
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
+@pytest.fixture
+def check(wrapper):
+    def run(bundle, *extra):
+        root, table, _ = bundle
+        return subprocess.run(
+            ["bash", str(wrapper), "--check-references", str(root), str(table), *extra],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+
+    return run
 
 
-def test_valid_bundle_passes_without_pipeline_activity(bundle, tmp_path, monkeypatch):
+def test_valid_bundle_passes_without_pipeline_activity(bundle, check, tmp_path, monkeypatch):
     commands = tmp_path / "blocked-commands"
     commands.mkdir()
     for command in ["git", "smbclient", "conda", "nextflow", "docker"]:
@@ -50,7 +52,7 @@ def test_valid_bundle_passes_without_pipeline_activity(bundle, tmp_path, monkeyp
     assert "UNEXPECTED_EXTERNAL_COMMAND" not in result.stderr
 
 
-def test_original_windows_table_format_is_accepted(bundle):
+def test_original_windows_table_format_is_accepted(bundle, check):
     _, table, _ = bundle
     table.write_bytes(
         ("\ufeff" + TABLE_HEADER + TABLE_ROW.rstrip() + "\u00a0 \n").replace("\n", "\r\n").encode("utf-8")
@@ -59,7 +61,7 @@ def test_original_windows_table_format_is_accepted(bundle):
     assert result.returncode == 0, result.stderr
 
 
-def test_table_without_final_newline_is_accepted(bundle):
+def test_table_without_final_newline_is_accepted(bundle, check):
     bundle[1].write_text((TABLE_HEADER + TABLE_ROW).rstrip(), encoding="utf-8")
     assert check(bundle).returncode == 0
 
@@ -76,7 +78,7 @@ def test_table_without_final_newline_is_accepted(bundle):
         ("A/Example/1/2025|EPI_ISL_123456", "Invalid EPI header"),
     ],
 )
-def test_invalid_header_fails(bundle, header, expected_error):
+def test_invalid_header_fails(bundle, check, header, expected_error):
     bundle[2].write_text(f">{header}\nACDE\n", encoding="utf-8")
     result = check(bundle)
     assert result.returncode == 1
@@ -84,7 +86,7 @@ def test_invalid_header_fails(bundle, header, expected_error):
 
 
 @pytest.mark.parametrize(("filename", "suffix"), [("NS1", "NS"), ("SigPep", "SIGPEP"), ("HA1", "HA"), ("M1", "MP")])
-def test_existing_segment_aliases_and_underscore_names_pass(bundle, filename, suffix):
+def test_existing_segment_aliases_and_underscore_names_pass(bundle, check, filename, suffix):
     root, table, fasta = bundle
     replacement = fasta.with_name(filename + ".fasta")
     fasta.rename(replacement)
@@ -93,7 +95,7 @@ def test_existing_segment_aliases_and_underscore_names_pass(bundle, filename, su
     assert result.returncode == 0, result.stderr
 
 
-def test_every_record_is_checked(bundle):
+def test_every_record_is_checked(bundle, check):
     bundle[2].write_text(
         f">{FASTA_HEADER}\nACDE\n>A/Other/2/2025|EPI_ISL_123456_HA1\nACDE\n",
         encoding="utf-8",
@@ -103,7 +105,7 @@ def test_every_record_is_checked(bundle):
     assert "Wrong reference" in result.stderr
 
 
-def test_every_fasta_is_checked(bundle):
+def test_every_fasta_is_checked(bundle, check):
     bundle[2].with_name("NA.fasta").write_text(
         ">A/Example/1/2025|EPI_ISL_999999_NA\nACDE\n", encoding="utf-8"
     )
@@ -113,7 +115,7 @@ def test_every_fasta_is_checked(bundle):
 
 
 @pytest.mark.parametrize("content", ["", ">header\n", "ACDE\n", f">{FASTA_HEADER}\n"])
-def test_empty_or_malformed_fasta_fails(bundle, content):
+def test_empty_or_malformed_fasta_fails(bundle, check, content):
     bundle[2].write_text(content, encoding="utf-8")
     assert check(bundle).returncode == 1
 
@@ -129,28 +131,28 @@ def test_empty_or_malformed_fasta_fails(bundle, content):
         (TABLE_HEADER, "No reference-table entries"),
     ],
 )
-def test_invalid_table_fails(bundle, table_text, error):
+def test_invalid_table_fails(bundle, check, table_text, error):
     bundle[1].write_text(table_text, encoding="utf-8")
     result = check(bundle)
     assert result.returncode == 1
     assert error in result.stderr
 
 
-def test_missing_subtype_directory_fails(bundle):
+def test_missing_subtype_directory_fails(bundle, check):
     bundle[2].parent.rename(bundle[2].parent.with_name("H3N2"))
     result = check(bundle)
     assert result.returncode == 1
     assert "Missing subtype directory" in result.stderr
 
 
-def test_no_fasta_files_fails(bundle):
+def test_no_fasta_files_fails(bundle, check):
     bundle[2].rename(bundle[2].with_suffix(".txt"))
     result = check(bundle)
     assert result.returncode == 1
     assert "No FASTA files" in result.stderr
 
 
-def test_absent_vaccine_bundle_does_not_block_human_check(bundle):
+def test_absent_vaccine_bundle_does_not_block_human_check(bundle, check):
     with bundle[1].open("a", encoding="utf-8") as handle:
         handle.write(TABLE_ROW.replace(";human;", ";human_vaccine;"))
     assert check(bundle).returncode == 0
@@ -159,23 +161,23 @@ def test_absent_vaccine_bundle_does_not_block_human_check(bundle):
     assert "Reference directory not found" in result.stderr
 
 
-def test_vaccine_type_can_be_checked_explicitly(bundle):
+def test_vaccine_type_can_be_checked_explicitly(bundle, check):
     bundle[1].write_text(TABLE_HEADER + TABLE_ROW.replace(";human;", ";human_vaccine;"), encoding="utf-8")
     (bundle[0] / "human").rename(bundle[0] / "human_vaccine")
     result = check(bundle, "human_vaccine")
     assert result.returncode == 0, result.stderr
 
 
-def test_unknown_type_is_rejected(bundle):
+def test_unknown_type_is_rejected(bundle, check):
     result = check(bundle, "unknown")
     assert result.returncode == 2
 
 
-def test_missing_check_arguments_show_usage_without_starting_wrapper():
-    result = subprocess.run(["bash", str(WRAPPER), "--check-references"], capture_output=True, text=True, timeout=15)
+def test_missing_check_arguments_show_usage_without_starting_wrapper(wrapper):
+    result = subprocess.run(["bash", str(wrapper), "--check-references"], capture_output=True, text=True, timeout=15)
     assert result.returncode == 2
     assert "Usage:" in result.stderr
 
 
-def test_shell_syntax():
-    subprocess.run(["bash", "-n", str(WRAPPER)], check=True, capture_output=True, text=True)
+def test_shell_syntax(wrapper):
+    subprocess.run(["bash", "-n", str(wrapper)], check=True, capture_output=True, text=True)

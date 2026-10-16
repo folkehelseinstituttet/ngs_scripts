@@ -5,6 +5,28 @@ shopt -s nullglob
 
 export NXF_SYNTAX_PARSER="${NXF_SYNTAX_PARSER:-v1}"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Standalone reference validation runs before conda, downloads, or pipeline work.
+# Header format: STRAIN|EPI_ISL_<digits>_<segment>
+validate_reference_type() {
+    python3 "$SCRIPT_DIR/reference_validation.py" "$@"
+}
+
+if [[ "${1:-}" == "--check-references" ]]; then
+    if [[ $# -lt 3 || $# -gt 4 ]]; then
+        echo "Usage: $0 --check-references REFERENCE_ROOT REFERENCE_TABLE [human|human_vaccine]" >&2
+        exit 2
+    fi
+    reference_type="${4:-human}"
+    if [[ "$reference_type" != "human" && "$reference_type" != "human_vaccine" ]]; then
+        echo "ERROR: Reference type must be human or human_vaccine" >&2
+        exit 2
+    fi
+    validate_reference_type "$2/$reference_type" "$reference_type" "$3"
+    exit $?
+fi
+
 # Activate conda safely
 export JAVA_HOME="${JAVA_HOME:-}"
 source "$HOME/miniconda3/etc/profile.d/conda.sh"
@@ -16,6 +38,7 @@ SCRIPT_NAME=$(basename "$0")
 
 usage() {
     echo "Usage: $SCRIPT_NAME [OPTIONS]"
+    echo "       $SCRIPT_NAME --check-references REFERENCE_ROOT REFERENCE_TABLE [human|human_vaccine]"
     echo "Options:"
     echo "  -h                 Display this help message"
     echo "  -r RUN             Specify the run name (e.g., INF077)"
@@ -85,120 +108,6 @@ echo "Season: $SEASON"
 echo "Year: $YEAR"
 echo "Validation Flag: $VALIDATION_FLAG"
 echo "Pipeline branch: $PIPELINE_BRANCH"
-
-clean_field() {
-    printf '%s' "$1" | sed 's/\r//g; s/^[[:space:]]*//; s/[[:space:]]*$//'
-}
-
-normalize_reference_name() {
-    printf '%s' "$1" \
-        | sed 's/\r//g; s/^[[:space:]]*//; s/[[:space:]]*$//' \
-        | sed 's#/#_#g; s#[[:space:]]#_#g; s/[^A-Za-z0-9._-]/_/g; s/__\+/_/g'
-}
-
-extract_reference_from_fasta_header() {
-    local fasta_file="$1"
-    local header
-
-    header=$(grep -m1 '^>' "$fasta_file" | sed 's/^>//')
-
-    if [ -z "$header" ]; then
-        echo "ERROR: No FASTA header found in $fasta_file"
-        exit 1
-    fi
-
-    # Remove only the final segment suffix
-    # Example:
-    # A_Victoria_2570_2019_HA1 -> A_Victoria_2570_2019
-    # A_Darwin_9_2021_PB2      -> A_Darwin_9_2021
-    header="${header%_*}"
-
-    normalize_reference_name "$header"
-}
-
-validate_reference_type() {
-    local ref_root="$1"
-    local ref_type="$2"
-    local table_file="$3"
-
-    echo "Validating references for type: $ref_type"
-
-    if [ ! -d "$ref_root" ]; then
-        echo "ERROR: Reference directory not found: $ref_root"
-        exit 1
-    fi
-
-    if [ ! -f "$table_file" ]; then
-        echo "ERROR: Reference table not found: $table_file"
-        exit 1
-    fi
-
-    local found_any=false
-
-    while IFS=';' read -r subtype reference type gisaid; do
-        subtype=$(clean_field "$subtype")
-        reference=$(clean_field "$reference")
-        type=$(clean_field "$type")
-        gisaid=$(clean_field "${gisaid:-}")
-
-        [ -z "$subtype" ] && continue
-        [ "$subtype" = "Subtype" ] && continue
-        [ "$type" != "$ref_type" ] && continue
-
-        found_any=true
-
-        local subtype_dir="$ref_root/$subtype"
-        if [ ! -d "$subtype_dir" ]; then
-            echo "ERROR: Missing subtype directory for $ref_type/$subtype"
-            echo "       Expected directory: $subtype_dir"
-            exit 1
-        fi
-
-        local expected_norm
-        expected_norm=$(normalize_reference_name "$reference")
-
-        local actual_refs=()
-        local fasta
-
-        for fasta in "$subtype_dir"/*.fasta; do
-            actual_refs+=("$(extract_reference_from_fasta_header "$fasta")")
-        done
-
-        if [ ${#actual_refs[@]} -eq 0 ]; then
-            echo "ERROR: No FASTA files found in $subtype_dir"
-            exit 1
-        fi
-
-        mapfile -t unique_actual_refs < <(printf '%s\n' "${actual_refs[@]}" | sort -u)
-
-        if [ ${#unique_actual_refs[@]} -ne 1 ]; then
-            echo "ERROR: Multiple different references found inside $subtype_dir"
-            echo "       Found:"
-            printf '       - %s\n' "${unique_actual_refs[@]}"
-            echo "       Expected: $reference"
-            exit 1
-        fi
-
-        local actual_norm="${unique_actual_refs[0]}"
-
-        if [ "$actual_norm" != "$expected_norm" ]; then
-            echo "ERROR: Wrong reference used for subtype '$subtype' [$ref_type]"
-            echo "       Correct reference: $reference"
-            echo "       Used reference:    $actual_norm"
-            echo "       Directory:         $subtype_dir"
-            echo "       FASTA files checked:"
-            printf '       - %s\n' "$subtype_dir"/*.fasta
-            exit 1
-        fi
-
-        echo "OK: $ref_type / $subtype -> $reference"
-    done < "$table_file"
-
-    if [ "$found_any" = false ]; then
-        echo "ERROR: No entries found in $table_file for Type=$ref_type"
-        exit 1
-    fi
-}
 
 download_single_file_from_smb() {
     local remote_dir="$1"
@@ -300,6 +209,7 @@ NEXTCLADE_DATASET=/mnt/tempdata/influensa_db/flu_seq_db/nextclade_datasets
 MUTATION_LISTS_REMOTE="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/Mutation_lists"
 REFERENCE_DIR_REMOTE="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/references"
 HUMAN_REFERENCES_REMOTE="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}/references/human"
+HUMAN_VACCINE_REFERENCES_REMOTE="$REFERENCE_DIR_REMOTE/human_vaccine"
 REASSORTMENT_REMOTE_DIR="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}"
 GENOTYPE_REMOTE_DIR="Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/Sesongfiler/${SEASON}"
 REFERENCE_TABLE_LOCAL_FILE="$FLU_DATABASE/reference_table.csv"
@@ -331,15 +241,22 @@ lcd $FLU_DATABASE/sequence_references/human
 mget *
 EOF
 
+echo "Updating human vaccine references"
+mkdir -p "$SEQUENCE_REFERENCES/human_vaccine"
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$HUMAN_VACCINE_REFERENCES_REMOTE" <<EOF
+prompt OFF
+recurse ON
+lcd $SEQUENCE_REFERENCES/human_vaccine
+mget *
+EOF
+
 echo "Updating reference table"
 download_single_file_from_smb "$REFERENCE_DIR_REMOTE" "$FLU_DATABASE" "reference_table.csv"
 
 echo "Using reference table: $REFERENCE_TABLE_LOCAL_FILE"
 echo "Checking that downloaded references match reference_table.csv"
 validate_reference_type "$SEQUENCE_REFERENCES/human" "human" "$REFERENCE_TABLE_LOCAL_FILE"
-
-# Easy extension later:
-# validate_reference_type "$SEQUENCE_REFERENCES/human_vaccine" "human_vaccine" "$REFERENCE_TABLE_LOCAL_FILE"
+validate_reference_type "$SEQUENCE_REFERENCES/human_vaccine" "human_vaccine" "$REFERENCE_TABLE_LOCAL_FILE"
 
 echo "Preparing FASTA input"
 cd "$SAMPLEDIR"

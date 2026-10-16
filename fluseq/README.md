@@ -103,6 +103,25 @@ screen -S fluseq-RUN-avian-VER -d -m bash /home/ngs/ngs_scripts/fluseq/fluseq_av
 ---
 
 
+## Reference validation
+
+Both human influenza wrappers download `human` and `human_vaccine` references
+and `reference_table.csv` from the season's `references` directory, then validate
+both sets before starting the pipeline. Each reference FASTA header must use
+`STRAIN|EPI_ISL_<digits>_<segment>` and match the table's `Reference` and
+`GISAID_EPI` columns. Missing or mismatched EPI identifiers stop the run.
+
+Check an existing local reference bundle without downloads or pipeline activity:
+
+```bash
+bash fluseq/fluseq_fasta_wrapper.sh --check-references \
+  /path/to/sequence_references /path/to/reference_table.csv human
+```
+
+Use `human_vaccine` to check vaccine references. The same option is available in
+`fluseq_wrapper.sh`. This checks headers and record structure, not sequence
+identity or segment completeness.
+
 ## 3. Checking progress
 
 List sessions:

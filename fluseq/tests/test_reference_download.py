@@ -8,7 +8,6 @@ import subprocess
 import pytest
 
 
-WRAPPER = Path(__file__).resolve().parents[1] / 'fluseq_wrapper.sh'
 MOCK_SMB = r'''
 smbclient() {
     [[ "$#" == 5 && "$1" == mock-host && "$2" == -A && "$3" == mock-auth && "$4" == -D ]]
@@ -47,15 +46,17 @@ smbclient() {
     ('empty_vaccine_directory', 'No FASTA files found'),
     ('failed_download_with_stale_files', None),
 ])
-def test_reference_download(tmp_path, case, error):
-    source = WRAPPER.read_text()
+def test_reference_download(wrapper, tmp_path, case, error):
+    source = wrapper.read_text()
     validator = re.search(r'^validate_reference_type\(\) \{\n.*?^\}', source, re.M | re.S)[0]
+    download_helper = re.search(r'^download_single_file_from_smb\(\) \{\n.*?^\}', source, re.M | re.S)
     assignments = '\n'.join(line for line in source.splitlines() if re.match(
-        r'^(?:HUMAN_REFERENCES|HUMAN_VACCINE_REFERENCES|REFERENCE_VALIDATION)=', line))
+        r'^(?:HUMAN_REFERENCES(?:_REMOTE)?|HUMAN_VACCINE_REFERENCES(?:_REMOTE)?|REFERENCE_VALIDATION|REFERENCE_DIR_REMOTE)=', line))
     start = source.index('echo "Updating human references"')
     end_line = 'validate_reference_type "$SEQUENCE_REFERENCES/human_vaccine" "human_vaccine" "$REFERENCE_TABLE_LOCAL_FILE"'
     end = source.index('\n' + end_line, start) + len('\n' + end_line)
     script = '\n'.join(['set -euo pipefail', 'shopt -s nullglob', validator,
+                        download_helper[0] if download_helper else '',
                         MOCK_SMB, assignments, source[start:end], 'echo VALIDATION_COMPLETED'])
     remote = tmp_path / 'remote'
     local = tmp_path / 'database'
@@ -83,7 +84,7 @@ def test_reference_download(tmp_path, case, error):
         directory = local / 'sequence_references/human_vaccine/H1N1'
         directory.mkdir(parents=True)
         (directory / 'HA1.fasta').write_text('>A/Test/2/2026|EPI_ISL_234567_HA1\nACDE\n')
-    env = dict(os.environ, FLU_DATABASE=str(local),
+    env = dict(os.environ, SCRIPT_DIR=str(wrapper.parent), FLU_DATABASE=str(local),
                SEQUENCE_REFERENCES=str(local / 'sequence_references'),
                REFERENCE_TABLE_LOCAL_FILE=str(local / 'reference_table.csv'),
                SEASON='SesTEST', SMB_HOST='mock-host', SMB_AUTH='mock-auth',
