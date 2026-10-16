@@ -54,8 +54,8 @@ if (!dir.exists(outdir)) {
 }
 
 # Name output files
-outfile  <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_lw_uttrekk.tsv"))
-outfile2 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_results.tsv"))
+outfile_F1  <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_lw_uttrekk.tsv"))
+outfile_F2 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_results.tsv"))
 
 ## ==================================================
 ## [S03] Establish connection to LIMS
@@ -74,7 +74,7 @@ con <- tryCatch(
       "ERROR: Unable to connect to database.\n",
       "Environment: ", run_env, "\n",
       "Message: ", e$message, "\n", 
-      file = outfile
+      file = outfile_F1
     )
     stop("Connection failed")
   }
@@ -296,7 +296,7 @@ final <- left_join(samples, ngs_info, by = c("SAMPLE_NUMBER" = "SAMPLE_NUMBER"))
   rename("SAMPLE.STATUS" = STATUS)
 
 # Write File 1: sample-level wide table
-write_tsv(final, outfile)
+write_tsv(final, outfile_F1)
 
 ## ==================================================
 ## File 2: VIRUS_POWERBI_results.tsv
@@ -438,7 +438,7 @@ category_lookup <- bind_rows(
 results_file2 <- left_join(results_file2, category_lookup, by = "ANALYSIS")
 
 # Write File 2: long-format results table
-write_tsv(results_file2, outfile2)
+write_tsv(results_file2, outfile_F2)
 
 ## ==================================================
 ## [S14] File 3: VIRUS_POWERBI_unclassified_codes.tsv
@@ -446,7 +446,7 @@ write_tsv(results_file2, outfile2)
 ## (for å finne manglende koder, #23, #40)
 ## ==================================================
 
-outfile3 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_unclassified_codes.tsv"))
+outfile_F3 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_unclassified_codes.tsv"))
 
 unclassified <- test %>%
   # Behold virusprøver. Ellers kommer koder fra alle faggrupper i LIMS med
@@ -463,16 +463,16 @@ unclassified <- test %>%
             .groups = "drop") %>%
   arrange(desc(n_tests))
 
-write_tsv(unclassified, outfile3)
+write_tsv(unclassified, outfile_F3)
 
 ## ==================================================
 ## [S15] File 5: VIRUS_POWERBI_excluded_codes.tsv
 ## Analysekoder som bevisst ikke telles (#40). Ikke koblet til prøver
 ## ==================================================
 
-outfile5 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_excluded_codes.tsv"))
+outfile_F5 <- file.path(outdir, paste0(run_env, "/ToOrdinary", "/LW_Datauttrekk", "/VIRUS_POWERBI_excluded_codes.tsv"))
 
-write_tsv(excluded_codes %>% arrange(rule, reason, ANALYSIS), outfile5)
+write_tsv(excluded_codes %>% arrange(rule, reason, ANALYSIS), outfile_F5)
 
 # [S12] Close connection
 odbc::dbDisconnect(con)
