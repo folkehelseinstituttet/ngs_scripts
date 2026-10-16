@@ -54,7 +54,7 @@ Milepæler samler sakene som løses i en versjon (f.eks. *Virus Dashboard 2.1*).
 | `#30` | NY-13 | Auto-uttrekk nede (databasetilkobling) | Drift | `S03` |
 | `#31` | NY-14 | Prøver som er mottatt, men aldri satt opp til PCR | PBI | Nær `#15`. `P03` |
 | `#32` | NY-15 | Langsiktig løsning på tegnkoding (ODBC Windows-1252) | Uttrekk | `S03` |
-| `#33` | NY-16 | Versjonsnavn: skal `-dev` fjernes ved merge til main? | Uttrekk | README, *Versjoner* |
+| `#33` | NY-16 | Versjonsnavn: skal `-dev` fjernes ved merge til main? | Uttrekk | README, *Versjoner*. Avklart: `-dev` fjernes når siste sak i milepælen er merget |
 | `#34` | NY-17 | Prøver uten dato | Begge | `S04` |
 | `#35` | NY-18 | Finne registreringsfeil (f.eks. mottaksdato før prøvetakingsdato) | Begge | `S04` |
 | `#36` | NY-19 | Bruke `SAMPLE.STATUS` / `X_MEDICAL_REVIEW` til å finne prøver som "henger" | PBI | `RG05` |

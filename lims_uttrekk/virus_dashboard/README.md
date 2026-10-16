@@ -50,7 +50,7 @@ Bruk kodene i commit-meldinger, PR-er, saker og kodekommentarer, f.eks. `E2.1-06
 
 **Status for regler:** `Vedtatt` (bestemt, ikke nødvendigvis implementert), `Implementert` (med versjon), `Avvik` (koden gjør noe annet enn regelen), `Åpen` (ikke bestemt).
 
-**Versjoner:** `MAJOR.MINOR`. `-dev` betyr at versjonen ikke er i prod ennå. *Forslag:* `-dev` fjernes når endringen merges til main og kjører i prod. Ikke endelig bestemt.
+**Versjoner:** `MAJOR.MINOR`. `-dev` betyr at versjonen ikke er ferdig. `-dev` fjernes i skripthodet når den siste saken i versjonens milepæl er merget til main (#33). Til da står `-dev` også på main.
 
 ---
 

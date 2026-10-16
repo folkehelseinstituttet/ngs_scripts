@@ -274,7 +274,7 @@ Ny kodeliste `seq_typing_codes` i `S06`: genotyping (`HAGEN1`, `HCGEN`, `HCGENA`
 | **Faggrupper** | Mest HEP_HIV (`HCGR3`, `HCGEN`, `N_HCSEK`, `HBRES`), deretter VIRUS_CMN / INFLUENSA (`SC2_VAR_SANG`), POL_ENT (`ENTERO_SEKVENS`) og hepatitt A/E (`HAGEN1`, `HEVGEN`) |
 | **Forventet effekt** | To nye kolonner i F1, `Auth_SEQ_TYPING` og `NotAuth_SEQ_TYPING`. Kodene forsvinner fra F3. F2 uendret: `Seq_typing` dukker bare opp hvis whitelisten får par for disse kodene |
 | **Målt effekt** | Testkjøring 2026-10-15, 2.0-dev mot `vd/23-analysekoder`, samme data (0 prøver bare i én kjøring). Antall prøver med noe i kolonnen, etter dashboardets default-filtre (`RG02`–`RG04`). F1: 944 719 rader i begge. <br>• `Auth_SEQ_TYPING`: INFLUENSA 6 718, HEP_HIV 2 030, POL_ENT 1 069, ROTA 40. Totalt 9 857 (10 104 uten filtre) <br>• `NotAuth_SEQ_TYPING`: INFLUENSA 1 058, HEP_HIV 212, POL_ENT 50. Totalt 1 320 (1 324 uten filtre) <br>• Begge kolonnene finnes i F1. F2 uendret, som forventet |
-| **Krever PBI-endring** | **Ja** (#44). Ta inn de to nye kolonnene. Sjekk at Power Query-kilden ikke har et fast antall kolonner (`Columns=` i `Csv.Document`), ellers forsvinner de uten feilmelding |
+| **Krever PBI-endring** | **Ja** (#44, gjort). Ta inn de to nye kolonnene. Sjekk at Power Query-kilden ikke har et fast antall kolonner (`Columns=` i `Csv.Document`), ellers forsvinner de uten feilmelding |
 | **Bakoverkompatibel** | Ja, hvis rapporten bruker kolonnenavn og ikke posisjon |
 | **Åpent** | `HCGR3` antas å være HCV-genotyping. `N_HCSEK`, `N_HIRSEK`, `N_HIDSEK` avhenger av hva `N_`-prefikset betyr (#38) |
 
