@@ -63,7 +63,7 @@ Milepæler samler sakene som løses i en versjon (f.eks. *Virus Dashboard 2.1*).
 | `#39` | | Linjeskift i resultatverdier ødelegger rader i F2 | Uttrekk | `S10`, F2. Finnes fra 2.0 |
 | `#40` | | Liste over analysekoder som bevisst ikke tas med (F5) | Uttrekk | `S15` (nytt), `RG13` (ny), F3, F5 (ny), `E2.2-01`–`E2.2-03`. Gren `vd/40-utelatte-koder`. 2.2 |
 | `#41` | | Regelavklaring: skal dashboardet vise enkeltprøver og analysekodene deres? | Begge | `RG08`, `P01`, `P03`. Avklart: enkeltprøver tillatt, se `RG08`. Lukket |
-| `#42` | | F4: kobling mellom prøver og analysekoder | Begge | `S16` (nytt), F4 (ny), `RG08`, `RG09`, `RG13`. Avhenger av #40. Siste fem år, uten `PATIENT` (`RG08`). 2.2 |
+| `#42` | | F4: kobling mellom prøver og analysekoder | Begge | `S16` (nytt), F4 (ny), `RG08`, `RG09`, `RG13`, `P04`, `E2.2-04`, `E2.2-05`. Gren `vd/42-prove-kode-kobling` (på #40). Siste fem år, uten `PATIENT` (`RG08`). 2.2 |
 | `#43` | | Blokker eksport av data fra dashboardet | PBI | `RG08`, `P01`. 2.2 |
 | `#44` | | Ta inn kolonnene `Auth_SEQ_TYPING` og `NotAuth_SEQ_TYPING` i dashboardet | PBI | `P01`, `P03`, F1, `E2.1-12`. Power BI-delen av #37. 2.1 |
 | `#46` | | Whitelist-feltet "Kvalitet på sekvensen" kommer aldri med i F2 | Uttrekk | `S09`, `S10`, F2. Trolig tegnkoding (#32). Finnes fra 2.0 |
