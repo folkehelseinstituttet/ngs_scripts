@@ -13,6 +13,7 @@ DATE="$(date +%Y-%m-%d)"
 BASE_DIR="/mnt/tempdata"
 TMP_DIR="${BASE_DIR}/flu_nextstrain"
 OUT_DIR="${BASE_DIR}/flu_nextstrain_out"
+LATEST_BUNDLE_DIR="${OUT_DIR}/latest_bundle"
 
 SMB_AUTH="/home/ngs/.smbcreds"
 SMB_HOST="//pos1-fhi-svm01.fhi.no/styrt"
@@ -146,13 +147,16 @@ fi
 mkdir -p "$OUT_DIR"
 cp "${SEASONAL_FLU_DIR}/auspice/"*.json "$OUT_DIR"
 
-# --- Copy translation FASTAs to OUT_DIR, preserving build/segment grouping ---
-echo "Copying translation files..."
+# --- Copy aligned nucleotide and translation FASTAs, preserving build/segment grouping ---
+echo "Copying aligned nucleotide and translation files..."
 for build in h1n1_fhi h3n2_fhi vic_fhi; do
   for segment in ha na; do
+    aligned_src="${SEASONAL_FLU_DIR}/builds/${build}/${segment}/aligned.fasta"
+    aligned_dest="${OUT_DIR}/aligned/${build}/${segment}"
     translations_src="${SEASONAL_FLU_DIR}/builds/${build}/${segment}/translations"
     translations_dest="${OUT_DIR}/translations/${build}/${segment}"
-    mkdir -p "$translations_dest"
+    mkdir -p "$aligned_dest" "$translations_dest"
+    cp "$aligned_src" "$aligned_dest/"
     cp "${translations_src}/"*.fasta "$translations_dest/"
   done
 done
@@ -198,6 +202,15 @@ mv "${OUT_DIR}/vic_fhi_na.json"                   "${OUT_DIR}/flu_b_vic_na_lates
 
 cp "${OUT_DIR}/vic_fhi_na_tip-frequencies.json"   "${OUT_DIR}/flu_b_vic_na_${DATE}_tip-frequencies.json"   || true
 mv "${OUT_DIR}/vic_fhi_na_tip-frequencies.json"   "${OUT_DIR}/flu_b_vic_na_latest_tip-frequencies.json"    || true
+
+# --- Refresh a combined folder while keeping the existing output structure ---
+echo "Preparing latest bundle..."
+rm -rf "$LATEST_BUNDLE_DIR"
+mkdir -p "$LATEST_BUNDLE_DIR"
+cp -R "${OUT_DIR}/aligned" "${OUT_DIR}/translations" "$LATEST_BUNDLE_DIR/"
+cp "${OUT_DIR}/"*_latest.json \
+   "${OUT_DIR}/"*_latest_tip-frequencies.json \
+   "$LATEST_BUNDLE_DIR/"
 
 # --- Upload results to SMB ---
 echo "Uploading results to SMB..."
