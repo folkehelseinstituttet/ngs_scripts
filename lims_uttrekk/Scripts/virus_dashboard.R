@@ -12,6 +12,7 @@ library(lubridate)
 #   og Fil 3 med uklassifiserte koder (#23, #37).
 # Versjon 2.2 (under arbeid): liste over analysekoder som bevisst ikke telles, og Fil 5 (#40),
 #   og Fil 4 med kobling mellom prøver og analysekoder (#42).
+#   Fil 6 med resultatfelt som ikke er i whitelisten, og flere resultater i Fil 2 (#56, #46).
 
 ## ==================================================
 ## [S01] Validate required environment variables
@@ -373,6 +374,9 @@ result_whitelist <- tribble(
   "RSVB_PCR",      "ct. RSVB",
   "RSVABPCR",      "ct. RSVA",
   "RSVABPCR",      "ct. RSVB",
+  # --- PCR: HEP_HIV (#56) ---
+  "HIRPCR",        "Resultat",
+  "HIRPCR",        "Konklusjon",
   # --- Serology: arbovirus (IF-tester, står i serology_codes) ---
   "DENGIF",        "Resultat DENV-1",
   "DENGIF",        "Resultat DENV-2",
@@ -425,6 +429,11 @@ result_whitelist <- tribble(
   "NGS",           "Gj. snittlig dybde",
   "NGS",           "Dekning % av genomet",
   "NGS",           "Kvalitet p\u00e5 sekvensen",
+  # Lagt til fra resultatfeltene på NGS (#56)
+  "NGS",           "Genotype fra skript alt. 1",
+  "NGS",           "Genotype fra skript alt. 2",
+  "NGS",           "Genotype manuell",
+  "NGS",           "SekvensID",
   "NGS_PREP",      "NGS-status",
   "NGS_PREP",      "Ct",
   "NGS_PREP",      "Agens",
