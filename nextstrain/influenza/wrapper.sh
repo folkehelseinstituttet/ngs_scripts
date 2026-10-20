@@ -146,6 +146,17 @@ fi
 mkdir -p "$OUT_DIR"
 cp "${SEASONAL_FLU_DIR}/auspice/"*.json "$OUT_DIR"
 
+# --- Copy translation FASTAs to OUT_DIR, preserving build/segment grouping ---
+echo "Copying translation files..."
+for build in h1n1_fhi h3n2_fhi vic_fhi; do
+  for segment in ha na; do
+    translations_src="${SEASONAL_FLU_DIR}/builds/${build}/${segment}/translations"
+    translations_dest="${OUT_DIR}/translations/${build}/${segment}"
+    mkdir -p "$translations_dest"
+    cp "${translations_src}/"*.fasta "$translations_dest/"
+  done
+done
+
 # --- Rename outputs by lineage/segment/date ---
 DATE="$(date +%Y-%m-%d)"
 
