@@ -16,7 +16,7 @@ Nyeste versjon øverst.
 | `vd/42-prove-kode-kobling` | #42 | `E2.2-04`, `E2.2-05` | Merget, ikke i prod ennå |
 | `vd/39-linjeskift-f2` | #39 | `E2.2-06` | Testet |
 | `vd/28-tilkoblingsfeil` | #28 | `E2.2-07` | Testet (bygger på `vd/39-linjeskift-f2`) |
-| `vd/56-resultatfelt` | #56, #46 | `E2.2-08` – `E2.2-12` | Testet |
+| `vd/56-resultatfelt` | #56, #46 | `E2.2-08` – `E2.2-12` | Merget (#57), i prod |
 
 **Testsjekkliste**
 - [x] (#40) F5 finnes, med kodene i `excluded_codes`
