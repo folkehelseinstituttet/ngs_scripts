@@ -12,6 +12,7 @@ library(lubridate)
 #   og Fil 3 med uklassifiserte koder (#23, #37).
 # Versjon 2.2 (under arbeid): liste over analysekoder som bevisst ikke telles, og Fil 5 (#40),
 #   og Fil 4 med kobling mellom prøver og analysekoder (#42).
+#   Fil 6 med resultatfelt som ikke er i whitelisten, og flere resultater i Fil 2 (#56, #46).
 
 ## ==================================================
 ## [S01] Validate required environment variables
@@ -74,6 +75,9 @@ outfile_F4 <- file.path(outpath, "VIRUS_POWERBI_sample_codes.tsv")
 # F5: analysekoder som bevisst ikke telles, med begrunnelse.
 #     Referanseliste, ikke koblet til prøver. Skrives i [S15]
 outfile_F5 <- file.path(outpath, "VIRUS_POWERBI_excluded_codes.tsv")
+# F6: resultatfelt på virusprøver som ikke er i whitelisten og ikke bevisst utelatt, med antall.
+#     Vedlikeholdsfil for whitelisten, ikke til dashboardet. Skrives i [S18]
+outfile_F6 <- file.path(outpath, "VIRUS_POWERBI_unlisted_result_fields.tsv")
 
 # Ikke en datafil: skrives bare hvis tilkoblingen til LIMS feiler [S03], og slettes
 # når tilkoblingen virker. Utfilene fra forrige kjøring blir da stående (#28)
@@ -338,6 +342,8 @@ write_tsv(final, outfile_F1)
 # [S09] Whitelist of (ANALYSIS, NAME) pairs with diagnostic value.
 # Admin/workflow fields (Autohandling, MSISLABDB, Rådatafil, Utført av, etc.)
 # are intentionally excluded.
+# æøå i NAME skrives som \u-escape (f.eks. "p\u00e5"), så navnet blir likt uansett hvordan
+# skriptet leses på serveren. Navnene fra LIMS gjøres om til UTF-8 før matching i [S10] (#46).
 result_whitelist <- tribble(
   ~ANALYSIS,       ~NAME,
   # --- PCR: influensa ---
@@ -368,7 +374,10 @@ result_whitelist <- tribble(
   "RSVB_PCR",      "ct. RSVB",
   "RSVABPCR",      "ct. RSVA",
   "RSVABPCR",      "ct. RSVB",
-  # --- PCR: arbovirus ---
+  # --- PCR: HEP_HIV (#56) ---
+  "HIRPCR",        "Resultat",
+  "HIRPCR",        "Konklusjon",
+  # --- Serology: arbovirus (IF-tester, står i serology_codes) ---
   "DENGIF",        "Resultat DENV-1",
   "DENGIF",        "Resultat DENV-2",
   "DENGIF",        "Resultat DENV-3",
@@ -419,7 +428,12 @@ result_whitelist <- tribble(
   "NGS",           "Genotype fra skript",
   "NGS",           "Gj. snittlig dybde",
   "NGS",           "Dekning % av genomet",
-  "NGS",           "Kvalitet på sekvensen",
+  "NGS",           "Kvalitet p\u00e5 sekvensen",
+  # Lagt til fra resultatfeltene på NGS (#56)
+  "NGS",           "Genotype fra skript alt. 1",
+  "NGS",           "Genotype fra skript alt. 2",
+  "NGS",           "Genotype manuell",
+  "NGS",           "SekvensID",
   "NGS_PREP",      "NGS-status",
   "NGS_PREP",      "Ct",
   "NGS_PREP",      "Agens",
@@ -439,20 +453,79 @@ result_whitelist <- tribble(
   "VDYRKA",        "Funn"
 )
 
-# [S10] Hent resultater for virusprøvene og behold whitelistede par
-results_file2 <- tbl(con, "RESULT_VIEW") %>%
+# Navn fra LIMS kommer som Windows-1252, navn fra skriptet som UTF-8. Gjør begge om til
+# UTF-8 før de sammenlignes, ellers matcher aldri navn med æøå (#46). Tekst som allerede
+# er gyldig UTF-8 (også ren ASCII) beholdes. Base-funksjoner, ikke stringr (#32)
+to_utf8 <- function(x) {
+  ok <- validUTF8(x)
+  x[!ok] <- iconv(x[!ok], from = "CP1252", to = "UTF-8")
+  Encoding(x) <- "UTF-8"
+  x
+}
+
+# Alle koder i whitelisten skal stå i en kategoriliste, ellers får de tom analysis_category i F2
+not_in_category <- setdiff(result_whitelist$ANALYSIS, category_codes)
+if (length(not_in_category) > 0) {
+  warning("Koder i result_whitelist som ikke st\u00e5r i en kategoriliste: ",
+          paste(not_in_category, collapse = ", "))
+}
+
+## ==================================================
+## [S17] Result fields deliberately not included
+## ==================================================
+
+# Resultatfelt som bevisst ikke tas med i F2 (RG14, #56): administrasjon og arbeidsflyt,
+# og fritekst, som kan inneholde hva som helst. Gjelder feltnavnet på alle analysekoder.
+# Feltene er heller ikke med i F6. Bare eksakte navn, med \u-escape for æøå.
+# Begrunnelsene er bare ASCII, som i excluded_codes [S15].
+excluded_result_fields <- tribble(
+  ~NAME,                       ~reason,
+  "Autohandling",              "Administrativ",
+  "Autohandling_tabres",       "Administrativ",
+  "MSISLABDB",                 "Administrativ",
+  "R\u00e5datafil",            "Administrativ",
+  "Utf\u00f8rt av",            "Administrativ",
+  "utf\u00f8rt av",            "Administrativ",
+  "Tabular Results sekvens",   "Administrativ",
+  "Tabular Results SeqSphere", "Administrativ",
+  "eMSIS ref",                 "Administrativ",
+  "Meldeskjemanr",             "Administrativ",
+  "Fritekst",                  "Fritekst",
+  "Kommentar",                 "Fritekst",
+  "Kommentar_NGS",             "Fritekst",
+  "Felles kommentar",          "Fritekst",
+  "Netlab Kommentar",          "Fritekst",
+  "Agenskommentar",            "Fritekst"
+) %>%
+  mutate(rule = "RG14")
+
+# Et felt skal bare stå ett sted. Står det både i whitelisten og her, kommer det med i F2
+both_fields <- intersect(result_whitelist$NAME, excluded_result_fields$NAME)
+if (length(both_fields) > 0) {
+  warning("Resultatfelt b\u00e5de i result_whitelist og i excluded_result_fields (tas med): ",
+          paste(both_fields, collapse = ", "))
+}
+
+# [S10] Hent resultater for virusprøvene. Alle feltene brukes i F6 [S18],
+# de whitelistede i F2
+results_virus <- tbl(con, "RESULT_VIEW") %>%
   select(SAMPLE_NUMBER, TEST_NUMBER, ANALYSIS, NAME, ENTRY, FORMATTED_ENTRY,
          ENTERED_ON, CHANGED_ON) %>%
   collect() %>%
   filter(SAMPLE_NUMBER %in% samples_sample_number) %>%
-  inner_join(result_whitelist, by = c("ANALYSIS", "NAME")) %>%
   mutate(
     value = coalesce(
       na_if(as.character(FORMATTED_ENTRY), ""),
       na_if(as.character(ENTRY), "")
-    )
+    ),
+    # Brukes bare til matching. NAME beholdes som den kom fra LIMS
+    name_key = to_utf8(NAME)
   ) %>%
-  filter(!is.na(value)) %>%
+  filter(!is.na(value))
+
+# Behold whitelistede par
+results_file2 <- results_virus %>%
+  inner_join(result_whitelist, by = c("ANALYSIS", "name_key" = "NAME")) %>%
   # Linjeskift i en verdi deler raden i to i TSV-fila. Byttes med mellomrom (#39).
   # useBytes, fordi teksten fra LIMS er Windows-1252 (andre bytes endres ikke)
   mutate(value = gsub("[\r\n]+", " ", value, useBytes = TRUE)) %>%
@@ -531,6 +604,36 @@ sample_codes <- test %>%
   select(SAMPLE_NUMBER, ANALYSIS, analysis_category, n_tests, n_auth)
 
 write_tsv(sample_codes, outfile_F4)
+
+## ==================================================
+## [S18] File 6: VIRUS_POWERBI_unlisted_result_fields.tsv
+## Resultatfelt på virusprøver som ikke er i whitelisten, og ikke bevisst utelatt
+## (for å utvide whitelisten, #56)
+## ==================================================
+
+# Én rad per faggruppe, analysekode og resultatfelt. Bare felt med verdi, som i F2.
+# Koder i excluded_codes (F5) og felt i excluded_result_fields (RG14) er ikke med
+unlisted_fields <- results_virus %>%
+  filter(!ANALYSIS %in% excluded_codes$ANALYSIS,
+         !name_key %in% excluded_result_fields$NAME) %>%
+  anti_join(result_whitelist, by = c("ANALYSIS", "name_key" = "NAME")) %>%
+  left_join(distinct(samples, SAMPLE_NUMBER, GROUP_NAME), by = "SAMPLE_NUMBER") %>%
+  group_by(GROUP_NAME, ANALYSIS, name_key) %>%
+  summarise(n_values    = n(),
+            n_samples   = n_distinct(SAMPLE_NUMBER),
+            # Som i F3 [S14]: NA med samme klasse når alle CHANGED_ON er NA
+            last_change = if (all(is.na(CHANGED_ON))) CHANGED_ON[NA_integer_] else max(CHANGED_ON, na.rm = TRUE),
+            .groups = "drop") %>%
+  left_join(category_lookup, by = "ANALYSIS") %>%
+  mutate(analysis_category = coalesce(analysis_category, "Ukategorisert"),
+         # Om koden har noen felt i whitelisten. FALSE = ingen resultater fra koden i F2
+         analysis_in_whitelist = ANALYSIS %in% result_whitelist$ANALYSIS) %>%
+  # NAME skrives som UTF-8, så navnet kan kopieres rett inn i whitelisten (med \u-escape for æøå)
+  select(GROUP_NAME, ANALYSIS, analysis_category, analysis_in_whitelist,
+         NAME = name_key, n_values, n_samples, last_change) %>%
+  arrange(desc(n_values))
+
+write_tsv(unlisted_fields, outfile_F6)
 
 # [S12] Close connection
 odbc::dbDisconnect(con)

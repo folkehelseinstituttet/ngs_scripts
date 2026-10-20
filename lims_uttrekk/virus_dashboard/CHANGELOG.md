@@ -16,6 +16,7 @@ Nyeste versjon øverst.
 | `vd/42-prove-kode-kobling` | #42 | `E2.2-04`, `E2.2-05` | Merget, ikke i prod ennå |
 | `vd/39-linjeskift-f2` | #39 | `E2.2-06` | Testet |
 | `vd/28-tilkoblingsfeil` | #28 | `E2.2-07` | Testet (bygger på `vd/39-linjeskift-f2`) |
+| `vd/56-resultatfelt` | #56, #46 | `E2.2-08` – `E2.2-12` | Merget (#57), i prod |
 
 **Testsjekkliste**
 - [x] (#40) F5 finnes, med kodene i `excluded_codes`
@@ -28,6 +29,11 @@ Nyeste versjon øverst.
 - [x] (#39) F2 har ingen ødelagte rader (alle rader har 8 kolonner), og ellers samme innhold
 - [x] (#42) F1, F2, F3 og F5 er uendret (F3 byte-identisk med #40-kjøringen, F5 med samme koder og nå uten tegnfeil, F1 og F2 med samme filstørrelse)
 - [x] (#40) Ingen advarsel om koder både i en kategoriliste og i `excluded_codes`
+- [x] (#46) F2 har rader for `NGS / Kvalitet på sekvensen` (først etter at æøå i skriptet ble skrevet som `\u`-escape, se `E2.2-08`)
+- [x] (#56) F2 har rader for de nye parene i `E2.2-11`, og ellers samme innhold (byte-identisk når de nye parene tas bort), alle rader med 8 kolonner
+- [x] (#56) F1, F3, F4 og F5 er uendret (byte-identiske med main samme dag)
+- [x] (#56) F6 finnes, uten koder i F5, uten felt i `excluded_result_fields` og uten whitelistede par
+- [x] (#56) Ingen advarsel om whitelisten (sjekket lokalt: kontrollene avhenger bare av listene i skriptet. Ingen rader i F2 uten `analysis_category`)
 
 ### E2.2-01 Liste over koder som bevisst ikke telles
 
@@ -116,6 +122,74 @@ Fil 4 i utfil-dokumentasjonen (med oppsett i Power BI), `S16` og `P04` i `STEPS.
 | **Målt effekt** | Testkjøring av `vd/28-tilkoblingsfeil`: vanlig kjøring, ingen feilfil, og alle utfilene skrevet. Feilsiden (mislykket tilkobling) er bare testet i tørrkjøring: feilfila skrives med tidspunkt, F1 blir stående, og en gammel feilfil slettes ved neste vellykkede tilkobling |
 | **Krever PBI-endring** | Nei |
 | **Bakoverkompatibel** | Ja |
+
+### E2.2-08 Resultatfelt med æøå matcher whitelisten
+
+`S10` lager `name_key`, navnet fra LIMS gjort om til UTF-8 (`to_utf8()`: Windows-1252 → UTF-8, tekst som allerede er gyldig UTF-8 beholdes), og matcher whitelisten på den. Whitelisten skriver æøå som `\u`-escape (`"Kvalitet p\u00e5 sekvensen"`), så navnet er likt uansett hvordan skriptet leses. `NAME` i F2 er uendret, slik det kom fra LIMS.
+
+| | |
+|---|---|
+| **Saker** | #46 |
+| **Steg / regler / filer** | `S09`, `S10`. `RG10`. F2 |
+| **Faggrupper** | Alle med NGS-resultater |
+| **Forventet effekt** | F2 får rader for `NGS / Kvalitet på sekvensen`, som aldri har kommet med. Andre rader uendret |
+| **Målt effekt** | Testet mot main, med samme data. Som forventet: `NGS / Kvalitet på sekvensen` er nå med i F2, og resten av F2 er uendret. <br>• **Første testkjøring feilet:** æøå i whitelisten var skrevet som tegn, ikke `\u`-escape. Serveren leser skriptet slik at tegnene blir feil, så feltet havnet i F6 i stedet, og `Rådatafil` og `Utført av` ble ikke utelatt fra F6. Navnet fra LIMS var riktig konvertert. Etter rettingen har skriptet ingen tekst med æøå mellom anførselstegn |
+| **Krever PBI-endring** | Nei. Nye verdier i `NAME` |
+| **Bakoverkompatibel** | Ja |
+
+### E2.2-09 Resultatfelt som bevisst ikke tas med, og kontroll av whitelisten
+
+Nytt steg `S17`: hardkodet liste `excluded_result_fields` med feltnavn og begrunnelse (`Administrativ` eller `Fritekst`, `RG14`). Lista gjelder feltnavnet på alle analysekoder, og brukes til å holde feltene ute av F6. `S09` gir en advarsel hvis en kode i whitelisten ikke står i en kategoriliste (da får den tom `analysis_category` i F2), og `S17` hvis et felt står både i whitelisten og i lista. Kommentarene i whitelisten plasserer `DENGIF` og `CHIGIF` under serologi, der de står i kodelistene.
+
+| | |
+|---|---|
+| **Saker** | #56 |
+| **Steg / regler / filer** | `S09`, `S17` (nytt). `RG14` (ny) |
+| **Faggrupper** | Alle |
+| **Forventet effekt** | Ingen på F1–F5 |
+| **Krever PBI-endring** | Nei |
+| **Bakoverkompatibel** | Ja |
+
+### E2.2-10 Ny fil F6: resultatfelt som ikke er i whitelisten
+
+`S10` beholder alle resultatene for virusprøvene (`results_virus`), og F2 lages derfra. Nytt steg `S18` skriver `VIRUS_POWERBI_unlisted_result_fields.tsv`: én rad per faggruppe, analysekode og resultatfelt som har verdier, men ikke er i whitelisten, med `n_values`, `n_samples`, `last_change`, `analysis_category` og `analysis_in_whitelist` (om koden har noen felt i F2). Koder i F5 og felt i `excluded_result_fields` er ikke med. `NAME` skrives som UTF-8. Fila har bare aggregerte tall og ingen verdier.
+
+| | |
+|---|---|
+| **Saker** | #56 |
+| **Steg / regler / filer** | `S02`, `S10`, `S18` (nytt). `RG10`, `RG13`, `RG14`. F6 (ny) |
+| **Faggrupper** | Alle |
+| **Forventet effekt** | Ingen på F1–F5. F6 er ny |
+| **Målt effekt** | Testet mot main, med samme data. Som forventet: F1, F3, F4 og F5 er uendret, og F6 er liten, gyldig UTF-8 og uten F5-koder, whitelistede par og felt fra `excluded_result_fields`. Unntaket var `utført av` med liten forbokstav, som er lagt til i lista etterpå. De fleste analysekodene i F6 har ingen felt i F2 ennå |
+| **Krever PBI-endring** | Nei. F6 er en vedlikeholdsfil |
+| **Bakoverkompatibel** | Ja |
+
+### E2.2-11 Flere resultatfelt i whitelisten
+
+Nye par i `S09`, valgt fra resultatfeltene som finnes i `RESULT_VIEW`:
+- `HIRPCR`: `Resultat`, `Konklusjon` (ingen HIV-resultater i F2 før)
+- `NGS`: `Genotype fra skript alt. 1`, `Genotype fra skript alt. 2`, `Genotype manuell`, `SekvensID`
+
+`Sekvensert agens` og `Sekvensert genomlengde` på `NGS` var med i første testkjøring, men finnes ikke på virusprøver, og er tatt ut igjen.
+
+| | |
+|---|---|
+| **Saker** | #56 |
+| **Steg / regler / filer** | `S09`. `RG10`. F2 |
+| **Faggrupper** | Alle med NGS-resultater, og HIV |
+| **Forventet effekt** | Flere rader i F2 for `HIRPCR` og `NGS`. Andre rader uendret |
+| **Målt effekt** | Testet mot main, med samme data. Som forventet: alle de nye parene er med i F2, og alle andre rader er uendret. `HIRPCR` gir de første PCR-resultatene for HIV i F2. Noen av de nye verdiene er IU (se #21) |
+| **Krever PBI-endring** | Nei. Nye verdier i `ANALYSIS` og `NAME` |
+| **Bakoverkompatibel** | Ja |
+
+### E2.2-12 Dokumentasjon av F6 og RG14
+
+Fil 6 og de nye feltene i Fil 2 i utfil-dokumentasjonen, `S17` og `S18` i `STEPS.md`, `RG14` i `RULES.md`, og F6 i oversikten i `README.md`.
+
+| | |
+|---|---|
+| **Saker** | #56, #46 |
+| **Krever PBI-endring** | Nei |
 ---
 
 ## 2.1-dev (under arbeid fra 2026-10-15)

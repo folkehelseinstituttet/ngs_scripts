@@ -11,21 +11,23 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 | Kode | Steg | Leser | Skriver | Regler |
 |---|---|---|---|---|
 | `S01` | Valider miljøvariabler | Miljø | — | — |
-| `S02` | Les variabler og sett utfilnavn | Miljø | `outpath`, `outfile_F1` … `outfile_F5` | — |
+| `S02` | Les variabler og sett utfilnavn | Miljø | `outpath`, `outfile_F1` … `outfile_F6` | — |
 | `S03` | Koble til LIMS | SQL Server | `con` | — |
 | `S04` | Hent prøver | `SAMPLE_VIEW` | `samples`, `samples_sample_number` | `RG01`, flagg for `RG02` |
 | `S05` | Hent tester | `TEST_VIEW` | `test` | — |
 | `S06` | Definer analysekodegrupper | — | sju kodelister (seks før #37) | `RG09`, `RG12` |
 | `S07` | Klassifiser tester i bøtter | `test`, kodelister | `ngs_info` | `RG05`, (`RG06`, `RG07` fra 2.1-dev) |
 | `S08` | Bygg og skriv F1 | `samples`, `ngs_info` | **F1** | — |
-| `S09` | Resultat-whitelist | — | `result_whitelist` | `RG10` |
-| `S10` | Hent og filtrer resultater for F2 | `RESULT_VIEW` | `results_file2` | `RG10`, (`RG06`, `RG07` fra 2.1-dev) |
+| `S09` | Resultat-whitelist | `category_codes` | `result_whitelist`, `to_utf8()` | `RG10` |
+| `S10` | Hent og filtrer resultater for F2 | `RESULT_VIEW` | `results_virus`, `results_file2` | `RG10`, (`RG06`, `RG07` fra 2.1-dev) |
 | `S11` | Analysekategori og skriv F2 | `results_file2`, kodelister | **F2** | `RG12` |
 | `S12` | Lukk tilkobling | — | — | — |
 | `S13` | *2.1-dev:* Finn tester som ikke skal telles | `test`, `results` | `excluded_tests` | `RG06`, `RG07` |
 | `S14` | *2.1-dev (#23):* Bygg og skriv F3 | `test`, `samples`, kodelister, `excluded_codes` | **F3** | `RG09`, `RG12`, `RG13` |
 | `S15` | *2.2-dev (#40):* Koder som bevisst ikke telles, og skriv F5 | — | `excluded_codes`, `category_codes`, **F5** | `RG13` |
 | `S16` | *2.2-dev (#42):* Kobling mellom prøver og analysekoder, skriv F4 | `test`, `samples`, `category_lookup`, `excluded_codes` | **F4** | `RG08`, `RG13` |
+| `S17` | *2.2-dev (#56):* Resultatfelt som bevisst ikke tas med | `result_whitelist` | `excluded_result_fields` | `RG14` |
+| `S18` | *2.2-dev (#56):* Resultatfelt som ikke er i whitelisten, skriv F6 | `results_virus`, `samples`, `result_whitelist`, `excluded_result_fields`, `excluded_codes`, `category_lookup` | **F6** | `RG10`, `RG13`, `RG14` |
 | `P01` | Relasjon F1–F2 | F1, F2 | Datamodell | — |
 | `P02` | Default-filtre for prøver | F1 | — | `RG02`, `RG03`, `RG04` |
 | `P03` | Telle analyserte prøver | F1 | Measures | `RG05`, `RG08` |
@@ -40,6 +42,7 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 | `F3` | `VIRUS_POWERBI_unclassified_codes.tsv` (*2.1-dev*, #23) | Én rad per faggruppe × analysekode. Vedlikeholdsfil, ikke til dashboardet | `S14` |
 | `F4` | `VIRUS_POWERBI_sample_codes.tsv` (*2.2-dev*, #42) | Én rad per prøve × analysekode, siste fem år | `S16` |
 | `F5` | `VIRUS_POWERBI_excluded_codes.tsv` (*2.2-dev*, #40) | Én rad per analysekode. Koder som bevisst ikke telles, ikke koblet til prøver | `S15` |
+| `F6` | `VIRUS_POWERBI_unlisted_result_fields.tsv` (*2.2-dev*, #56) | Én rad per faggruppe × analysekode × resultatfelt. Vedlikeholdsfil for whitelisten, ikke til dashboardet | `S18` |
 
 Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [`../Scripts/VIRUS_POWERBI_output_columns.md`](../Scripts/VIRUS_POWERBI_output_columns.md).
 
@@ -53,7 +56,7 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 ### S02 Les variabler og sett utfilnavn
 
-**Gjør:** leser miljøvariablene og stopper hvis `OUTDIR` ikke finnes. Setter alle utfilene samlet: `outpath` (`<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk`) og `outfile_F1` … `outfile_F5`, hver med en kommentar om innhold, formål og hvilket steg som skriver den. Nye utfiler skal deklareres her, med neste ledige F-kode. Feilfila `errorfile` er også her, men har ingen F-kode, fordi den ikke er en datafil (#28).
+**Gjør:** leser miljøvariablene og stopper hvis `OUTDIR` ikke finnes. Setter alle utfilene samlet: `outpath` (`<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk`) og `outfile_F1` … `outfile_F6`, hver med en kommentar om innhold, formål og hvilket steg som skriver den. Nye utfiler skal deklareres her, med neste ledige F-kode. Feilfila `errorfile` er også her, men har ingen F-kode, fordi den ikke er en datafil (#28).
 
 ### S03 Koble til LIMS
 
@@ -109,9 +112,17 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 **Gjør:** en liste med ca. 100 `(ANALYSIS, NAME)`-par med diagnostisk verdi (Ct-verdier, titere, konklusjoner, genotype/klade, NGS-QC). Administrasjonsfelt er utelatt med vilje (`RG10`).
 
+*2.2-dev (#46, #56):*
+- æøå i `NAME` skrives som `\u`-escape, så navnet er likt uansett hvordan skriptet leses på serveren.
+- `to_utf8()` gjør tekst fra LIMS (Windows-1252) om til UTF-8, og beholder tekst som allerede er gyldig UTF-8. Brukes i `S10`.
+- Advarsel hvis en kode i whitelisten ikke står i en kategoriliste (`category_codes`). Da får den tom `analysis_category` i F2.
+- Flere par fra resultatfeltene i `RESULT_VIEW` (`E2.2-11`). Nye par velges ut fra F6 (`S18`).
+
 ### S10 Hent og filtrer resultater for F2
 
 **Gjør:** henter resultatene for virusprøvene, beholder bare par i whitelisten (S09), og setter `value` til `FORMATTED_ENTRY` eller, hvis tom, `ENTRY`. Rader uten verdi fjernes.
+
+*2.2-dev (#46, #56):* alle resultatene for virusprøvene beholdes i `results_virus`, med `name_key` = `to_utf8(NAME)`. F2 lages fra `results_virus` ved å matche whitelisten på `ANALYSIS` og `name_key`, og F6 (`S18`) fra resten. Før matchet navn med æøå aldri, fordi LIMS-navnet var Windows-1252 og whitelisten UTF-8 (#46). `NAME` i F2 er uendret.
 
 *2.2-dev (#39):* linjeskift i `value` byttes med mellomrom, så en verdi ikke deler raden i to i F2. Bytes ellers er uendret (Windows-1252).
 
@@ -168,6 +179,25 @@ Brukes i S07 og S10.
 - Prøver uten mottaksdato er ikke med (se #34).
 - Tester med R/X eller "Ikke utført" er med i `n_tests` inntil `excluded_tests` (`S13`, #20/#21) også brukes her.
 - Filtrerer til virusprøvene via prøvelista, fordi `test` ennå ikke er filtrert i databasen (#22).
+
+### S17 Resultatfelt som bevisst ikke tas med (*2.2-dev*, #56)
+
+**Gjør:** hardkodet liste `excluded_result_fields` med feltnavn og begrunnelse, `Administrativ` eller `Fritekst` (`RG14`). Lista gjelder feltnavnet på alle analysekoder. Gir en advarsel hvis et felt også står i whitelisten. Da kommer det med i F2.
+
+**Merk**
+- Bare eksakte navn, med `\u`-escape for æøå, og matches mot `name_key` (`S10`).
+- Lista påvirker bare F6. F2 styres av whitelisten alene.
+- Lista skrives ikke til egen fil. Den står i skriptet og i `RG14`.
+
+### S18 Resultatfelt som ikke er i whitelisten, skriv F6 (*2.2-dev*, #56)
+
+**Gjør:** teller resultatfelt med verdi på virusprøver som ikke er i whitelisten, per faggruppe (prøvens `GROUP_NAME`), analysekode og felt: `n_values`, `n_samples`, `last_change`. Legger til `analysis_category` (`Ukategorisert` for koder utenfor kategorilistene) og `analysis_in_whitelist` (om koden har noen felt i whitelisten). Koder i `excluded_codes` (`S15`) og felt i `excluded_result_fields` (`S17`) er ikke med. Skriver F6.
+
+**Merk**
+- Brukes til å utvide whitelisten: et felt i F6 legges enten i whitelisten (`S09`) eller i `excluded_result_fields` (`S17`). Da forsvinner det fra F6.
+- `analysis_in_whitelist = FALSE` betyr at koden ikke har noen resultater i F2 i det hele tatt.
+- `NAME` skrives som UTF-8 (`name_key`), ikke som i F2.
+- Bare aggregerte tall, ingen verdier. Ufiltrert innenfor virusprøvene, som F3.
 
 ---
 

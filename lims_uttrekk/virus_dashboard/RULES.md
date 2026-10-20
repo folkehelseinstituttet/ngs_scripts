@@ -17,10 +17,11 @@ Telleregler og faglige beslutninger for Virus Dashboard. En regel sier **hva** s
 | `RG07` | Tester med resultat "Ikke utført" telles ikke | **Avvik (2.0)**. Foreslått i 2.1-dev | `S13`, `S07`, `S10` | Møte 2026-03-20 |
 | `RG08` | Dashboardet viser tellinger, og enkeltprøver med prøvenummer, analysekoder og resultater | Vedtatt (endret i #41 og #53) | `P03`, `S16` / F4 og `P04` (2.2-dev, #42), F2, eksport (#43) | Møte 2026-02-24, #41, #53 |
 | `RG09` | Bare analysekoder i kodelistene telles | Implementert 2.0. **Midlertidig**. F3 viser det som mangler fra 2.1-dev | `S06`, `S14` | Designvalg 2.0 |
-| `RG10` | F2 har bare whitelistede resultatfelt | Implementert 2.0 | `S09`, `S10` | Designvalg 2.0 (#11) |
+| `RG10` | F2 har bare whitelistede resultatfelt | Implementert 2.0. F6 viser felt utenfor whitelisten fra 2.2-dev | `S09`, `S10`, `S18` | Designvalg 2.0 (#11), #56 |
 | `RG11` | Avviste tester i dashboardet? | **Åpen** | — | Møte 2026-03-20 |
 | `RG12` | Delresultat-koder telles ikke som egne analyser | Foreslått i 2.1-dev (#37). Må bekreftes av faggruppen | `S06` | Gjennomgang av F3, 2026-10-15 |
 | `RG13` | Administrative og utgåtte koder telles ikke, og listes i F5 | Implementert 2.2-dev (#40) | `S15`, `S14` | #40 |
+| `RG14` | Administrative resultatfelt og fritekst tas ikke med i F2 | Foreslått i 2.2-dev (#56) | `S17`, `S18` | #56 |
 
 ---
 
@@ -106,6 +107,12 @@ Bare `(ANALYSIS, NAME)`-par i `S09` kommer med i F2. Administrasjons- og arbeids
 
 **Konsekvens:** nye resultattyper må legges til i whitelisten for å komme med. Siden resultater for enkeltprøver kan vises (`RG08`, #53), bestemmer whitelisten også hvilke resultater som kan ses per prøve.
 
+**Hvorfor en whitelist, og ikke en liste over det som skal ut:** `RESULT_VIEW` har også navn, filstier og fritekst. Med en whitelist kommer et nytt felt ikke med før noen har bestemt det, også når en faggruppe legger til felt i LIMS. Den holder også F2 liten, og sier hvilket felt som er resultatet.
+
+**Ikke `REPORTABLE`:** flagget i `RESULT_VIEW` kan ikke brukes i stedet (#56). NGS-resultatene er nesten alle `F`, fritekst- og kommentarfelt er ofte `T`, og samme felt har både `T` og `F`.
+
+**Slik utvides den (fra 2.2-dev):** F6 (`S18`) viser resultatfelt med verdi som ikke er i whitelisten, per kode og faggruppe. Et felt legges enten i whitelisten eller i `excluded_result_fields` (`RG14`). Navn med æøå skrives med `\u`-escape (#46).
+
 ## RG11 Avviste tester i dashboardet? (åpen)
 
 Møtet 2026-03-20 nevnte at avviste tester (R) kanskje er relevante å vise. 2.1-dev fjerner dem (`RG06`).
@@ -133,6 +140,18 @@ Analysekoder som ikke er analyser (administrative koder, arbeidsflyt, kommentarf
 **Konsekvens:** F3 blir mindre, og viser bare koder som ikke er avklart. Kodene er heller ikke med i F4 (#42). F1 og F2 endres ikke.
 
 **Ikke med:** delresultat-koder som `HCRES_NS*` står i F3 etter `RG12`, ikke i lista. Koder som kan trengs til andre saker (`MOTTAK`, `AGENS`, `N_IKKEUS`), og `N_`-kodene som venter på svar i #38, er heller ikke med.
+
+## RG14 Administrative resultatfelt og fritekst tas ikke med i F2
+
+Resultatfelt for administrasjon og arbeidsflyt (f.eks. `Autohandling`, `MSISLABDB`, `Rådatafil`, `Utført av`) og fritekstfelt (f.eks. `Fritekst`, `Kommentar`, `Netlab Kommentar`) står i den hardkodede lista `excluded_result_fields` (`S17`), med begrunnelse `Administrativ` eller `Fritekst`. Lista gjelder feltnavnet på alle analysekoder. Feltene tas ikke med i whitelisten, og er ikke med i F6.
+
+**Hvorfor:** resultater for enkeltprøver kan vises i dashboardet (`RG08`). Fritekst kan inneholde hva som helst, også navn og pasientopplysninger, og administrative felt har ingen diagnostisk verdi. Uten lista blir feltene liggende i F6 for alltid, og det finnes ingen oversikt over hva som bevisst er utelatt.
+
+**Slik legges et felt inn:** bare eksakte navn, med `\u`-escape for æøå. Er det uklart om et felt er et resultat, blir det stående i F6 til faggruppen har svart.
+
+**Konsekvens:** F6 blir mindre. F2 endres ikke, fordi den bare styres av whitelisten. Står et felt både i whitelisten og i lista, gir skriptet en advarsel, og feltet kommer med i F2.
+
+**Status:** foreslått i 2.2-dev (#56). Lista er en første versjon fra feltene i `RESULT_VIEW`, og må gås gjennom med F6 fra en testkjøring.
 
 ---
 
