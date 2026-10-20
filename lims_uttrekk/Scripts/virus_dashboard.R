@@ -370,7 +370,7 @@ result_whitelist <- tribble(
   "RSVB_PCR",      "ct. RSVB",
   "RSVABPCR",      "ct. RSVA",
   "RSVABPCR",      "ct. RSVB",
-  # --- PCR: arbovirus ---
+  # --- Serology: arbovirus (IF-tester, står i serology_codes) ---
   "DENGIF",        "Resultat DENV-1",
   "DENGIF",        "Resultat DENV-2",
   "DENGIF",        "Resultat DENV-3",
@@ -449,6 +449,49 @@ to_utf8 <- function(x) {
   x[!ok] <- iconv(x[!ok], from = "CP1252", to = "UTF-8")
   Encoding(x) <- "UTF-8"
   x
+}
+
+# Alle koder i whitelisten skal stå i en kategoriliste, ellers får de tom analysis_category i F2
+not_in_category <- setdiff(result_whitelist$ANALYSIS, category_codes)
+if (length(not_in_category) > 0) {
+  warning("Koder i result_whitelist som ikke st\u00e5r i en kategoriliste: ",
+          paste(not_in_category, collapse = ", "))
+}
+
+## ==================================================
+## [S17] Result fields deliberately not included
+## ==================================================
+
+# Resultatfelt som bevisst ikke tas med i F2 (RG14, #56): administrasjon og arbeidsflyt,
+# og fritekst, som kan inneholde hva som helst. Gjelder feltnavnet på alle analysekoder.
+# Feltene er heller ikke med i F6. Bare eksakte navn, med \u-escape for æøå.
+# Begrunnelsene er bare ASCII, som i excluded_codes [S15].
+excluded_result_fields <- tribble(
+  ~NAME,                       ~reason,
+  "Autohandling",              "Administrativ",
+  "Autohandling_tabres",       "Administrativ",
+  "MSISLABDB",                 "Administrativ",
+  "R\u00e5datafil",            "Administrativ",
+  "Utf\u00f8rt av",            "Administrativ",
+  "utf\u00f8rt av",            "Administrativ",
+  "Tabular Results sekvens",   "Administrativ",
+  "Tabular Results SeqSphere", "Administrativ",
+  "eMSIS ref",                 "Administrativ",
+  "Meldeskjemanr",             "Administrativ",
+  "Fritekst",                  "Fritekst",
+  "Kommentar",                 "Fritekst",
+  "Kommentar_NGS",             "Fritekst",
+  "Felles kommentar",          "Fritekst",
+  "Netlab Kommentar",          "Fritekst",
+  "Agenskommentar",            "Fritekst"
+) %>%
+  mutate(rule = "RG14")
+
+# Et felt skal bare stå ett sted. Står det både i whitelisten og her, kommer det med i F2
+both_fields <- intersect(result_whitelist$NAME, excluded_result_fields$NAME)
+if (length(both_fields) > 0) {
+  warning("Resultatfelt b\u00e5de i result_whitelist og i excluded_result_fields (tas med): ",
+          paste(both_fields, collapse = ", "))
 }
 
 # [S10] Hent resultater for virusprøvene
