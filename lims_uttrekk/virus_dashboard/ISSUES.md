@@ -29,7 +29,7 @@ Milepæler samler sakene som løses i en versjon (f.eks. *Virus Dashboard 2.1*).
 
 | Sak | Tidl. | Tittel | Side | Koblinger |
 |---|---|---|---|---|
-| `#10` | | Innsenders agens / innsenders resultat | Begge | Nye kolonner i `S04` eller `S10` |
+| `#10` | | Innsenders agens / innsenders resultat | Begge | Nye kolonner i `S04` eller `S10`. Er det et resultatfelt (f.eks. under `AGENS`), viser F6 det (#56) |
 | `#11` | | Eget uttrekk for analysekoder og eget for resultater (lukket, 2.0) | Uttrekk | F1/F2-oppdelingen, `S09`–`S11` |
 | `#12` | | Rekvirent, og utvikling over tid | Begge | Feltet er ikke bekreftet. Kandidater i `ORDERS_VIEW`: `X_CLINICIAN`, `x_sample_submitter`, `X_GB_REKVID`. Ny kolonne i F1 |
 | `#13` | | Nedtrekksmeny med analysekoder (lukket, 2.0) | PBI | `analysis_category`, `S11` |
@@ -66,9 +66,10 @@ Milepæler samler sakene som løses i en versjon (f.eks. *Virus Dashboard 2.1*).
 | `#42` | | F4: kobling mellom prøver og analysekoder | Begge | `S16` (nytt), F4 (ny), `RG08`, `RG09`, `RG13`, `P04`, `E2.2-04`, `E2.2-05`. Gren `vd/42-prove-kode-kobling` (på #40). Siste fem år, uten `PATIENT` (`RG08`). 2.2 |
 | `#43` | | Blokker eksport av data fra dashboardet | PBI | `RG08`, `P01`. 2.2 |
 | `#44` | | Ta inn kolonnene `Auth_SEQ_TYPING` og `NotAuth_SEQ_TYPING` i dashboardet | PBI | `P01`, `P03`, F1, `E2.1-12`. Power BI-delen av #37. 2.1 |
-| `#46` | | Whitelist-feltet "Kvalitet på sekvensen" kommer aldri med i F2 | Uttrekk | `S09`, `S10`, F2. Trolig tegnkoding (#32). Finnes fra 2.0 |
+| `#46` | | Whitelist-feltet "Kvalitet på sekvensen" kommer aldri med i F2 | Uttrekk | `S09`, `S10`, F2, `E2.2-08`. Tegnkoding (#32): feltet finnes i LIMS. Gren `vd/56-resultatfelt`. Finnes fra 2.0 |
 | `#48` | | F1: "NA" betyr både "ingen test" og "test uten batch-ID" | Begge | `S07`, `S08`, `P03`, `RG05`, F1. Funnet ved sammenligning med F4. Finnes fra 2.0. 2.1 |
 | `#51` | | Default-filtre i Power BI: behold ferdige prøver, ta bort fryseprøver | PBI | `P02`, `RG02`–`RG04`. Power BI-delen av #18, #19. 2.1 |
 | `#53` | | Regelendring: resultater for enkeltprøver kan vises i dashboardet | Begge | `RG08`, `RG10`, F2, `P04`. Besluttet. Lukket |
+| `#56` | | Mange analyser har ingen resultater i F2, og ingen oversikt over hvilke resultatfelt som finnes | Uttrekk | `S09`, `S10`, `S17` (nytt), `S18` (nytt), `RG10`, `RG14` (ny), F2, F6 (ny), `E2.2-09`–`E2.2-12`. Gren `vd/56-resultatfelt` (med #46). Se også #10, #14. 2.2 |
 
 **Ny sak:** opprett den på GitHub med malen *Virus Dashboard* (tittel `[VD] …`, etiketten `virus-dashboard` settes automatisk). Sett side-, type- og statusetiketter, og legg til en rad her hvis saken berører steg, regler eller endringer.

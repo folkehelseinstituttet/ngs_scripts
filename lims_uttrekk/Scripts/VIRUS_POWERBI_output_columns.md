@@ -1,7 +1,7 @@
 # Dokumentasjon for LIMS-uttrekksfiler til Virus Dashboard
 
 Generert av `virus_dashboard.R` (v2.1-dev).  
-Skriptet produserer **to filer** som begge lastes inn i Power BI, og en tredje fil til vedlikehold av analysekodelistene:
+Skriptet produserer filer som lastes inn i Power BI, og filer til vedlikehold av analysekodelistene og resultat-whitelisten:
 
 | Fil | Format | Granularitet |
 |---|---|---|
@@ -10,6 +10,7 @@ Skriptet produserer **to filer** som begge lastes inn i Power BI, og en tredje f
 | `VIRUS_POWERBI_unclassified_codes.tsv` | Tab-separert, én rad per faggruppe og analysekode | Aggregert (kun tellinger). Ikke til Dashboardet |
 | `VIRUS_POWERBI_sample_codes.tsv` | Tab-separert, én rad per prøve og analysekode | Kobling mellom prøver og analysekoder, siste fem år |
 | `VIRUS_POWERBI_excluded_codes.tsv` | Tab-separert, én rad per analysekode | Liste over koder som bevisst ikke telles. Ikke koblet til prøver |
+| `VIRUS_POWERBI_unlisted_result_fields.tsv` | Tab-separert, én rad per faggruppe, analysekode og resultatfelt | Aggregert (kun tellinger). Resultatfelt som ikke er med i Fil 2. Ikke til Dashboardet |
 
 Filene kobles i Power BI via `SAMPLE_NUMBER` (mange-til-én fra resultatfilen til prøvefilen).
 
@@ -81,7 +82,7 @@ Alle `Auth_*`- og `NotAuth_*`-kolonner inneholder kommaseparerte batch-IDer ders
 
 Én rad per resultatverdi per prøve. Brukes til å vise faktiske analyseresultater — Ct-verdier, titere, konklusjoner, genotyper og QC-metrikker.
 
-Kun et utvalg av `(ANALYSIS, NAME)`-par med diagnostisk verdi er inkludert. Rene administrasjons- og arbeidsflytfelt (Autohandling, MSISLABDB, Rådatafil, Utført av osv.) er ekskludert.
+Kun et utvalg av `(ANALYSIS, NAME)`-par med diagnostisk verdi er inkludert (whitelisten). Rene administrasjons- og arbeidsflytfelt (Autohandling, MSISLABDB, Rådatafil, Utført av osv.) og fritekstfelt er ekskludert. Resultatfelt som ikke er med, vises i Fil 6.
 
 ### Kolonner
 
@@ -102,10 +103,11 @@ Kun et utvalg av `(ANALYSIS, NAME)`-par med diagnostisk verdi er inkludert. Rene
 |---|---|---|
 | PCR influensa | `INFABPCR`, `INFA_TRICDC`, `INFB_TRICDC`, `SC2_TRICDC`, `INFSC2`, `IAH3C1`, `IASRH1` | `Resultat`, `ct. INFA`, `ct. H3`, `H1pdm09` |
 | PCR RSV | `RSVA_PCR`, `RSVB_PCR`, `RSVABPCR` | `Resultat`, `ct. RSVA`, `ct. RSVB` |
-| PCR arbovirus | `DENGIF`, `CHIGIF` | `Resultat DENV-1/2/3/4`, `Konklusjon`, `Resultat` |
+| PCR HEP_HIV | `HIRPCR` | `Resultat`, `Konklusjon` |
+| Serologi arbovirus | `DENGIF`, `CHIGIF` | `Resultat DENV-1/2/3/4`, `Konklusjon`, `Resultat` |
 | Serologi MMR/B19 | `MOGENZ`, `MOGMIC`, `PAMSER`, `PAMMIC`, `MOMENZ`, `RUGENZ`, `RUGSER`, `B19GSER`, `B19MSER` | `Konklusjon`, `Result_num`, `Titer`, `S / Positiv CO %` |
 | Serologi HEP_HIV | `HIAGB`, `HAIFV`, `HCVB` | `Konklusjon`, `Result_num`, `S/CO prosent`, `Resultat_num` |
-| NGS/WGS typing og QC | `NGS`, `NGS_PREP`, `SC2_NGS`, `INF_WGS`, `RSV_WGS`, `MPX_WGS` | `Genotype fra skript`, `Clade`, `Dekning % av genomet`, `Gj. snittlig dybde`, `NGS-status`, `Genetisk variant` |
+| NGS/WGS typing og QC | `NGS`, `NGS_PREP`, `SC2_NGS`, `INF_WGS`, `RSV_WGS`, `MPX_WGS` | `Genotype fra skript`, `Genotype manuell`, `Clade`, `Dekning % av genomet`, `Gj. snittlig dybde`, `Kvalitet på sekvensen`, `SekvensID`, `NGS-status`, `Genetisk variant` |
 | Dyrking | `VDYRKE`, `VDYRKA` | `Konklusjon`, `Funn`, `eMSIS status` |
 
 ---
@@ -173,6 +175,30 @@ Merk:
 
 - Kodene i Fil 5 står ikke i noen kategori, telles ikke i `Auth_*`/`NotAuth_*`, og er ikke med i Fil 3.
 - Hver analysekode står ett sted: i en kategori (telles), i Fil 5 (bevisst utelatt), eller i Fil 3 (ikke avklart ennå).
+
+---
+
+## Fil 6: `VIRUS_POWERBI_unlisted_result_fields.tsv`
+
+Vedlikeholdsfil, ikke til Dashboardet. Viser resultatfelt med verdi på virusprøver som **ikke** er med i Fil 2, fordi `(ANALYSIS, NAME)`-paret ikke står i whitelisten. Brukes til å bestemme hvilke resultater som skal inn i Fil 2.
+
+| Kolonne | Beskrivelse |
+|---|---|
+| `GROUP_NAME` | Faggruppe til **prøven**. |
+| `ANALYSIS` | Analysekode. |
+| `analysis_category` | Samme verdier som i Fil 4, med `Ukategorisert` for koder som ikke står i noen kategoriliste. |
+| `analysis_in_whitelist` | `TRUE` hvis koden har andre felt i Fil 2. `FALSE` betyr at koden ikke har noen resultater i Fil 2. |
+| `NAME` | Navn på resultatfeltet, i UTF-8. |
+| `n_values` | Antall resultater med verdi. |
+| `n_samples` | Antall unike prøver. |
+| `last_change` | Siste `CHANGED_ON` for feltet. Tom hvis ingen av resultatene har dato. |
+
+Merk:
+
+- Fila har bare tellinger, ingen resultatverdier.
+- Den er **ufiltrert** innenfor virusprøvene, som Fil 3.
+- Koder i Fil 5 er ikke med. Administrative felt og fritekst som bevisst ikke tas med (`RG14`), er heller ikke med.
+- Et felt forsvinner fra fila når det legges i whitelisten eller i lista over felt som ikke tas med.
 
 ---
 
