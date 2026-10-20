@@ -338,6 +338,8 @@ write_tsv(final, outfile_F1)
 # [S09] Whitelist of (ANALYSIS, NAME) pairs with diagnostic value.
 # Admin/workflow fields (Autohandling, MSISLABDB, Rådatafil, Utført av, etc.)
 # are intentionally excluded.
+# æøå i NAME skrives som \u-escape (f.eks. "p\u00e5"), så navnet blir likt uansett hvordan
+# skriptet leses på serveren. Navnene fra LIMS gjøres om til UTF-8 før matching i [S10] (#46).
 result_whitelist <- tribble(
   ~ANALYSIS,       ~NAME,
   # --- PCR: influensa ---
@@ -419,7 +421,7 @@ result_whitelist <- tribble(
   "NGS",           "Genotype fra skript",
   "NGS",           "Gj. snittlig dybde",
   "NGS",           "Dekning % av genomet",
-  "NGS",           "Kvalitet på sekvensen",
+  "NGS",           "Kvalitet p\u00e5 sekvensen",
   "NGS_PREP",      "NGS-status",
   "NGS_PREP",      "Ct",
   "NGS_PREP",      "Agens",
@@ -439,20 +441,35 @@ result_whitelist <- tribble(
   "VDYRKA",        "Funn"
 )
 
-# [S10] Hent resultater for virusprøvene og behold whitelistede par
-results_file2 <- tbl(con, "RESULT_VIEW") %>%
+# Navn fra LIMS kommer som Windows-1252, navn fra skriptet som UTF-8. Gjør begge om til
+# UTF-8 før de sammenlignes, ellers matcher aldri navn med æøå (#46). Tekst som allerede
+# er gyldig UTF-8 (også ren ASCII) beholdes. Base-funksjoner, ikke stringr (#32)
+to_utf8 <- function(x) {
+  ok <- validUTF8(x)
+  x[!ok] <- iconv(x[!ok], from = "CP1252", to = "UTF-8")
+  Encoding(x) <- "UTF-8"
+  x
+}
+
+# [S10] Hent resultater for virusprøvene
+results_virus <- tbl(con, "RESULT_VIEW") %>%
   select(SAMPLE_NUMBER, TEST_NUMBER, ANALYSIS, NAME, ENTRY, FORMATTED_ENTRY,
          ENTERED_ON, CHANGED_ON) %>%
   collect() %>%
   filter(SAMPLE_NUMBER %in% samples_sample_number) %>%
-  inner_join(result_whitelist, by = c("ANALYSIS", "NAME")) %>%
   mutate(
     value = coalesce(
       na_if(as.character(FORMATTED_ENTRY), ""),
       na_if(as.character(ENTRY), "")
-    )
+    ),
+    # Brukes bare til matching. NAME beholdes som den kom fra LIMS
+    name_key = to_utf8(NAME)
   ) %>%
-  filter(!is.na(value)) %>%
+  filter(!is.na(value))
+
+# Behold whitelistede par
+results_file2 <- results_virus %>%
+  inner_join(result_whitelist, by = c("ANALYSIS", "name_key" = "NAME")) %>%
   # Linjeskift i en verdi deler raden i to i TSV-fila. Byttes med mellomrom (#39).
   # useBytes, fordi teksten fra LIMS er Windows-1252 (andre bytes endres ikke)
   mutate(value = gsub("[\r\n]+", " ", value, useBytes = TRUE)) %>%
