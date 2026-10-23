@@ -1,45 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail # Exit on error, unset variables, and pipefail
 
-# --- Console channel -------------------------------------------------------
-# Progress messages should be visible to a human, not just buried in the logs.
-# They go to stdout, which the "exec | tee" below sends to the main wrapper log
-# *and* to this script's own terminal. Under "screen" that terminal is the
-# screen window, so the messages are live while attached and still sitting in
-# the scrollback when you reattach later with "screen -r hcv".
-#
-# That alone is not enough for a fully detached launch
-# ("screen -dmS hcv wrapper.sh ..."), because screen gives the script a brand
-# new pty: nothing reaches the terminal the user actually typed in. Export
-# CONSOLE_TTY at launch to mirror the messages there too, so the user gets
-# immediate confirmation that the run really started before they log out:
-#
-#   CONSOLE_TTY=$(tty) screen -dmS hcv ~/ngs_scripts/hcv_illumina/wrapper.sh -r RUN -a HCV -y 2026
-#
-# After logout that pty is destroyed and the mirror silently stops; the run
-# keeps going and the log files remain the durable record.
-
-# History log file (default before args are parsed)
-export LOGFILE="/home/ngs/hav_sequencing_wrapper.log"
-export ERRORLOG="/home/ngs/hav_sequencing_wrapper.error.log"
-
-exec > >(tee -a "$LOGFILE") \
-     2> >(tee -a "$LOGFILE" >> "$ERRORLOG")
-
-# Small helper to write status; STATUS_FILE will be updated after args are parsed.
-# Writes to LOGFILE (append), wrapper log (append) and updates STATUS_FILE atomically.
-set_status() {
-    msg="[$(date +'%Y-%m-%d %H:%M:%S')] $1"
-    # history
-    echo "$msg" >> "$LOGFILE"
-    # Append status line to STATUS_FILE if it's defined
-    if [ -n "${STATUS_FILE:-}" ]; then
-        if ! printf '%s\n' "$msg" >> "$STATUS_FILE"; then
-            echo "[$(date)] Failed to append status to $STATUS_FILE" >> "$LOGFILE"
-        fi
-    fi
-    
+usage() {
+    echo "Usage: $0 [--local] [--test] --mode <sanger|wgs> <batch_name> <year>"
+    echo "  --local   Run locally instead of on the server (default: server)"
+    echo "  --test    Do not modify the database (2PA.fa) on the N drive; write 2PA_test_<date_time>.fa instead"
 }
+
+# ── Environment selection (server is default) ────────────────────────────────
+# BASE_DIR: temporary/input data. OUT_BASE: home-like base for repos, logs, results.
+ENVIRONMENT="server"
+for arg in "$@"; do
+    [[ "$arg" == "--local" ]] && ENVIRONMENT="local"
+done
+
+if [[ "$ENVIRONMENT" == "local" ]]; then
+    export OUT_BASE="$HOME/ngs_local"
+    export BASE_DIR="$OUT_BASE"
+else
+    export BASE_DIR="/mnt/tempdata"
+    export OUT_BASE="/home/ngs"
+fi
+mkdir -p "$OUT_BASE" "$BASE_DIR"
+
+# Run-specific log files are set up after the arguments are parsed (see below).
+# They are copied to the N: drive with the results and deleted from the server
+# when the run succeeds. If the run fails they are kept for debugging.
+LOGS_UPLOADED=0
+
+# Small helper to write status lines. stdout goes through tee to LOGFILE and the terminal.
+set_status() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+}
+
+delete_run_logs() {
+    rm -f "$LOGFILE" "$ERRORLOG"
+}
+
+# On exit: report status and, after a successful upload, remove the logs from the server.
+trap 'ec=$?;
+  if [ $ec -ne 0 ]; then
+    echo "Script exited with error code $ec. Details are in ${LOGFILE:-<not set>}" >&2
+  elif [ "$LOGS_UPLOADED" = 1 ]; then
+    delete_run_logs || true
+  fi' EXIT
 
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
@@ -48,11 +52,16 @@ BATCH_NAME=""
 YEAR=""
 
 POSITIONAL=()
+TEST_MODE=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --mode)
       MODE="${2:?--mode requires a value (sanger or wgs)}"
       shift 2 ;;
+    --local)
+      shift ;;
+    --test)
+      TEST_MODE=1; shift ;;
     --help)
       usage; exit 0 ;;
      -*)
@@ -66,10 +75,18 @@ done
 [[ ${#POSITIONAL[@]} -ge 2 ]] && YEAR="${POSITIONAL[1]}"
 
 if [[ -z "$MODE" || -z "$BATCH_NAME" || -z "$YEAR" ]]; then
-    echo "Usage: $0 --mode <mode> --batch-name <batch_name> --year <year>"
+    usage
     exit 1
 fi
 
+# Run-specific log files (also used by hav_wrapper.sh via the environment)
+export LOGFILE="$OUT_BASE/hav_sequencing_${BATCH_NAME}_wrapper.log"
+export ERRORLOG="$OUT_BASE/hav_sequencing_${BATCH_NAME}_wrapper.error.log"
+
+exec > >(tee -a "$LOGFILE") \
+     2> >(tee -a "$LOGFILE" "$ERRORLOG" >&2)
+
+echo Environment: "$ENVIRONMENT"
 echo Mode: "$MODE"
 echo Batch name: "$BATCH_NAME"
 echo Year: "$YEAR"
@@ -80,9 +97,8 @@ export YEAR="$YEAR"
 
 
 # ── Resolve paths ─────────────────────────────────────────────────────────────
-export BASE_DIR=/mnt/tempdata/
-export TMP_DIR=/mnt/tempdata/hav_input # Fasta, lokal database
-export SMB_AUTH=/home/ngs/.smbcreds
+export TMP_DIR="$BASE_DIR/hav_input" # Fasta, lokal database
+export SMB_AUTH="$OUT_BASE/.smbcreds"
 export SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
 export SMB_DIR="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/${YEAR}/${BATCH_NAME}"
 export SMB_DIR_DATASET="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/"
@@ -101,7 +117,7 @@ mkdir -p "$TMP_DIR/Fasta"
 mkdir -p "$TMP_DIR/local_dataset"
 
 # Opprett mappe for ny database
-HAV_DB_DIR="$HOME/hav_database"
+HAV_DB_DIR="$OUT_BASE/hav_database"
 mkdir -p "$HAV_DB_DIR"
 export HAV_DB_DIR="$HAV_DB_DIR"
 
@@ -109,41 +125,57 @@ export HAV_DB_DIR="$HAV_DB_DIR"
 echo "Temporary directory: $TMP_DIR"
 
 # Create directory to hold the output of the analysis
-# Ensure $HOME/$BATCH_NAME exists and is clean
-if [ -d "$HOME/$BATCH_NAME" ]; then
-    rm -rf "$HOME/$BATCH_NAME"
+# Ensure $OUT_BASE/$BATCH_NAME exists and is clean
+if [ -d "$OUT_BASE/$BATCH_NAME" ]; then
+    rm -rf "$OUT_BASE/$BATCH_NAME"
 fi
-mkdir -p "$HOME/${BATCH_NAME}_results"
-echo "Output directory: $HOME/${BATCH_NAME}_results"
-export OUT_BASE="$HOME/${BATCH_NAME}_results"
+export RESULTS_DIR="$OUT_BASE/${BATCH_NAME}_results"
+mkdir -p "$RESULTS_DIR"
+echo "Output directory: $RESULTS_DIR"
 
 # Make sure the latest version of the ngs_scripts repo is present locally
-export REPO="$HOME/ngs_scripts"
+export REPO="$OUT_BASE/ngs_scripts"
 REPO_URL="https://github.com/folkehelseinstituttet/ngs_scripts.git"
 
-set_status "Ensuring local copy of ngs_scripts (pull/clone)"
-# Check if the directory exists
-if [ -d "$REPO" ]; then
-    echo "Directory 'ngs_scripts' exists. Pulling latest changes..."
-    cd "$REPO"
-    git pull
-else
-    echo "Directory 'ngs_scripts' does not exist. Cloning repository..."
-    git clone "$REPO_URL" "$REPO"
-fi
+# Scripts used by --local are read directly from the Windows project folder
+LOCAL_SCRIPTS_DIR="/mnt/c/Users/kain/OneDrive - Folkehelseinstituttet/Prosjekter"
 
-set_status "Ensuring local copy of hav_seq (pull/clone)"
-# Check if the directory exists
-export HAV_SEQ_REPO="$HOME/hav_seq"
+# HAV_SEQ_REPO can be overridden from the environment (useful for --local)
+if [[ "$ENVIRONMENT" == "local" ]]; then
+    export REPO="$LOCAL_SCRIPTS_DIR/ngs_scripts"
+    export HAV_SEQ_REPO="${HAV_SEQ_REPO:-$LOCAL_SCRIPTS_DIR/hav_seq}"
+else
+    export HAV_SEQ_REPO="${HAV_SEQ_REPO:-$OUT_BASE/hav_seq}"
+fi
 export HAV_SEQ_REPO_URL="https://github.com/folkehelseinstituttet/hav_seq.git"
 
-if [ -d "$HAV_SEQ_REPO" ]; then
-    echo "Directory 'hav_seq' exists. Pulling latest changes..."
-    cd "$HAV_SEQ_REPO"
-    git pull
+if [[ "$ENVIRONMENT" == "local" ]]; then
+    set_status "Local mode: skipping pull/clone of ngs_scripts and hav_seq"
+    if [ ! -d "$HAV_SEQ_REPO" ]; then
+        echo "ERROR: hav_seq not found at $HAV_SEQ_REPO. Set HAV_SEQ_REPO to your local copy." >&2
+        exit 1
+    fi
 else
-    echo "Directory 'hav_seq' does not exist. Cloning repository..."
-    git clone "$HAV_SEQ_REPO_URL" "$HAV_SEQ_REPO"
+    set_status "Ensuring local copy of ngs_scripts (pull/clone)"
+    # Check if the directory exists
+    if [ -d "$REPO" ]; then
+        echo "Directory 'ngs_scripts' exists. Pulling latest changes..."
+        cd "$REPO"
+        git pull
+    else
+        echo "Directory 'ngs_scripts' does not exist. Cloning repository..."
+        git clone "$REPO_URL" "$REPO"
+    fi
+
+    set_status "Ensuring local copy of hav_seq (pull/clone)"
+    if [ -d "$HAV_SEQ_REPO" ]; then
+        echo "Directory 'hav_seq' exists. Pulling latest changes..."
+        cd "$HAV_SEQ_REPO"
+        git pull
+    else
+        echo "Directory 'hav_seq' does not exist. Cloning repository..."
+        git clone "$HAV_SEQ_REPO_URL" "$HAV_SEQ_REPO"
+    fi
 fi
 
 
@@ -151,7 +183,7 @@ set_status "Copying fasta files from the N drive (SMB_DIR=$SMB_DIR/Fasta)"
 smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR/Fasta" <<EOF
 prompt OFF
 recurse ON
-lcd $TMP_DIR/Fasta
+lcd "$TMP_DIR/Fasta"
 mget *
 EOF
 set_status "Fasta copy complete. Files are in $TMP_DIR/Fasta"
@@ -215,7 +247,7 @@ set_status "Copying $LW_FILENAME from the N drive (SMB_DIR=$SMB_DIR_METADATA)"
 smbclient "$SMB_HOST" \
     -A "$SMB_AUTH" \
     -D "$SMB_DIR_METADATA" <<EOF
-lcd $TMP_DIR
+lcd "$TMP_DIR"
 get $LW_FILENAME
 EOF
 
@@ -230,7 +262,7 @@ set_status "Copying meta-data for requests from the N drive (SMB_DIR=$SMB_DIR_ME
 smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_METAREQUEST" <<EOF
 prompt OFF
 recurse ON
-lcd $TMP_DIR
+lcd "$TMP_DIR"
 mget Requests.xlsx
 EOF
 set_status "Requests-meta copy complete. Files are in $TMP_DIR"
@@ -240,7 +272,7 @@ set_status "Copying database file from the N drive (SMB_DIR=$SMB_DIR_DATASET)"
 smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_DATASET" <<EOF
 prompt OFF
 recurse ON
-lcd $TMP_DIR/local_dataset
+lcd "$TMP_DIR/local_dataset"
 mget 2PA.fa
 EOF
 set_status "Database copy complete. File is in $TMP_DIR/local_dataset" 
@@ -248,33 +280,45 @@ set_status "Database copy complete. File is in $TMP_DIR/local_dataset"
 
 
 # Run the HAV sequencing wrapper script with the specified arguments
-bash ~/hav_seq/scripts/hav_wrapper.sh --mode "$MODE" "$BATCH_NAME" "$YEAR"
+HAV_WRAPPER_ARGS=(--mode "$MODE")
+[[ "$TEST_MODE" -eq 1 ]] && HAV_WRAPPER_ARGS+=(--test)
+bash "$HAV_SEQ_REPO/scripts/hav_wrapper.sh" "${HAV_WRAPPER_ARGS[@]}" "$BATCH_NAME" "$YEAR"
 
 
 ## Move the results to the N: drive
 set_status "Moving results to the N: drive"
-mkdir -p $HOME/out_hav
-cp -r "$HOME/${BATCH_NAME}_results"/ $HOME/out_hav/
 
-smbclient $SMB_HOST -A $SMB_AUTH -D "$SMB_DIR" <<EOF
+# Include the log files in the upload
+mkdir -p "$RESULTS_DIR/logs"
+for f in "$LOGFILE" "$ERRORLOG"; do
+    if [ -f "$f" ]; then
+        cp "$f" "$RESULTS_DIR/logs/"
+    fi
+done
+
+mkdir -p "$OUT_BASE/out_hav"
+cp -r "$RESULTS_DIR"/ "$OUT_BASE/out_hav/"
+
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR" <<EOF
 prompt OFF
 recurse ON
-lcd $HOME/out_hav/
+lcd "$OUT_BASE/out_hav/"
 mput *
 EOF
 
-set_status "Results copied to N: drive"
+set_status "Results and log files copied to N: drive"
+LOGS_UPLOADED=1
 
 
 ## Move the updated database to the N: drive
 set_status "Moving updated database to the N: drive"
-mkdir -p $HOME/out_hav_database
-cp -r "$HAV_DB_DIR"/* $HOME/out_hav_database/
+mkdir -p "$OUT_BASE/out_hav_database"
+cp -r "$HAV_DB_DIR"/* "$OUT_BASE/out_hav_database/"
 
-smbclient $SMB_HOST -A $SMB_AUTH -D "$SMB_DIR_DATASET" <<EOF
+smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_DIR_DATASET" <<EOF
 prompt OFF
 recurse ON
-lcd $HOME/out_hav_database/
+lcd "$OUT_BASE/out_hav_database/"
 mput *
 EOF
 
@@ -282,11 +326,11 @@ set_status "Updated database copied to N: drive"
 
 
 ## Clean up
-rm -rf $HOME/out_hav
-rm -rf $HOME/out_hav_database
-rm -rf $HOME/hav_database
-rm -rf $HOME/${BATCH_NAME}_results
-rm -rf $TMP_DIR
+rm -rf "$OUT_BASE/out_hav"
+rm -rf "$OUT_BASE/out_hav_database"
+rm -rf "$HAV_DB_DIR"
+rm -rf "$RESULTS_DIR"
+rm -rf "$TMP_DIR"
 
 set_status "Cleanup complete"
 
