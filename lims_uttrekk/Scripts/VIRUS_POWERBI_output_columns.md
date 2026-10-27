@@ -75,6 +75,7 @@ Alle `Auth_*`- og `NotAuth_*`-kolonner inneholder kommaseparerte batch-IDer ders
 | `NotAuth_SEROLOGY` | Serologianalyse og `X_TECH_REVIEW != "A"` | Ikke-godkjent serologi. |
 | `Auth_SEQ_TYPING` | Sanger-/genotyping-/resistensanalyse og `X_TECH_REVIEW == "A"` | Godkjent sekvensering som ikke er NGS. Dekker HAGEN1, HCGEN, HEVGEN, SC2_VAR_SANG, ENTERO_SEKVENS, NORO_SEKVENS, HBRES, HCRES m.fl. |
 | `NotAuth_SEQ_TYPING` | Sanger-/genotyping-/resistensanalyse og `X_TECH_REVIEW != "A"` | Ikke-godkjent sekvensering som ikke er NGS. |
+| `FYLKE` | `SAMPLE_VIEW.X_ZIPCODE` koblet til `REGION_VIEW.ZIPCODE` | Fylke etter pasientens bosted (fra 2.2-dev, #58). Siste kolonne i fila. Tom hvis prøven ikke har postnummer, postnummeret ikke finnes i `REGION_VIEW`, eller postnummeret gir flere fylker. Postnummeret er ikke med i fila (`RG08`). |
 
 ---
 
