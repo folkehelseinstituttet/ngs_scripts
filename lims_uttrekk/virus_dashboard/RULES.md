@@ -15,7 +15,7 @@ Telleregler og faglige beslutninger for Virus Dashboard. En regel sier **hva** s
 | `RG05` | Analysert = teknisk godkjent | Implementert 2.0 | `S07`, `P03` | Møte 2026-02-24 |
 | `RG06` | Tester med `X_TECH_REVIEW` R eller X telles ikke | **Avvik (2.0)**. Foreslått i 2.1-dev | `S13`, `S07`, `S10` | Møte 2026-03-20 |
 | `RG07` | Tester med resultat "Ikke utført" telles ikke | **Avvik (2.0)**. Foreslått i 2.1-dev | `S13`, `S07`, `S10` | Møte 2026-03-20 |
-| `RG08` | Dashboardet viser tellinger, og enkeltprøver med prøvenummer, analysekoder og resultater | Vedtatt (endret i #41 og #53) | `P03`, `S16` / F4 og `P04` (2.2-dev, #42), F2, eksport (#43) | Møte 2026-02-24, #41, #53 |
+| `RG08` | Dashboardet viser tellinger, og enkeltprøver med prøvenummer, analysekoder, resultater og fylke | Vedtatt (endret i #41, #53 og #58) | `P03`, `S16` / F4 og `P04` (2.2-dev, #42), F2, eksport (#43), `S04` / F1 (fylke, 2.2-dev, #58) | Møte 2026-02-24, #41, #53, #58 |
 | `RG09` | Bare analysekoder i kodelistene telles | Implementert 2.0. **Midlertidig**. F3 viser det som mangler fra 2.1-dev | `S06`, `S14` | Designvalg 2.0 |
 | `RG10` | F2 har bare whitelistede resultatfelt | Implementert 2.0. F6 viser felt utenfor whitelisten fra 2.2-dev | `S09`, `S10`, `S18` | Designvalg 2.0 (#11), #56 |
 | `RG11` | Avviste tester i dashboardet? | **Åpen** | — | Møte 2026-03-20 |
@@ -81,6 +81,7 @@ Dashboardet viser aggregerte tall. I tillegg kan det vise **enkeltprøver med LI
 
 - **Resultater for enkeltprøver kan vises** (endret i #53). Hvilke resultater som finnes, styres av whitelisten i F2 (`RG10`).
 - **`PATIENT` vises ikke** i visninger av enkeltprøver.
+- **Fylke kan vises** (endret i #58), etter pasientens bosted. Postnummer, kommune og adresse er ikke med i uttrekket, fordi de sammen med prøvenummeret kommer nær å identifisere en person.
 - **Alle faggrupper** er med.
 - **De siste fem årene:** visninger av enkeltprøver dekker en rullerende periode på fem år, etter mottaksdato (`RECD_DATE`).
 - **Eksport av underliggende data fra dashboardet er blokkert** (#43).
@@ -89,7 +90,7 @@ Dashboardet viser aggregerte tall. I tillegg kan det vise **enkeltprøver med LI
 
 **Kan endres:** om noe må tas ut av visningen (f.eks. enkelte koder eller faggrupper), avgjøres senere.
 
-**Kilde:** opprinnelig regel fra møte 2026-02-24 (bare tellinger). Endret i #41 (prøvenummer og analysekoder) og #53 (resultater).
+**Kilde:** opprinnelig regel fra møte 2026-02-24 (bare tellinger). Endret i #41 (prøvenummer og analysekoder), #53 (resultater) og #58 (fylke).
 
 ## RG09 Bare analysekoder i kodelistene telles
 

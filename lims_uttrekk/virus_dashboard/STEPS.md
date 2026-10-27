@@ -13,12 +13,12 @@ Hvert steg i uttrekket har en fast kode. `S##` er steg i `virus_dashboard.R`, `P
 | `S01` | Valider miljøvariabler | Miljø | — | — |
 | `S02` | Les variabler og sett utfilnavn | Miljø | `outpath`, `outfile_F1` … `outfile_F6` | — |
 | `S03` | Koble til LIMS | SQL Server | `con` | — |
-| `S04` | Hent prøver | `SAMPLE_VIEW` | `samples`, `samples_sample_number` | `RG01`, flagg for `RG02` |
+| `S04` | Hent prøver | `SAMPLE_VIEW`, `REGION_VIEW` (*2.2-dev*, #58) | `samples`, `samples_sample_number` | `RG01`, flagg for `RG02`, `RG08` (fylke) |
 | `S05` | Hent tester | `TEST_VIEW` | `test` | — |
 | `S06` | Definer analysekodegrupper | — | sju kodelister (seks før #37) | `RG09`, `RG12` |
 | `S07` | Klassifiser tester i bøtter | `test`, kodelister | `ngs_info` | `RG05`, (`RG06`, `RG07` fra 2.1-dev) |
 | `S08` | Bygg og skriv F1 | `samples`, `ngs_info` | **F1** | — |
-| `S09` | Resultat-whitelist | `category_codes` | `result_whitelist`, `to_utf8()` | `RG10` |
+| `S09` | Resultat-whitelist | `category_codes` | `result_whitelist` (`to_utf8()` før `S04` fra #58) | `RG10` |
 | `S10` | Hent og filtrer resultater for F2 | `RESULT_VIEW` | `results_virus`, `results_file2` | `RG10`, (`RG06`, `RG07` fra 2.1-dev) |
 | `S11` | Analysekategori og skriv F2 | `results_file2`, kodelister | **F2** | `RG12` |
 | `S12` | Lukk tilkobling | — | — | — |
@@ -74,6 +74,8 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 *2.1-dev:* spørringen holdes lat (`samples_db`), så S05 og S10 kan filtreres i databasen.
 
+*2.2-dev (#58):* henter også `X_ZIPCODE` (pasientens postnummer) og kobler det til `REGION_VIEW` for å finne `FYLKE`. `zip_key()` gjør postnumrene på begge sider om til tekst med fire sifre. Har et postnummer flere fylker i `REGION_VIEW`, blir fylket tomt (skriptet skriver ut antallet), så det fortsatt er én rad per prøve. `X_ZIPCODE` tas bort rett etter koblingen og kommer ikke i noen utfil (`RG08`). `to_utf8()` og `zip_key()` er definert før `S04`.
+
 ### S05 Hent tester
 
 **Gjør:** henter `TEST_NUMBER`, `SAMPLE_NUMBER`, `ANALYSIS`, `X_TECH_REVIEW` og `BATCH` fra `TEST_VIEW`.
@@ -108,13 +110,15 @@ Alle skrives til `<OUTDIR>/<RUN_ENV>/ToOrdinary/LW_Datauttrekk/`. Kolonner: se [
 
 *2.1-dev (#48):* tomme bøtter blir `""`, ikke `NA`, så "ingen test" alltid er tom (`E2.1-15`). `NA` i de andre kolonnene (f.eks. `X_MEDICAL_REVIEW`) betyr fortsatt manglende informasjon.
 
+*2.2-dev (#58):* `FYLKE` legges sist, så de andre kolonnene står på samme plass. Ukjent fylke er `""`.
+
 ### S09 Resultat-whitelist
 
 **Gjør:** en liste med ca. 100 `(ANALYSIS, NAME)`-par med diagnostisk verdi (Ct-verdier, titere, konklusjoner, genotype/klade, NGS-QC). Administrasjonsfelt er utelatt med vilje (`RG10`).
 
 *2.2-dev (#46, #56):*
 - æøå i `NAME` skrives som `\u`-escape, så navnet er likt uansett hvordan skriptet leses på serveren.
-- `to_utf8()` gjør tekst fra LIMS (Windows-1252) om til UTF-8, og beholder tekst som allerede er gyldig UTF-8. Brukes i `S10`.
+- `to_utf8()` gjør tekst fra LIMS (Windows-1252) om til UTF-8, og beholder tekst som allerede er gyldig UTF-8. Brukes i `S10`, og fra #58 i `S04`, så den er flyttet til før `S04`.
 - Advarsel hvis en kode i whitelisten ikke står i en kategoriliste (`category_codes`). Da får den tom `analysis_category` i F2.
 - Flere par fra resultatfeltene i `RESULT_VIEW` (`E2.2-11`). Nye par velges ut fra F6 (`S18`).
 

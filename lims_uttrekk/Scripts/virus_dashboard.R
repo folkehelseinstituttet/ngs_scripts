@@ -13,6 +13,7 @@ library(lubridate)
 # Versjon 2.2 (under arbeid): liste over analysekoder som bevisst ikke telles, og Fil 5 (#40),
 #   og Fil 4 med kobling mellom prøver og analysekoder (#42).
 #   Fil 6 med resultatfelt som ikke er i whitelisten, og flere resultater i Fil 2 (#56, #46).
+#   Fylke etter pasientens bosted i Fil 1 (#58).
 
 ## ==================================================
 ## [S01] Validate required environment variables
@@ -115,21 +116,68 @@ if (file.exists(errorfile)) file.remove(errorfile)
 ## Extract data from LIMS
 ## ==================================================
 
+# Tekst fra LIMS kommer som Windows-1252, tekst fra skriptet som UTF-8. Gjør begge om til
+# UTF-8 før de sammenlignes eller skrives, ellers blir æøå feil (#46, #58). Tekst som allerede
+# er gyldig UTF-8 (også ren ASCII) beholdes. Base-funksjoner, ikke stringr (#32)
+to_utf8 <- function(x) {
+  ok <- validUTF8(x)
+  x[!ok] <- iconv(x[!ok], from = "CP1252", to = "UTF-8")
+  Encoding(x) <- "UTF-8"
+  x
+}
+
+# Postnummer som tekst med fire sifre, så "150" og "0150" blir like (#58).
+# to_utf8() først, fordi trimws() og grepl() feiler på Windows-1252-tekst
+zip_key <- function(x) {
+  x <- trimws(to_utf8(as.character(x)))
+  digits <- !is.na(x) & grepl("^[0-9]{1,4}$", x)
+  x[digits] <- sprintf("%04d", as.integer(x[digits]))
+  x[!digits] <- NA_character_
+  x
+}
+
 # [S04] Lage liste med relevante faggrupper til filtrering
 faggrupper <- c("HEP_HIV", "HPV", "INFLUENSA", "MMR", "POL_ENT", "ROTA", "VIRUS_CMN")
 
 # Hente ut metadata om alle prøver fra SAMPLE-tabellen
 samples <- tbl(con, "SAMPLE_VIEW") %>% 
   # Velge ut relevant kolonner først. Dette for å forenkle hva som skal hentes ut av driveren
-  select(ORIGINAL_SAMPLE, PARENT_SAMPLE, TEMPLATE, SAMPLE_NUMBER, TEXT_ID, GROUP_NAME, SAMPLED_DATE, RECD_DATE, X_MEDICAL_REVIEW, STATUS, X_AGENS, PATIENT) %>% 
+  # X_ZIPCODE brukes bare til å finne fylket, og tas bort under
+  select(ORIGINAL_SAMPLE, PARENT_SAMPLE, TEMPLATE, SAMPLE_NUMBER, TEXT_ID, GROUP_NAME, SAMPLED_DATE, RECD_DATE, X_MEDICAL_REVIEW, STATUS, X_AGENS, PATIENT, X_ZIPCODE) %>%
   # Filtrer på faggrupper
-  filter(GROUP_NAME %in% faggrupper) %>% 
-  collect() %>% 
+  filter(GROUP_NAME %in% faggrupper) %>%
+  collect() %>%
   # Remove identical rows
   distinct() %>%
   # Add column indicating if sample is a child sample
   # Child sample have a different ORIGNIAL_SAMPLE than SAMPLE_NUMBER
   mutate(child_sample = if_else(ORIGINAL_SAMPLE == SAMPLE_NUMBER, "NO", "YES"))
+
+# Fylke etter pasientens bosted, fra postnummeret og REGION_VIEW (#58, RG08).
+# Bare fylket kommer med: postnummeret tas bort rett etter koblingen
+region <- tbl(con, "REGION_VIEW") %>%
+  select(ZIPCODE, FYLKE) %>%
+  collect() %>%
+  mutate(zip_key = zip_key(ZIPCODE),
+         # to_utf8() først: trimws() feiler på Windows-1252-tekst (#58)
+         FYLKE   = trimws(to_utf8(FYLKE))) %>%
+  filter(!is.na(zip_key), !is.na(FYLKE), FYLKE != "") %>%
+  distinct(zip_key, FYLKE) %>%
+  # Et postnummer kan ha flere rader. Gir de ulike fylker, er fylket ukjent,
+  # så F1 fortsatt har én rad per prøve
+  group_by(zip_key) %>%
+  summarise(FYLKE = if (n_distinct(FYLKE) == 1) first(FYLKE) else NA_character_,
+            .groups = "drop")
+
+n_zip_multi <- sum(is.na(region$FYLKE))
+if (n_zip_multi > 0) {
+  message("Postnumre med flere fylker i REGION_VIEW (fylke settes tomt): ", n_zip_multi)
+}
+
+samples <- samples %>%
+  mutate(zip_key = zip_key(X_ZIPCODE)) %>%
+  left_join(region, by = "zip_key") %>%
+  select(-X_ZIPCODE, -zip_key)
 
 # Trekke ut SAMPLE_NUMBER
 samples_sample_number <- samples %>% distinct(SAMPLE_NUMBER) %>% pull(SAMPLE_NUMBER)
@@ -329,7 +377,11 @@ ngs_info <- test %>%
 final <- left_join(samples, ngs_info, by = c("SAMPLE_NUMBER" = "SAMPLE_NUMBER")) %>%
   rename("SAMPLE.STATUS" = STATUS) %>%
   # Prøver uten tester i en kategori får tom celle, ikke NA, så "ingen test" alltid er tom (#48)
-  mutate(across(matches("^(Auth|NotAuth)_"), ~ coalesce(.x, "")))
+  mutate(across(matches("^(Auth|NotAuth)_"), ~ coalesce(.x, ""))) %>%
+  # Ukjent fylke er tom celle. Fylke er siste kolonne, så kolonnene før den står
+  # på samme plass som før (#58)
+  mutate(FYLKE = coalesce(FYLKE, "")) %>%
+  relocate(FYLKE, .after = last_col())
 
 # Write File 1: sample-level wide table
 write_tsv(final, outfile_F1)
@@ -453,15 +505,7 @@ result_whitelist <- tribble(
   "VDYRKA",        "Funn"
 )
 
-# Navn fra LIMS kommer som Windows-1252, navn fra skriptet som UTF-8. Gjør begge om til
-# UTF-8 før de sammenlignes, ellers matcher aldri navn med æøå (#46). Tekst som allerede
-# er gyldig UTF-8 (også ren ASCII) beholdes. Base-funksjoner, ikke stringr (#32)
-to_utf8 <- function(x) {
-  ok <- validUTF8(x)
-  x[!ok] <- iconv(x[!ok], from = "CP1252", to = "UTF-8")
-  Encoding(x) <- "UTF-8"
-  x
-}
+# Navn fra LIMS gjøres om til UTF-8 med to_utf8() (definert før [S04]) før matching i [S10]
 
 # Alle koder i whitelisten skal stå i en kategoriliste, ellers får de tom analysis_category i F2
 not_in_category <- setdiff(result_whitelist$ANALYSIS, category_codes)

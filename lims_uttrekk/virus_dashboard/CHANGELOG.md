@@ -17,6 +17,7 @@ Nyeste versjon øverst.
 | `vd/39-linjeskift-f2` | #39 | `E2.2-06` | Testet |
 | `vd/28-tilkoblingsfeil` | #28 | `E2.2-07` | Testet (bygger på `vd/39-linjeskift-f2`) |
 | `vd/56-resultatfelt` | #56, #46 | `E2.2-08` – `E2.2-12` | Merget (#57), i prod |
+| `vd/58-fylke` | #58 | `E2.2-13`, `E2.2-14` | Testet |
 
 **Testsjekkliste**
 - [x] (#40) F5 finnes, med kodene i `excluded_codes`
@@ -34,6 +35,12 @@ Nyeste versjon øverst.
 - [x] (#56) F1, F3, F4 og F5 er uendret (byte-identiske med main samme dag)
 - [x] (#56) F6 finnes, uten koder i F5, uten felt i `excluded_result_fields` og uten whitelistede par
 - [x] (#56) Ingen advarsel om whitelisten (sjekket lokalt: kontrollene avhenger bare av listene i skriptet. Ingen rader i F2 uten `analysis_category`)
+- [x] (#58) `REGION_VIEW` kan leses med samme tilkobling, og skriptet kjører uten feil (etter rettingen av `trimws()`, se `E2.2-13`)
+- [x] (#58) F1 har like mange rader som main, `FYLKE` sist, og de andre kolonnene uendret. F2–F5 byte-identiske. F6: ett felt skiller, som ikke skyldes #58 (se `E2.2-13`)
+- [x] (#58) Fylkesnavnene har fylkesinndelingen fra 2024, og er gyldig UTF-8 med riktige æøå
+- [x] (#58) Andelen prøver med tomt fylke er målt: stor, og ulik mellom faggruppene. Årsaken er ikke undersøkt
+- [ ] (#58) Antall postnumre med flere fylker (meldingen fra skriptet) er ikke sjekket
+- [x] (#58) Ingen postnummer eller kommune i noen utfil
 
 ### E2.2-01 Liste over koder som bevisst ikke telles
 
@@ -190,6 +197,30 @@ Fil 6 og de nye feltene i Fil 2 i utfil-dokumentasjonen, `S17` og `S18` i `STEPS
 |---|---|
 | **Saker** | #56, #46 |
 | **Krever PBI-endring** | Nei |
+
+### E2.2-13 Fylke i F1
+
+`S04` henter `X_ZIPCODE` fra `SAMPLE_VIEW` og kobler postnummeret til `REGION_VIEW`, som andre uttrekk i repoet gjør. Bare `FYLKE` beholdes. Postnummeret tas bort rett etter koblingen og kommer ikke i noen utfil (`RG08`). Postnumrene gjøres om til tekst med fire sifre på begge sider, så `150` og `0150` blir like. Har et postnummer flere rader i `REGION_VIEW` med ulike fylker, blir fylket tomt, så F1 fortsatt har én rad per prøve. Skriptet skriver ut hvor mange slike postnumre det er. Fylkesnavnet gjøres om til UTF-8 med `to_utf8()`, som er flyttet fra `S09` til før `S04`. `S08` legger `FYLKE` sist i F1, og ukjent fylke er tom celle.
+
+| | |
+|---|---|
+| **Saker** | #58 (fra #17) |
+| **Steg / regler / filer** | `S04`, `S08`, `S09` (`to_utf8()` flyttet). `RG08`. F1 |
+| **Faggrupper** | Alle |
+| **Forventet effekt** | F1 får en ny kolonne `FYLKE`, som siste kolonne. Antall rader og de andre kolonnene i F1 er uendret. Tomt fylke for prøver uten postnummer, med et postnummer som ikke finnes i `REGION_VIEW`, eller med et postnummer som gir flere fylker. F2–F6 uendret |
+| **Målt effekt** | Testet mot main, med samme prøver i begge kjøringene. Som forventet: `virus_dashboard_compare.R` finner ingen endringer i tellingene. F1 har like mange rader, én rad per prøve, `FYLKE` sist og alle de andre kolonnene identiske. F2–F5 er byte-identiske. `FYLKE` har fylkesinndelingen fra 2024, med riktige æøå, og ingen utfil har postnummer eller kommune. <br>• **Mange prøver har tomt fylke**, og andelen varierer mye mellom faggruppene. Det er ikke undersøkt om de mangler postnummer eller har et postnummer som ikke finnes i `REGION_VIEW`. Prøvetakingssted (`ORDERS_VIEW.X_SAMPLED_LOC_ZIP`) kan bli en egen sak. <br>• **F6 skilte seg med ett felt**, som ikke skyldes denne endringen: main-kjøringen tok med `utført av` med liten forbokstav, som main i git utelater (`E2.2-10`). Skriptet som kjørte main, ser ut til å være eldre enn main i git. <br>• **Første testkjøring mot LIMS feilet:** `trimws()` ble kjørt på fylkesnavnet før `to_utf8()`, og feiler på Windows-1252-tekst. Testdatabasen hadde fylkesnavn i UTF-8 og fant ikke feilen. Nå gjøres teksten om til UTF-8 først, også i `zip_key()`, og testdatabasen har Windows-1252-tekst |
+| **Krever PBI-endring** | Ja. Ny kolonne `FYLKE` i F1, og visning av fordelingen på fylke |
+| **Bakoverkompatibel** | Ja. Kolonnen er lagt sist, så de andre kolonnene står på samme plass |
+
+### E2.2-14 Dokumentasjon av fylke og RG08
+
+`FYLKE` i utfil-dokumentasjonen, `S04`, `S08` og `S09` i `STEPS.md`, `RG08` i `RULES.md`, `REGION_VIEW` i oversikten i `README.md`, og #58 i `ISSUES.md`.
+
+| | |
+|---|---|
+| **Saker** | #58 |
+| **Krever PBI-endring** | Nei |
+
 ---
 
 ## 2.1-dev (under arbeid fra 2026-10-15)

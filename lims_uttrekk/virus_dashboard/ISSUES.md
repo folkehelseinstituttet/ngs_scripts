@@ -38,7 +38,7 @@ Milepæler samler sakene som løses i en versjon (f.eks. *Virus Dashboard 2.1*).
 | `#16` | | Forside med overordnet statistikk | Begge | Svartid (mottatt → analysert) krever en "ferdig"-dato, f.eks. `TEST.X_TECH_REVIEW_ON` eller `SAMPLE.DATE_COMPLETED`, som ikke eksporteres ennå |
 | `#17 (1)` | | Innkomne vs. analyserte prøver (HCV) | PBI | Bruk HCVNGS: *Utført* vs. kansellert. En prøve kan ha både en kansellert og en utført kopi. Avhenger av `RG06`, `RG07` |
 | `#17 (2)` | | Klinisk vs. overvåkning (HCV) | Begge | Testliste `HCVNGS_KLINISK` vs. `HCVNGS_OVERV`. Overvåkningsprøver er flagget som prosjekt. Ny kolonne i F1 |
-| `#17 (3)` | | Geografisk fordeling | Begge | Fylke er trolig enkelt. Kommune/adresse er trolig for detaljert og må avklares med faggruppeleder. Kandidater: `SAMPLE_VIEW.X_ZIPCODE`, `ORDERS_VIEW.X_SAMPLED_LOC_ZIP`, `ORDERS_VIEW.X_COMMUNE` |
+| `#17 (3)` | | Geografisk fordeling | Begge | Skilt ut til #58 |
 | `#18` | NY-01 | Dokumentasjonen ekskluderer `SAMPLE.STATUS` C (*Complete*) | Begge | `RG04`, `P02`, `E2.1-09` |
 | `#19` | NY-02 | Ingen default-filter for fryseprøver | Begge | `RG03`, `P02`, `E2.1-09` |
 | `#20` | NY-03 | R/X-tester telles i `NotAuth_*` | Uttrekk | `RG06`, `S07`, `S13`, `E2.1-03`, `E2.1-05` |
@@ -71,5 +71,6 @@ Milepæler samler sakene som løses i en versjon (f.eks. *Virus Dashboard 2.1*).
 | `#51` | | Default-filtre i Power BI: behold ferdige prøver, ta bort fryseprøver | PBI | `P02`, `RG02`–`RG04`. Power BI-delen av #18, #19. 2.1 |
 | `#53` | | Regelendring: resultater for enkeltprøver kan vises i dashboardet | Begge | `RG08`, `RG10`, F2, `P04`. Besluttet. Lukket |
 | `#56` | | Mange analyser har ingen resultater i F2, og ingen oversikt over hvilke resultatfelt som finnes | Uttrekk | `S09`, `S10`, `S17` (nytt), `S18` (nytt), `RG10`, `RG14` (ny), F2, F6 (ny), `E2.2-09`–`E2.2-12`. Gren `vd/56-resultatfelt` (med #46). Se også #10, #14. 2.2 |
+| `#58` | | Fylke på prøvene (fra #17) | Begge | `S04`, `S08`, `RG08`, F1, `E2.2-13`, `E2.2-14`. Gren `vd/58-fylke`. Fylke fra `SAMPLE_VIEW.X_ZIPCODE` via `REGION_VIEW`. Bare fylke, ikke postnummer eller kommune. Andre kandidater, ikke brukt: `ORDERS_VIEW.X_SAMPLED_LOC_ZIP` (prøvetakingssted, eventuelt egen sak), `ORDERS_VIEW.X_COMMUNE`. 2.2. Lukket |
 
 **Ny sak:** opprett den på GitHub med malen *Virus Dashboard* (tittel `[VD] …`, etiketten `virus-dashboard` settes automatisk). Sett side-, type- og statusetiketter, og legg til en rad her hvis saken berører steg, regler eller endringer.
