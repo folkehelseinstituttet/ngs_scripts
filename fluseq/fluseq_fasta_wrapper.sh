@@ -48,6 +48,7 @@ usage() {
     echo "  -v VALIDATION      Specify validation flag (e.g., VER)"
     echo "  -b BRANCH          Pipeline branch/tag to use (default: master)"
     echo "  -P PATH            PCR JSON file or directory (default: /mnt/tempdata/influensa_db/flu_seq_db/pcr-primers)"
+    echo "  Master CSV: set FLUSEQ_METADATA_CSV or FLUSEQ_METADATA_SMB_SHARE (see master_csv/README.md)"
     exit "${1:-1}"
 }
 
@@ -108,6 +109,11 @@ echo "Season: $SEASON"
 echo "Year: $YEAR"
 echo "Validation Flag: $VALIDATION_FLAG"
 echo "Pipeline branch: $PIPELINE_BRANCH"
+
+# Validate master-merge configuration before downloads and analysis.
+MASTER_CSV_TOOLS="${FLUSEQ_MASTER_TOOLS:-$SCRIPT_DIR/master_csv}"
+python3 "$MASTER_CSV_TOOLS/bin/update_master_csv.py" \
+    --workflow fasta --validation "$VALIDATION_FLAG" --check-config
 
 download_single_file_from_smb() {
     local remote_dir="$1"
@@ -350,6 +356,11 @@ prompt OFF
 lcd $HOME/out_fluseq/${RUN}/reporthuman
 mput *.csv
 EOF
+
+# Merge only the completed run report, after successful result uploads.
+python3 "$MASTER_CSV_TOOLS/bin/update_master_csv.py" \
+    --workflow fasta --validation "$VALIDATION_FLAG" \
+    --report "$HOME/out_fluseq/${RUN}/reporthuman/${RUN}.csv"
 
 ## Clean up
 # nextflow clean -f

@@ -1,0 +1,192 @@
+#!/usr/bin/env python3
+"""Wrapper entry point for merging into a mounted or SMB-hosted master CSV."""
+
+import argparse
+from contextlib import contextmanager
+import csv
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+import xml.etree.ElementTree as ET
+
+from merge_master_csv import (
+    MergeError, backup_suffix, digest, merge_files, merge_tables, read_table, write_table,
+)
+
+
+MASTER_SHARE = "//pos1-fhi-svm01.fhi.no/styrt"
+MASTER_DIR = (
+    "Virologi/NGS/1-NGS-Analyser/2-Utvikling/"
+    "Seksjons for Influensa og andre luftveisvirus - NGS analysis database/data/INF"
+)
+METADATA_DIR = "Prod/FromSecure/LW_Datauttrekk"
+
+
+def smb_quote(value):
+    value = str(value)
+    # smbclient has its own command language, even with subprocess(shell=False).
+    if not value or any(character in value for character in '\n\r\x00";*?'):
+        raise MergeError("Unsupported character in SMB path")
+    return '"' + value + '"'
+
+
+class SMB:
+    def __init__(self, share, directory, auth):
+        if not share.startswith("//"):
+            raise MergeError("SMB share must be a UNC share such as //server/share")
+        self.share, self.directory, self.auth = share, directory, auth
+
+    def command(self, verb, *arguments):
+        command = verb + " " + " ".join(smb_quote(value) for value in arguments)
+        result = subprocess.run(
+            ["smbclient", self.share, "-A", self.auth, "-D", self.directory, "-c", command],
+            capture_output=True, text=True, timeout=300,
+        )
+        statuses = re.findall(r"(?:NT_STATUS|DOS_STATUS)_[A-Z0-9_]+", result.stdout + result.stderr)
+        if result.returncode or statuses:
+            # Avoid including downloaded identifiers, credentials or server listings in logs.
+            raise MergeError(f"SMB {verb} failed ({', '.join(statuses) or 'exit ' + str(result.returncode)})")
+
+    def get(self, remote, local):
+        self.command("get", remote, local)
+        if not Path(local).is_file():
+            raise MergeError("SMB get did not create the requested local file")
+
+    def put_verified(self, local, remote, check):
+        self.command("put", local, remote)
+        self.get(remote, check)
+        if digest(local) != digest(check):
+            raise MergeError("SMB upload verification failed")
+
+    @contextmanager
+    def lock(self, name):
+        # mkdir is exclusive across all machines accessing the same share.
+        self.command("mkdir", name)
+        try:
+            yield
+        finally:
+            self.command("rmdir", name)
+
+
+def configuration(environ, validation=""):
+    mode = environ.get("FLUSEQ_MASTER_UPDATE", "auto").lower()
+    if mode not in {"auto", "true", "false"}:
+        raise MergeError("FLUSEQ_MASTER_UPDATE must be auto, true, or false")
+    if validation:
+        return None, "validation run"
+    if mode == "false":
+        return None, "FLUSEQ_MASTER_UPDATE=false"
+    configured = any(environ.get(name) for name in (
+        "FLUSEQ_MASTER_CSV", "FLUSEQ_METADATA_CSV", "FLUSEQ_METADATA_SMB_SHARE",
+        "FLUSEQ_MASTER_SMB_SHARE", "FLUSEQ_MASTER_SMB_DIR",
+    ))
+    if mode == "auto" and not configured:
+        return None, "metadata location is not configured (see docs/master_csv.md)"
+    nonempty = environ.get("FLUSEQ_MASTER_NONEMPTY_REPORT", "false").lower()
+    if nonempty not in {"true", "false"}:
+        raise MergeError("FLUSEQ_MASTER_NONEMPTY_REPORT must be true or false")
+    metadata = environ.get("FLUSEQ_METADATA_CSV")
+    metadata_share = environ.get("FLUSEQ_METADATA_SMB_SHARE")
+    if not metadata and not metadata_share:
+        raise MergeError("Set FLUSEQ_METADATA_CSV or FLUSEQ_METADATA_SMB_SHARE; the metadata share is not yet known")
+    master = environ.get("FLUSEQ_MASTER_CSV")
+    auth = environ.get("FLUSEQ_MASTER_SMB_AUTH", "/home/ngs/.smbcreds")
+    metadata_auth = environ.get("FLUSEQ_METADATA_SMB_AUTH", auth)
+    for label, path in (("master", master), ("metadata", metadata)):
+        if path and not Path(path).is_file():
+            raise MergeError(f"Configured {label} CSV does not exist: {path}")
+    if not master or not metadata:
+        if not shutil.which("smbclient"):
+            raise MergeError("smbclient is required for SMB paths")
+        for needed, path in ((not master, auth), (not metadata, metadata_auth)):
+            if needed and not Path(path).is_file():
+                raise MergeError(f"SMB authentication file does not exist: {path}")
+    config = {
+        "master": master,
+        "metadata": metadata,
+        "master_smb": None if master else SMB(
+            environ.get("FLUSEQ_MASTER_SMB_SHARE", MASTER_SHARE),
+            environ.get("FLUSEQ_MASTER_SMB_DIR", MASTER_DIR), auth,
+        ),
+        "metadata_smb": None if metadata else SMB(
+            metadata_share, environ.get("FLUSEQ_METADATA_SMB_DIR", METADATA_DIR), metadata_auth,
+        ),
+        "master_name": environ.get("FLUSEQ_MASTER_SMB_NAME", "master.csv"),
+        "metadata_name": environ.get("FLUSEQ_METADATA_SMB_NAME", "NGS_PREP_INF_report.csv"),
+        "nonempty_report": nonempty == "true",
+    }
+    for name in (config["master_name"], config["metadata_name"]):
+        smb_quote(name)
+        if "/" in name or "\\" in name or name in {".", ".."}:
+            raise MergeError("SMB_NAME must be a filename; configure its directory separately")
+    return config, None
+
+
+def update(config, report, workflow):
+    with tempfile.TemporaryDirectory(prefix="fluseq-master-") as directory:
+        directory = Path(directory)
+        metadata = config["metadata"]
+        if metadata is None:
+            metadata = directory / "metadata.csv"
+            config["metadata_smb"].get(config["metadata_name"], metadata)
+        if config["master"] is not None:
+            return merge_files(
+                config["master"], metadata, report, workflow, nonempty_report=config["nonempty_report"],
+            )
+        remote, name = config["master_smb"], config["master_name"]
+        with remote.lock(name + ".lock"):
+            original = directory / "original.csv"
+            remote.get(name, original)  # A missing/inaccessible master is never treated as an empty database.
+            headers, rows, stats = merge_tables(
+                read_table(original), read_table(metadata), read_table(report), workflow,
+                nonempty_report=config["nonempty_report"],
+            )
+            candidate = directory / "candidate.csv"
+            write_table(candidate, headers, rows)
+            if digest(original) == digest(candidate):
+                return dict(stats, written=False)
+            suffix = backup_suffix()
+            backup = name + ".bak." + suffix
+            staged = name + ".tmp." + suffix
+            check = directory / "check.csv"
+            # Verify both backup and candidate before changing the visible master.
+            remote.put_verified(original, backup, check)
+            remote.put_verified(candidate, staged, check)
+            remote.get(name, check)
+            if digest(check) != digest(original):
+                raise MergeError("Remote master changed during merge; refusing to replace it")
+            # SMB rename -f replaces the target on the server without delete/upload gaps.
+            remote.command("rename", staged, name, "-f")
+            remote.get(name, check)
+            if digest(check) != digest(candidate):
+                raise MergeError(f"Remote master verification failed; backup is {backup}")
+            return dict(stats, written=True, backup=backup)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--report", type=Path)
+    parser.add_argument("--workflow", required=True, choices=("fastq", "fasta"))
+    parser.add_argument("--validation", default="")
+    parser.add_argument("--check-config", action="store_true", help="Validate local configuration before starting analysis")
+    args = parser.parse_args()
+    try:
+        config, reason = configuration(os.environ, args.validation)
+        if config is None:
+            print(f"Master CSV update skipped: {reason}")
+        elif args.check_config:
+            print("Master CSV update configured; shared-file access will be checked at merge time")
+        elif args.report is None or not args.report.is_file():
+            raise MergeError("Final report CSV is missing")
+        else:
+            print("Master CSV update: " + json.dumps(update(config, args.report, args.workflow), sort_keys=True))
+    except (OSError, ValueError, csv.Error, ET.ParseError, subprocess.SubprocessError) as error:
+        parser.exit(1, f"Master CSV update failed: {error}\n")
+
+
+if __name__ == "__main__":
+    main()
