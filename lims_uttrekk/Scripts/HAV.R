@@ -2,7 +2,7 @@ library(odbc)
 library(tidyverse)
 library(lubridate)
 
-# Script version 1.3
+# Script version 1.4
 # Extracts HAV (Hepatitt A Virus) PCR/genotyping data from LIMS.
 # Includes sample metadata, HAGEN analyses, results, and order-level
 # contamination fields (X_CONTAM_LOC, X_CONTAM_LOC_COM,
@@ -238,7 +238,14 @@ final <- hav_results %>%
             .groups = "drop") %>%
   pivot_wider(names_from = NAME, values_from = entry_value, values_fill = NA_character_) %>%
   filter(!is.na(SekvensID)) %>%
-  select(SAMPLE_NUMBER, SekvensID, Resultat, Outbreak_variant)
+  # Sampling date is per sample: all SekvensID rows of a sample share it
+  left_join(
+    samples_cleaned %>%
+      distinct(SAMPLE_NUMBER, SAMPLED_DATE) %>%
+      mutate(SAMPLED_DATE = as.Date(SAMPLED_DATE)),
+    by = "SAMPLE_NUMBER"
+  ) %>%
+  select(SAMPLE_NUMBER, SekvensID, Resultat, Outbreak_variant, SAMPLED_DATE)
 
 ## ==================================================
 ## Write output
