@@ -1,5 +1,6 @@
-
 #!/usr/bin/env bash
+
+set -euo pipefail
 
 # Activate conda
 source ~/miniconda3/etc/profile.d/conda.sh
@@ -9,52 +10,45 @@ DATE=$(date +%Y-%m-%d)
 
 ## Set up environment
 BASE_DIR=/mnt/tempdata
-TMP_DIR=/mnt/tempdata/flu_nextstrain
-OUT_DIR=/mnt/tempdata/flu_nextstrain_out
+TMP_DIR="${BASE_DIR}/flu_nextstrain"
+OUT_DIR="${BASE_DIR}/flu_nextstrain_out"
+NGS_SCRIPTS_DIR="$HOME/ngs_scripts"
+SEASONAL_FLU_DIR="${BASE_DIR}/seasonal-flu"
 SMB_AUTH=/home/ngs/.smbcreds
 SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
 SMB_DIR=Virologi/NGS/tmp/flu_nextstrain
 SMB_DIR_ANALYSIS=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/11-Nextstrain/${DATE}_Nextstrain_Build 
 SMB_DIR_UPLOAD=Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/11-Nextstrain/${DATE}_Nextstrain_Build 
 
+mkdir -p "$BASE_DIR" "$OUT_DIR" "$TMP_DIR"
+
 # Check if the ngs_scripts directory exists, if not clone it from GitHub
-cd $HOME
-if [ -d "ngs_scripts" ]; then
+if [ -d "$NGS_SCRIPTS_DIR/.git" ]; then
   # Make sure to pull the latest version
-  git -C ngs_scripts/ pull origin main
+  git -C "$NGS_SCRIPTS_DIR" pull --ff-only origin main
 else
-  git clone https://github.com/folkehelseinstituttet/ngs_scripts.git
+  git clone https://github.com/folkehelseinstituttet/ngs_scripts.git "$NGS_SCRIPTS_DIR"
 fi
 
 # Check if the seasonal_flu repo exists, if not clone it from GitHub
-cd $BASE_DIR
-if [ -d "seasonal-flu" ]; then
-  cd seasonal-flu
-  # Make sure to pull the latest version
-  git pull origin master
-  git stash
-  git pull origin master
-  git stash pop
+if [ -d "$SEASONAL_FLU_DIR/.git" ]; then
+  # Preserve local workflow changes while updating the existing checkout.
+  git -C "$SEASONAL_FLU_DIR" pull --ff-only --autostash origin master
+  if [ -n "$(git -C "$SEASONAL_FLU_DIR" diff --name-only --diff-filter=U)" ]; then
+    echo "ERROR: Resolve merge conflicts in $SEASONAL_FLU_DIR before rerunning." >&2
+    exit 1
+  fi
 else
-  git clone https://github.com/nextstrain/seasonal-flu.git
+  git clone https://github.com/nextstrain/seasonal-flu.git "$SEASONAL_FLU_DIR"
 fi
 
-## Make output dir
-mkdir $OUT_DIR
-
 ## Make NIPH-profile
-cd seasonal-flu
-mkdir profiles/niph
-mkdir data
-mkdir data/h1n1pdm
-mkdir data/h3n2
-mkdir data/vic
-cd $BASE_DIR
+mkdir -p "$SEASONAL_FLU_DIR/profiles/niph" \
+         "$SEASONAL_FLU_DIR/data/h1n1pdm" \
+         "$SEASONAL_FLU_DIR/data/h3n2" \
+         "$SEASONAL_FLU_DIR/data/vic"
 
 ## Move input files from N
-
-# Create directory to hold the output of the analysis
-mkdir $TMP_DIR
 
 echo "Getting files from the N drive"
 smbclient $SMB_HOST -A $SMB_AUTH -D $SMB_DIR <<EOF
@@ -64,19 +58,19 @@ lcd $TMP_DIR
 mget *
 EOF
 
-cd $TMP_DIR/H1
+cd "$TMP_DIR/H1"
 cat *HA*.fasta > raw_sequences_ha_org.fasta
 cat *NA*.fasta > raw_sequences_na_org.fasta
 sed 's/|.*//' raw_sequences_ha_org.fasta > raw_sequences_ha.fasta
 sed 's/|.*//' raw_sequences_na_org.fasta > raw_sequences_na.fasta
 
-cd $TMP_DIR/H3
+cd "$TMP_DIR/H3"
 cat *HA*.fasta > raw_sequences_ha_org.fasta
 cat *NA*.fasta > raw_sequences_na_org.fasta
 sed 's/|.*//' raw_sequences_ha_org.fasta > raw_sequences_ha.fasta
 sed 's/|.*//' raw_sequences_na_org.fasta > raw_sequences_na.fasta
 
-cd $TMP_DIR/VIC
+cd "$TMP_DIR/VIC"
 cat *HA*.fasta > raw_sequences_ha_org.fasta
 cat *NA*.fasta > raw_sequences_na_org.fasta
 sed 's/|.*//' raw_sequences_ha_org.fasta > raw_sequences_ha.fasta
@@ -88,7 +82,6 @@ cp $HOME/ngs_scripts/nextstrain/influenza/global/config.yaml $BASE_DIR/seasonal-
 cp $HOME/ngs_scripts/nextstrain/influenza/global/prepare_data.smk $BASE_DIR/seasonal-flu/profiles/niph
 cp $HOME/ngs_scripts/nextstrain/influenza/global/nextstrain.yaml $BASE_DIR/seasonal-flu/workflow/envs
 cp $HOME/ngs_scripts/nextstrain/influenza/global/xls2csv.py $BASE_DIR/seasonal-flu/scripts
-cp $HOME/ngs_scripts/nextstrain/influenza/global/filter_metadata_by_ids.py $BASE_DIR/seasonal-flu/scripts
 
 cp $BASE_DIR/flu_nextstrain/H1/metadata.xls $BASE_DIR/seasonal-flu/data/h1n1pdm
 cp $BASE_DIR/flu_nextstrain/H1/raw_sequences_ha.fasta $BASE_DIR/seasonal-flu/data/h1n1pdm
@@ -102,7 +95,7 @@ cp $BASE_DIR/flu_nextstrain/VIC/raw_sequences_na.fasta $BASE_DIR/seasonal-flu/da
 
 conda activate DATAVALIDATION_NEXTSTRAIN
 
-cd $BASE_DIR/seasonal-flu/
+cd "$SEASONAL_FLU_DIR"
 
 python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
   --input data/h1n1pdm/metadata.xls \
@@ -135,11 +128,11 @@ python3 $HOME/ngs_scripts/nextstrain/influenza/datavalidation.py \
 rm data/vic/metadata.xls
 mv data/vic/metadata.c.xlsx data/vic/metadata.xlsx
 
-conda deactivatev
+conda deactivate
 
 conda activate NEXTSTRAIN
 
-cd $BASE_DIR/seasonal-flu 
+cd "$SEASONAL_FLU_DIR"
 
 echo "Making the Nextstrain build."
 nextstrain build .  --configfile profiles/niph/builds.yaml --cores 14 
@@ -166,7 +159,7 @@ cp $OUT_DIR/h1n1_fhi_na_tip-frequencies.json $OUT_DIR/flu_a_h1n1_na_global_tip-f
 
 
 # H3N2
-cp $OUT_DIR/h3n2_fhi_ha.json $OUT_DIR/flu_a_h3n2_ha_global}.json
+cp $OUT_DIR/h3n2_fhi_ha.json $OUT_DIR/flu_a_h3n2_ha_global.json
 
 
 cp $OUT_DIR/h3n2_fhi_ha_tip-frequencies.json $OUT_DIR/flu_a_h3n2_ha_global_tip-frequencies.json
@@ -199,8 +192,8 @@ mput *
 EOF
 
 # Clean up
-rm -rf $TMP_DIR
-rm -rf $BASE_DIR/seasonal-flu
+rm -rf "$TMP_DIR"
+rm -rf "$SEASONAL_FLU_DIR"
 
 
 

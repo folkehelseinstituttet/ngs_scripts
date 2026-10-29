@@ -1,10 +1,10 @@
-ruleorder: prepare_sequences > parse_niph > parse
+# Upstream consumes one metadata table per lineage and selects sequences per segment.
 
 rule prepare_metadata:
     input:
         metadata="data/{lineage}/metadata.xlsx",
     output:
-        metadata="data/{lineage}/metadata_raw.tsv",
+        metadata="data/{lineage}/metadata.tsv",
     params:
         old_fields=",".join(config["metadata_fields"]),
         new_fields=",".join(config["renamed_metadata_fields"]),
@@ -36,22 +36,4 @@ rule prepare_sequences:
             | seqkit sort -n -r \
             | seqkit replace -p "\|" -r " " \
             | seqkit rmdup -n > {output.sequences}
-        """
-
-rule parse_niph:
-    input:
-        sequences="data/{lineage}/{segment}.fasta",
-        metadata="data/{lineage}/metadata_raw.tsv",
-    output:
-        metadata="data/{lineage}/metadata_{segment}.tsv",
-    conda: "../../workflow/envs/nextstrain.yaml"
-    shell:
-        r"""
-        seqkit seq -n {input.sequences} > {output.metadata}.ids
-        python3 scripts/filter_metadata_by_ids.py \
-            --metadata {input.metadata} \
-            --ids {output.metadata}.ids \
-            --output {output.metadata} \
-            --id-col strain
-        rm -f {output.metadata}.ids
         """
