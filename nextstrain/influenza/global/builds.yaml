@@ -34,6 +34,8 @@ recency:
   date_bin_labels: ["last week", "last month", "last quarter"]
   upper_bin_label: older
 
+# Sample up to 100 strains per non-Norwegian country across all dates.
+# Norwegian strains are included without a sampling cap.
 builds:
   "h1n1_fhi":
     lineage: h1n1pdm
@@ -47,7 +49,7 @@ builds:
     enable_glycosylation: true
     subsamples:
       global:
-        filters: "--group-by country year month --subsample-max-sequences 50 --exclude-where \"country=Norway\""
+        filters: "--group-by country --sequences-per-group 100 --exclude-where \"country=Norway\""
       norway:
         filters: "--exclude-where \"country!=Norway\""
 
@@ -63,7 +65,7 @@ builds:
     enable_glycosylation: true
     subsamples:
       global:
-        filters: "--group-by country year month --subsample-max-sequences 50 --exclude-where \"country=Norway\""
+        filters: "--group-by country --sequences-per-group 100 --exclude-where \"country=Norway\""
       norway:
         filters: "--exclude-where \"country!=Norway\""
 
@@ -79,6 +81,6 @@ builds:
     enable_glycosylation: true
     subsamples:
       global:
-        filters: "--group-by country year month --subsample-max-sequences 50 --exclude-where \"country=Norway\""
+        filters: "--group-by country --sequences-per-group 100 --exclude-where \"country=Norway\""
       norway:
         filters: "--exclude-where \"country!=Norway\""
