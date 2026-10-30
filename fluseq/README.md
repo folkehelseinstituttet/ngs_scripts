@@ -154,6 +154,41 @@ These settings affect the HTML assessment only. The existing source QC summary
 and subtype calls remain unchanged. See the HTML's assessment rules for metric
 definitions, denominator choices and missing-data handling.
 
+## Master FASTA archive
+
+Both human wrappers merge the completed `reporthuman/<RUN>.fasta` into
+`master.fasta` in the same directory as `master.csv`, after the CSV merge.
+This uses the same mounted directory or SMB share and credentials.
+`FLUSEQ_MASTER_UPDATE=true` enables both master updates; validation runs and
+`FLUSEQ_MASTER_UPDATE=false` skip both.
+
+Records match by their exact FASTA ID (the complete first whitespace-delimited
+token after `>`), including any segment suffix. New IDs are appended; existing
+IDs are replaced with the latest incoming header and sequence. Identical records
+remain unchanged. Different sample/segment IDs are retained even when their
+sequence strings are identical. Records missing from this run are retained.
+
+The first non-empty run creates the master FASTA if it is absent. An existing
+master receives a timestamped backup before replacement. Repeating the same
+merge does not duplicate records or create unnecessary backups. Empty run FASTAs
+leave the archive unchanged; malformed records or conflicting duplicate IDs
+stop the merge. Identical duplicate records are collapsed.
+
+After updating the server scripts, add FASTA records from an already completed
+run without rerunning Nextflow:
+
+```bash
+FLUSEQ_MASTER_UPDATE=true \
+python3 /home/ngs/ngs_scripts/fluseq/master_csv/bin/update_master_csv.py \
+  --workflow fastq \
+  --report /home/ngs/out_fluseq/INF109/reporthuman/INF109.csv \
+  --fasta /home/ngs/out_fluseq/INF109/reporthuman/INF109.fasta
+```
+
+Use `--workflow fasta` for a FASTA workflow. Omitting `--fasta` keeps the existing
+CSV-only retry behavior. See [master_csv/README.md](master_csv/README.md) for
+locking, backup and recovery details.
+
 ## Reference validation
 
 Both human influenza wrappers download `human` and `human_vaccine` references

@@ -8,7 +8,8 @@ point and supports mounted files and `smbclient` transfers.
 The merge is a wrapper post-processing step, after Nextflow and the existing
 result uploads succeed. It is outside Nextflow's cache: each invocation reads the
 current master. The wrappers pass only `reporthuman/<run-id>.csv`, not a wildcard
-of CSVs from previous runs. Validation runs (`-v`) skip master updates.
+of CSVs from previous runs. They also pass `reporthuman/<run-id>.fasta` to update
+the master FASTA archive. Validation runs (`-v`) skip both master updates.
 
 ## Identifiers and mappings
 
@@ -166,10 +167,72 @@ python3 /home/ngs/ngs_scripts/fluseq/master_csv/bin/update_master_csv.py \
 
 Deploy the entire `master_csv/` directory along with the wrappers. It now also
 contains `bin/report_qc_html.py`, `bin/qc_metrics.py` and
-`bin/templates/report_qc.html`. If `FLUSEQ_MASTER_TOOLS` points elsewhere, that
+`bin/templates/report_qc.html`, `bin/diagnose_master_ids.py` and
+`bin/merge_master_fasta.py`. If `FLUSEQ_MASTER_TOOLS` points elsewhere, that
 directory must contain these reporting files as well. The HTML renderer extends
 the initial renderer in `nf-core-fluseq`; this bundled version is run after the
 master merge so the qPCR comparison includes newly imported metadata.
+
+## Master FASTA
+
+The optional `--fasta /path/to/<RUN>.fasta` argument merges that exact run file
+into `master.fasta` beside the configured master CSV. Both human wrappers pass
+this argument automatically. For a mounted CSV, the FASTA uses the same parent
+directory. For SMB, it uses the same share, directory and authentication as the
+master CSV, regardless of the metadata location. No additional configuration is
+required. Master-update mode and validation skips apply to both archives.
+
+Matching uses the full FASTA record ID before the first whitespace, with exact
+case-sensitive comparison. For example, `SAMPLE|01-HA-H3N2` and
+`SAMPLE|02-NA-H3N2` are separate records. The latest incoming record replaces an
+existing matching ID, including its header description. New IDs are appended;
+existing IDs retain their position, and records absent from this run remain.
+Identical sequence content under different IDs does not collapse different
+samples. Header IDs are not translated to CSV `Key` or `OriginalName`, and a
+changed ID is a new record.
+
+Multiline records, UTF-8 BOM and CRLF line endings are supported. Blank lines
+and sequence whitespace are ignored. Identical duplicate records within a file
+are collapsed, while conflicting duplicate IDs are rejected. Incoming data is
+validated before the CSV update starts. A missing run FASTA is an error; an
+empty run FASTA is a no-op and never empties or creates a master archive.
+
+The first non-empty update creates a missing `master.fasta`. For SMB, only an
+explicit `NT_STATUS_OBJECT_NAME_NOT_FOUND` allows creation. Missing directories,
+access errors and network failures abort without treating the archive as empty.
+An existing empty FASTA is also a valid starting point.
+
+An exclusive `master.fasta.lock` directory serializes participating writers.
+Changed existing archives receive a unique `master.fasta.bak.<timestamp>.<id>`
+backup. Mounted replacements use `os.replace`; first creation uses an exclusive
+hard link to a complete temporary file so another initializer cannot be
+overwritten. SMB verifies backup and candidate uploads, checks that the old
+master has not changed, then performs a server-side rename and verifies the
+result. First creation uses rename without replacement. Identical retries leave
+the original file and its formatting untouched and create no extra backup.
+
+CSV and FASTA are separate file updates: the CSV may already have completed if
+the FASTA or subsequent QC/report upload fails. Retry the same command to finish
+the remaining work; both merges are idempotent. FASTA merge counts appear in the
+update summary under `fasta` (`added`, `updated`, `unchanged`, `total`, `written`).
+
+To update both archives from an existing completed run:
+
+```bash
+FLUSEQ_MASTER_UPDATE=true \
+python3 /home/ngs/ngs_scripts/fluseq/master_csv/bin/update_master_csv.py \
+  --workflow fastq \
+  --report /home/ngs/out_fluseq/INF109/reporthuman/INF109.csv \
+  --fasta /home/ngs/out_fluseq/INF109/reporthuman/INF109.fasta
+```
+
+Use `--workflow fasta` for a FASTA report. Omitting `--fasta` updates only the CSV
+as before. To merge only FASTA records using local/mounted files:
+
+```bash
+python3 master_csv/bin/merge_master_fasta.py \
+  --master /path/to/master.fasta --fasta /path/to/reporthuman/INF109.fasta
+```
 
 ## HTML QC after merging
 
@@ -279,7 +342,7 @@ From the wrapper checkout, test metadata location defaults and overrides with
 synthetic CSVs and mocked SMB transfers:
 
 ```bash
-pytest -q tests/test_master_csv_configuration.py tests/test_master_csv_identifiers.py tests/test_qc_report.py
+pytest -q tests/test_master_csv_configuration.py tests/test_master_csv_identifiers.py tests/test_master_fasta.py tests/test_qc_report.py
 ```
 
 Live shared-drive access and the real LabWare/master exports still require a

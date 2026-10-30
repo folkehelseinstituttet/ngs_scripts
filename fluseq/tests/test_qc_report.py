@@ -213,6 +213,8 @@ def test_smb_merge_and_verified_qc_upload(qc, tmp_path, workflow, corrupt_upload
     write_csv(remote / "master/NGS_PREP_INF_report.csv", [
         {"RekvNr": "0008", "NGS_LW_ID": "001", "PCR_H1_Res": "Påvist"}], ";")
     source = write_csv(tmp_path / "run.csv", [sample(OriginalName="0008")])
+    run_fasta = tmp_path / "run.fasta"
+    run_fasta.write_text(">001|01-HA-H3N2\nACGT\n")
     auth = tmp_path / "auth"
     auth.touch()
     bin_dir = tmp_path / "bin"
@@ -224,6 +226,9 @@ args = sys.argv[1:]
 root = pathlib.Path(os.environ['MOCK_SMB_ROOT']) / args[args.index('-D') + 1]
 verb, *values = shlex.split(args[args.index('-c') + 1])
 if verb == 'get':
+    if not (root / values[0]).exists():
+        print('NT_STATUS_OBJECT_NAME_NOT_FOUND', file=sys.stderr)
+        sys.exit(1)
     shutil.copyfile(root / values[0], values[1])
 elif verb == 'put':
     target = root / values[1]
@@ -247,7 +252,7 @@ else:
                FLUSEQ_MASTER_SMB_SHARE="//mock/share", FLUSEQ_MASTER_SMB_DIR="master",
                FLUSEQ_MASTER_SMB_AUTH=str(auth))
     command = [sys.executable, str(BIN / "update_master_csv.py"), "--workflow", workflow,
-               "--report", str(source), "--qc-output", str(output), "--qc-smb-share", "//mock/share",
+               "--report", str(source), "--fasta", str(run_fasta), "--qc-output", str(output), "--qc-smb-share", "//mock/share",
                "--qc-smb-dir", "results", "--qc-smb-auth", str(auth)]
     result = subprocess.run(command, env=env, capture_output=True, text=True)
     assert (result.returncode != 0) == corrupt_upload, result.stdout + result.stderr
@@ -261,6 +266,8 @@ else:
         assert data["samples"][0]["qpcr"]["status"] == "Mismatch"
         assert data["master_source"] == "master.csv"
     assert not (remote / "master/master.csv.lock").exists()
+    assert not (remote / "master/master.fasta.lock").exists()
+    assert (remote / "master/master.fasta").read_bytes() == run_fasta.read_bytes()
 
 
 def test_wrapper_passes_workflow_and_qc_destinations(wrapper, tmp_path):
@@ -275,6 +282,7 @@ def test_wrapper_passes_workflow_and_qc_destinations(wrapper, tmp_path):
     args = result.stdout.splitlines()
     assert args[args.index("--workflow") + 1] == ("fasta" if "fasta" in wrapper.name else "fastq")
     assert args[args.index("--qc-output") + 1].endswith("/DEMO/reporthuman/DEMO_qc.html")
+    assert args[args.index("--fasta") + 1].endswith("/DEMO/reporthuman/DEMO.fasta")
     assert args[args.index("--qc-smb-dir") + 1] == "results/DEMO/reporthuman"
     env["SKIP_RESULTS_MOVE"] = "true"
     result = subprocess.run(["bash", "-c", script], env=env, capture_output=True, text=True)

@@ -33,6 +33,12 @@ def smb_quote(value):
     return '"' + value + '"'
 
 
+class SMBError(MergeError):
+    def __init__(self, verb, statuses, returncode):
+        self.statuses = statuses
+        super().__init__(f"SMB {verb} failed ({', '.join(statuses) or 'exit ' + str(returncode)})")
+
+
 class SMB:
     def __init__(self, share, directory, auth):
         if not share.startswith("//"):
@@ -48,12 +54,23 @@ class SMB:
         statuses = re.findall(r"(?:NT_STATUS|DOS_STATUS)_[A-Z0-9_]+", result.stdout + result.stderr)
         if result.returncode or statuses:
             # Avoid including downloaded identifiers, credentials or server listings in logs.
-            raise MergeError(f"SMB {verb} failed ({', '.join(statuses) or 'exit ' + str(result.returncode)})")
+            raise SMBError(verb, statuses, result.returncode)
 
     def get(self, remote, local):
         self.command("get", remote, local)
         if not Path(local).is_file():
             raise MergeError("SMB get did not create the requested local file")
+
+    def get_if_exists(self, remote, local):
+        try:
+            self.get(remote, local)
+        except SMBError as error:
+            # Only this exact status permits initializing a new FASTA. A missing
+            # directory, access denial or network failure is never an empty master.
+            if error.statuses and set(error.statuses) == {"NT_STATUS_OBJECT_NAME_NOT_FOUND"}:
+                return False
+            raise
+        return True
 
     def put_verified(self, local, remote, check):
         self.command("put", local, remote)
@@ -130,8 +147,15 @@ def configuration(environ, validation=""):
     return config, None
 
 
-def update(config, report, workflow, qc_output=None, qc_options=None):
+def update(config, report, workflow, qc_output=None, qc_options=None, fasta=None):
+    if fasta:
+        from merge_master_fasta import prepare_fasta
+        fasta_records = prepare_fasta(config, fasta)  # Validate and snapshot before changing the CSV.
+
     def finish(stats, master):
+        if fasta:
+            from merge_master_fasta import update_fasta
+            stats["fasta"] = update_fasta(config, fasta_records)
         if qc_output:
             from report_qc_html import write_report
             write_report(Path(report), qc_output, master, workflow,
@@ -205,6 +229,7 @@ def check_identifiers(config, report=None, output=None, workflow="fastq"):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path)
+    parser.add_argument("--fasta", type=Path, help="Merge this run's multi-FASTA into master.fasta beside master.csv")
     parser.add_argument("--workflow", required=True, choices=("fastq", "fasta"))
     parser.add_argument("--validation", default="")
     parser.add_argument("--check-config", action="store_true", help="Validate local configuration before starting analysis")
@@ -219,7 +244,7 @@ def main():
     try:
         if args.identifier_report and not args.check_identifiers:
             raise MergeError("--identifier-report requires --check-identifiers")
-        if args.check_identifiers and (args.check_config or args.qc_output or args.qc_smb_share or args.qc_smb_dir):
+        if args.check_identifiers and (args.check_config or args.fasta or args.qc_output or args.qc_smb_share or args.qc_smb_dir):
             raise MergeError("Run --check-identifiers separately from configuration checks and QC generation/uploads")
         if (args.qc_smb_share or args.qc_smb_dir) and not (args.qc_output and args.qc_smb_share and args.qc_smb_dir):
             raise MergeError("QC upload requires --qc-output, --qc-smb-share and --qc-smb-dir")
@@ -262,7 +287,7 @@ def main():
         else:
             print("Master CSV update: " + json.dumps(update(
                 config, args.report, args.workflow, args.qc_output,
-                {"coverage_threshold": args.qc_coverage_threshold},
+                {"coverage_threshold": args.qc_coverage_threshold}, args.fasta,
             ), sort_keys=True))
         if args.qc_smb_share and not args.check_config:
             remote = SMB(args.qc_smb_share, args.qc_smb_dir, args.qc_smb_auth)
