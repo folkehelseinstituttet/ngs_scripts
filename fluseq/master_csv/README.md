@@ -103,44 +103,49 @@ pipeline checkout containing `bin/` and `assets/master_csv/`.
 
 The default `FLUSEQ_MASTER_UPDATE=auto` enables merging when a master/metadata
 location is configured. With no configuration, the wrapper prints a clear skip
-message. `true` requires configuration and fails if it is missing; `false`
-explicitly disables updates. Validation runs always skip updates.
+message. `true` enables merging using the defaults below or explicit overrides;
+`false` explicitly disables updates. Validation runs always skip updates.
+
+For now, place `NGS_PREP_INF_report.csv` in the same directory as `master.csv`.
+Metadata defaults to that directory for both mounted files and SMB transfers.
+No separate metadata location needs to be configured.
 
 For mounted files:
 
 ```bash
 export FLUSEQ_MASTER_UPDATE=true
 export FLUSEQ_MASTER_CSV='/mnt/n/Virologi/NGS/1-NGS-Analyser/2-Utvikling/Seksjons for Influensa og andre luftveisvirus - NGS analysis database/data/INF/master.csv'
-export FLUSEQ_METADATA_CSV='/confirmed/mount/Prod/FromSecure/LW_Datauttrekk/NGS_PREP_INF_report.csv'
 ```
 
-Those mount paths are examples and must match the server's mounts. For the
-existing `smbclient` setup, configure the metadata share once its actual UNC
-location is known:
+The mount path is an example and must match the server's mounts. For the
+existing `smbclient` setup, enable the shared-directory defaults:
 
 ```bash
 export FLUSEQ_MASTER_UPDATE=true
-export FLUSEQ_METADATA_SMB_SHARE='//confirmed-server/confirmed-share'
-export FLUSEQ_METADATA_SMB_DIR='Prod/FromSecure/LW_Datauttrekk'
 ```
 
 The master defaults to share `//pos1-fhi-svm01.fhi.no/styrt`, based on the existing
 wrappers, and directory
 `Virologi/NGS/1-NGS-Analyser/2-Utvikling/Seksjons for Influensa og andre luftveisvirus - NGS analysis database/data/INF`.
-The metadata share is deliberately not inferred from the Windows drive letter.
-Either CSV may independently use a mounted path or SMB.
+Metadata inherits the configured master share and directory. When the separate
+export location is available, set `FLUSEQ_METADATA_CSV` for a mounted file, or
+both `FLUSEQ_METADATA_SMB_SHARE` and `FLUSEQ_METADATA_SMB_DIR` for SMB (for example,
+directory `Prod/FromSecure/LW_Datauttrekk` on the confirmed share). Explicit
+metadata settings take precedence over the shared-directory default; unset any
+old metadata path/share/directory overrides to use that default. Either CSV may
+independently use a mounted path or SMB.
 
 | Environment variable | Default / purpose |
 | --- | --- |
 | `FLUSEQ_MASTER_UPDATE` | `auto`, `true`, or `false` |
 | `FLUSEQ_MASTER_CSV` | Mounted master path; overrides master SMB settings |
-| `FLUSEQ_METADATA_CSV` | Mounted metadata path; overrides metadata SMB settings |
+| `FLUSEQ_METADATA_CSV` | Defaults beside the mounted master unless a metadata SMB share is set; an explicit path overrides metadata SMB settings |
 | `FLUSEQ_MASTER_SMB_SHARE` | `//pos1-fhi-svm01.fhi.no/styrt` |
 | `FLUSEQ_MASTER_SMB_DIR` | Master directory above |
 | `FLUSEQ_MASTER_SMB_NAME` | `master.csv` |
-| `FLUSEQ_METADATA_SMB_SHARE` | Must be supplied for metadata over SMB |
-| `FLUSEQ_METADATA_SMB_DIR` | `Prod/FromSecure/LW_Datauttrekk` |
-| `FLUSEQ_METADATA_SMB_NAME` | `NGS_PREP_INF_report.csv` |
+| `FLUSEQ_METADATA_SMB_SHARE` | Same share as the master unless overridden |
+| `FLUSEQ_METADATA_SMB_DIR` | Same directory as the master unless overridden |
+| `FLUSEQ_METADATA_SMB_NAME` | `NGS_PREP_INF_report.csv`; also used beside a mounted master |
 | `FLUSEQ_MASTER_SMB_AUTH` | `/home/ngs/.smbcreds` |
 | `FLUSEQ_METADATA_SMB_AUTH` | Same as master auth unless overridden |
 | `FLUSEQ_MASTER_NONEMPTY_REPORT` | `false`; set `true` to preserve old values for empty report cells |
@@ -193,11 +198,12 @@ directory. If a network disconnect occurs during replacement, inspect the master
 and its verified backup before retrying; a retry is safe once identifiers and
 access are valid.
 
-Tests use synthetic CSVs and simulated SMB failures:
+From the wrapper checkout, test metadata location defaults and overrides with
+synthetic CSVs and mocked SMB transfers:
 
 ```bash
-pytest -q tests/test_master_csv.py
+pytest -q tests/test_master_csv_configuration.py
 ```
 
 Live shared-drive access and the real LabWare/master exports still require a
-server-side acceptance run after the metadata share is confirmed.
+server-side acceptance run with the metadata file beside the master.

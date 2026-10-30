@@ -48,7 +48,7 @@ usage() {
     echo "  -v VALIDATION      Specify validation flag (e.g., VER)"
     echo "  -b BRANCH          Pipeline branch/tag to use (default: master)"
     echo "  -P PATH            PCR JSON file or directory (default: /mnt/tempdata/influensa_db/flu_seq_db/pcr-primers)"
-    echo "  Master CSV: set FLUSEQ_METADATA_CSV or FLUSEQ_METADATA_SMB_SHARE (see master_csv/README.md)"
+    echo "  Master CSV: set FLUSEQ_MASTER_UPDATE=true; metadata defaults beside master.csv (see master_csv/README.md)"
     exit "${1:-1}"
 }
 

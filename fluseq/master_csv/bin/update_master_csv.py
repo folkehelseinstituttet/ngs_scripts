@@ -23,7 +23,6 @@ MASTER_DIR = (
     "Virologi/NGS/1-NGS-Analyser/2-Utvikling/"
     "Seksjons for Influensa og andre luftveisvirus - NGS analysis database/data/INF"
 )
-METADATA_DIR = "Prod/FromSecure/LW_Datauttrekk"
 
 
 def smb_quote(value):
@@ -85,15 +84,24 @@ def configuration(environ, validation=""):
         "FLUSEQ_MASTER_SMB_SHARE", "FLUSEQ_MASTER_SMB_DIR",
     ))
     if mode == "auto" and not configured:
-        return None, "metadata location is not configured (see docs/master_csv.md)"
+        return None, "set FLUSEQ_MASTER_UPDATE=true to use the default shared directory (see master_csv/README.md)"
     nonempty = environ.get("FLUSEQ_MASTER_NONEMPTY_REPORT", "false").lower()
     if nonempty not in {"true", "false"}:
         raise MergeError("FLUSEQ_MASTER_NONEMPTY_REPORT must be true or false")
-    metadata = environ.get("FLUSEQ_METADATA_CSV")
-    metadata_share = environ.get("FLUSEQ_METADATA_SMB_SHARE")
-    if not metadata and not metadata_share:
-        raise MergeError("Set FLUSEQ_METADATA_CSV or FLUSEQ_METADATA_SMB_SHARE; the metadata share is not yet known")
-    master = environ.get("FLUSEQ_MASTER_CSV")
+    master_name = environ.get("FLUSEQ_MASTER_SMB_NAME", "master.csv")
+    metadata_name = environ.get("FLUSEQ_METADATA_SMB_NAME", "NGS_PREP_INF_report.csv")
+    for name in (master_name, metadata_name):
+        smb_quote(name)
+        if "/" in name or "\\" in name or name in {".", ".."}:
+            raise MergeError("SMB_NAME must be a filename; configure its directory separately")
+    master = environ.get("FLUSEQ_MASTER_CSV") or None
+    master_share = environ.get("FLUSEQ_MASTER_SMB_SHARE", MASTER_SHARE)
+    master_directory = environ.get("FLUSEQ_MASTER_SMB_DIR", MASTER_DIR)
+    metadata = environ.get("FLUSEQ_METADATA_CSV") or None
+    metadata_share = environ.get("FLUSEQ_METADATA_SMB_SHARE") or None
+    # Until a separate export location is configured, read metadata beside the master.
+    if master and not metadata and not metadata_share:
+        metadata = str(Path(master).with_name(metadata_name))
     auth = environ.get("FLUSEQ_MASTER_SMB_AUTH", "/home/ngs/.smbcreds")
     metadata_auth = environ.get("FLUSEQ_METADATA_SMB_AUTH", auth)
     for label, path in (("master", master), ("metadata", metadata)):
@@ -109,20 +117,16 @@ def configuration(environ, validation=""):
         "master": master,
         "metadata": metadata,
         "master_smb": None if master else SMB(
-            environ.get("FLUSEQ_MASTER_SMB_SHARE", MASTER_SHARE),
-            environ.get("FLUSEQ_MASTER_SMB_DIR", MASTER_DIR), auth,
+            master_share, master_directory, auth,
         ),
         "metadata_smb": None if metadata else SMB(
-            metadata_share, environ.get("FLUSEQ_METADATA_SMB_DIR", METADATA_DIR), metadata_auth,
+            metadata_share or master_share,
+            environ.get("FLUSEQ_METADATA_SMB_DIR", master_directory), metadata_auth,
         ),
-        "master_name": environ.get("FLUSEQ_MASTER_SMB_NAME", "master.csv"),
-        "metadata_name": environ.get("FLUSEQ_METADATA_SMB_NAME", "NGS_PREP_INF_report.csv"),
+        "master_name": master_name,
+        "metadata_name": metadata_name,
         "nonempty_report": nonempty == "true",
     }
-    for name in (config["master_name"], config["metadata_name"]):
-        smb_quote(name)
-        if "/" in name or "\\" in name or name in {".", ".."}:
-            raise MergeError("SMB_NAME must be a filename; configure its directory separately")
     return config, None
 
 
