@@ -136,24 +136,30 @@ def index_rows(rows, label):
     return indexed
 
 
-def sequence_index(*tables):
+def sequence_index(*tables, source="input"):
     indexed = {}
+    first_records = {}
     for rows in tables:
-        for row in rows:
+        for record, row in enumerate(rows, 2):
             sequence = row.get("NGS_LW_ID", "").strip()
             if not sequence or sequence.upper() in {"NA", "NAN", "NONE", "NULL"}:
                 continue
             key = row["Key"]
             if sequence in indexed and indexed[sequence] != key:
-                raise MergeError("NGS_LW_ID maps to multiple master Keys; resolve the identifiers first")
+                raise MergeError(
+                    f"{source}: NGS_LW_ID maps to multiple master Keys "
+                    f"(records {first_records[sequence]} and {record}); "
+                    "run update_master_csv.py --check-identifiers to locate the conflicting rows"
+                )
             indexed[sequence] = key
+            first_records.setdefault(sequence, record)
     return indexed
 
 
 def resolve_report_keys(existing, metadata_rows, report_rows, workflow):
     """Resolve sequencing IDs, including provisional rows awaiting metadata."""
-    by_sequence = sequence_index(existing.values())
-    metadata_sequences = sequence_index(metadata_rows)
+    by_sequence = sequence_index(existing.values(), source="master")
+    metadata_sequences = sequence_index(metadata_rows, source="metadata")
     if workflow == "fastq":
         relevant_sequences = {row.get("NGS_LW_ID", "") for row in report_rows}
     else:
@@ -168,7 +174,10 @@ def resolve_report_keys(existing, metadata_rows, report_rows, workflow):
         old = existing[old_key]
         if old.get(KEY_SOURCE) != "Sample":
             if old_key != key:
-                raise MergeError("NGS_LW_ID maps to multiple master Keys; resolve the identifiers first")
+                raise MergeError(
+                    "NGS_LW_ID maps to multiple master Keys (master Key differs from metadata RekvNr); "
+                    "run update_master_csv.py --check-identifiers to locate the conflicting rows"
+                )
             continue
         if old_key != sequence:
             raise MergeError("Provisional master Key must equal its NGS_LW_ID")
@@ -248,7 +257,7 @@ def merge_tables(master, metadata, report, workflow, assets=ASSETS, nonempty_rep
         else:
             updated += 1
         existing[key] = merged
-    sequence_index(existing.values())
+    sequence_index(existing.values(), source="merged master")
     headers = list(dict.fromkeys(columns + master_headers + metadata_headers + report_headers))
     if provisional_keys and KEY_SOURCE not in headers:
         headers.append(KEY_SOURCE)

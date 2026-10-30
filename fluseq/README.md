@@ -103,6 +103,57 @@ screen -S fluseq-RUN-avian-VER -d -m bash /home/ngs/ngs_scripts/fluseq/fluseq_av
 ---
 
 
+## Interactive run QC report
+
+Both human wrappers now create `<RUN>_qc.html` and `<RUN>_qc.json` after the
+master CSV merge. The HTML is a single offline file: open it directly in a
+browser, with no installation or web server. It includes:
+
+- qPCR mismatches using the master's `PCR_H1_Res`, `PCR_H3_Res`, `PCR_H5_Res`,
+  `PCR_Bvic_Res` and `PCR_Byam_Res`; `Påvist` is positive, ignoring case/spaces.
+- Successful final subtype calls and no-call rates for every row in the run report.
+- Per-segment pass, low-coverage failure and missing/invalid counts and percentages.
+  The default coverage threshold is 80%, matching the existing pipeline.
+- Mixed-site counts **greater than 4**, with the affected segments. Duplicate
+  HA1/HA2 and M1/M2 segment counts are counted once.
+- A searchable indel/frameshift viewer with segment and event-type filters.
+- IRMA noise **greater than 0.09**, plus the existing QC and characterisation findings.
+- Finding buttons, sample and qPCR filters, sortable samples, CSV exports and printing.
+
+Enable the master merge to include up-to-date qPCR comparisons:
+
+```bash
+export FLUSEQ_MASTER_UPDATE=true
+```
+
+Place `NGS_PREP_INF_report.csv` beside the master as described in
+[master_csv/README.md](master_csv/README.md). When merging is disabled or skipped
+for validation, the QC report still contains run measurements and explicitly
+marks the master comparison as unavailable.
+
+The wrappers generate the files under
+`/home/ngs/out_fluseq/<RUN>/reporthuman/` and upload and verify both files in the
+run's `reporthuman` folder on the N: drive. The enriched HTML replaces the
+pipeline's initial QC HTML there. The FASTQ wrapper can remove successful local
+results during its normal cleanup; open the shared-drive copy. Validation runs
+publish the files in their configured validation report directory.
+
+To regenerate just the report from existing local/mounted files, without changing
+the master or rerunning analysis:
+
+```bash
+python3 /home/ngs/ngs_scripts/fluseq/master_csv/bin/report_qc_html.py \
+  /path/to/reporthuman/INF077.csv \
+  --master /path/to/master.csv \
+  --outdir /path/to/reporthuman
+```
+
+Add `--workflow fasta` for a FASTA report. Use `--coverage-threshold 90` to change
+the reporting threshold; wrappers accept `FLUSEQ_QC_COVERAGE_THRESHOLD` instead.
+These settings affect the HTML assessment only. The existing source QC summary
+and subtype calls remain unchanged. See the HTML's assessment rules for metric
+definitions, denominator choices and missing-data handling.
+
 ## Reference validation
 
 Both human influenza wrappers download `human` and `human_vaccine` references

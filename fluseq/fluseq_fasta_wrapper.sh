@@ -358,9 +358,16 @@ mput *.csv
 EOF
 
 # Merge only the completed run report, after successful result uploads.
+QC_REMOTE_DIR="$SMB_DIR_ANALYSIS"
+if [ "$SKIP_RESULTS_MOVE" = false ]; then
+    QC_REMOTE_DIR="$SMB_DIR/$RUN/reporthuman"
+fi
 python3 "$MASTER_CSV_TOOLS/bin/update_master_csv.py" \
     --workflow fasta --validation "$VALIDATION_FLAG" \
-    --report "$HOME/out_fluseq/${RUN}/reporthuman/${RUN}.csv"
+    --report "$HOME/out_fluseq/${RUN}/reporthuman/${RUN}.csv" \
+    --qc-output "$HOME/out_fluseq/${RUN}/reporthuman/${RUN}_qc.html" \
+    --qc-coverage-threshold "${FLUSEQ_QC_COVERAGE_THRESHOLD:-80}" \
+    --qc-smb-share "$SMB_HOST" --qc-smb-dir "$QC_REMOTE_DIR" --qc-smb-auth "$SMB_AUTH"
 
 ## Clean up
 # nextflow clean -f

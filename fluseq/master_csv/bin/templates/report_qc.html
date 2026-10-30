@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>@@TITLE@@ · FluSeq run QC</title>
+  <style>
+    :root { --ink:#182e36; --muted:#526871; --teal:#087f78; --border:#d6e2e4; --paper:#fff; --bg:#f1f6f6; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    header { background:#123a43; color:white; padding:38px max(24px,calc((100vw - 1480px)/2)); border-top:6px solid #47c7b3; }
+    .eyebrow { margin:0; color:#9fdfd5; font-size:12px; font-weight:750; letter-spacing:.18em; text-transform:uppercase; }
+    h1 { font-size:clamp(30px,4vw,46px); line-height:1.15; margin:12px 0; overflow-wrap:anywhere; }
+    header p { margin:8px 0; color:#d2e4e7; }
+    .header-line { display:flex; justify-content:space-between; align-items:center; gap:20px; }
+    button,select,input { font:inherit; border:1px solid #a4b9bf; border-radius:7px; padding:9px 12px; color:var(--ink); background:white; }
+    button { cursor:pointer; }
+    button:hover { background:#e5f6f2; }
+    :focus-visible { outline:3px solid #138aaf; outline-offset:3px; }
+    main { max-width:1528px; margin:auto; padding:26px 24px 50px; }
+    h2 { font-size:21px; margin:0 0 12px; letter-spacing:-.02em; }
+    h3 { font-size:16px; margin:0 0 16px; }
+    p { margin:8px 0; }
+    .muted,small { color:var(--muted); }
+    small { display:block; font-size:12px; font-weight:400; }
+    .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px; }
+    .card,.panel { background:var(--paper); border:1px solid var(--border); border-radius:12px; }
+    .card { padding:20px 22px; border-top:4px solid #66838d; }
+    .card.good-card { border-top-color:#178775; }
+    .card.review-card { border-top-color:#bd761b; }
+    .card strong { display:block; font-size:36px; line-height:1.3; font-variant-numeric:tabular-nums; }
+    .card strong.ratio { font-size:25px; padding:7px 0; }
+    .card span { font-size:13px; color:var(--muted); }
+    .panel { padding:23px; margin-bottom:22px; }
+    .assessment { display:inline-block; font-size:14px; font-weight:750; padding:6px 12px; background:#eef3f4; border-radius:6px; }
+    .overview { display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+    .overview .panel { min-width:0; }
+    .notice { border-left:4px solid #bd761b; padding:10px 14px; background:#fff5e6; }
+    ul { padding-left:22px; }
+    li { margin-bottom:7px; }
+    .distribution { display:grid; grid-template-columns:1fr auto; gap:4px 16px; margin:13px 0; }
+    .distribution span { overflow-wrap:anywhere; }
+    progress { grid-column:1 / -1; width:100%; height:6px; border:none; border-radius:8px; background:#e6efef; accent-color:var(--teal); }
+    progress::-webkit-progress-bar { background:#e6efef; border-radius:8px; }
+    progress::-webkit-progress-value { background:var(--teal); border-radius:8px; }
+    progress::-moz-progress-bar { background:var(--teal); border-radius:8px; }
+    .scroll { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    caption { text-align:left; padding:0 0 12px; color:var(--muted); }
+    th,td { padding:11px 10px; text-align:left; border-bottom:1px solid var(--border); vertical-align:top; }
+    thead th { color:#45616a; background:#f2f7f7; font-size:11px; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
+    tbody th { font-weight:650; overflow-wrap:anywhere; }
+    tbody tr:hover { background:#f7fafb; }
+    .metric { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; border:3px solid white; border-radius:5px; }
+    .good { background:#dff3eb; color:#12604e; }
+    .review { background:#fff0d8; color:#8a4d07; }
+    .bad { background:#ffe5e7; color:#9e2731; }
+    .missing { background:#edf0f3; color:#52616e; }
+    .badge { display:inline-block; border-radius:5px; padding:3px 7px; font-size:12px; font-weight:650; white-space:nowrap; }
+    .filters { display:flex; flex-wrap:wrap; align-items:end; gap:13px; margin:18px 0; }
+    label { display:grid; gap:4px; font-size:12px; font-weight:650; }
+    label.search { flex:1; min-width:220px; }
+    .legend { display:flex; flex-wrap:wrap; gap:12px; font-size:12px; margin:12px 0; }
+    .legend span { padding:3px 8px; border-radius:4px; }
+    summary { cursor:pointer; color:#086d68; font-weight:650; }
+    .sample-details { max-width:560px; min-width:300px; white-space:normal; padding-top:12px; overflow-wrap:anywhere; }
+    dl { margin:10px 0; }
+    dt { margin-top:10px; font-size:12px; font-weight:750; }
+    dd { margin:3px 0 0; }
+    footer { font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
+    .empty { padding:18px; color:var(--muted); }
+    .triage-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:18px; }
+    .triage { text-align:left; padding:14px; border-color:var(--border); font-size:13px; }
+    .triage strong { display:block; font-size:25px; color:var(--teal); }
+    .stack { display:flex; width:120px; height:16px; border-radius:4px; overflow:hidden; background:#edf0f3; }
+    .stack .good { background:#48a990; } .stack .review { background:#e6ac51; } .stack .missing { background:#c4cdd4; }
+    nav { display:flex; gap:20px; flex-wrap:wrap; margin-top:18px; } nav a { color:#b8f0e6; }
+    #samples { min-width:1330px; } #indels td { overflow-wrap:anywhere; max-width:450px; }
+    .scroll { max-height:75vh; } thead th { position:sticky; top:0; z-index:1; }
+    [hidden] { display:none !important; }
+    @media(max-width:760px) {
+      .cards { grid-template-columns:repeat(2,1fr); }
+      .overview { grid-template-columns:1fr; gap:0; }
+      .triage-grid { grid-template-columns:repeat(2,1fr); }
+      main { padding:18px 12px; }
+      .panel { padding:17px; }
+      .header-line { align-items:start; }
+    }
+    @media print {
+      @page { size:landscape; margin:12mm; }
+      body { background:white; font-size:11px; }
+      header { padding:12px; color:var(--ink); background:white; }
+      header p,.eyebrow { color:var(--ink); }
+      h1 { font-size:26px; }
+      main { padding:12px 0; }
+      .filters,.print-button,nav,.triage-grid { display:none; }
+      .scroll { overflow:visible; }
+      .scroll { max-height:none; } #samples { min-width:0; } thead th { position:static; }
+      .panel { break-inside:auto; }
+      .card,.distribution,tr { break-inside:avoid; }
+      th,td { padding:5px 3px; }
+      table { font-size:10px; }
+      thead { display:table-header-group; }
+      .metric { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+      .sample-details { min-width:0; max-width:180px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">FluSeq / Human @@WORKFLOW@@ / Run QC</p>
+    <div class="header-line"><h1>@@TITLE@@</h1><button type="button" class="print-button" id="print">Print / save PDF</button></div>
+    <p>@@RUN_META@@</p>
+    <p>Subtype concordance, segment quality and samples needing review</p>
+    <nav aria-label="Report sections"><a href="#samples-title">Sample review</a><a href="#segments-title">Segment outcomes</a><a href="#indels-title">Indel viewer</a><a href="#rules-title">Assessment rules</a></nav>
+  </header>
+  <main>
+    <section class="cards" aria-label="Run outcomes">
+      <div class="card"><strong>@@TOTAL@@</strong><span>Samples in report</span></div>
+      <div class="card good-card"><strong class="ratio">@@CALLED@@</strong><span>Successful subtype calls</span></div>
+      <div class="card review-card"><strong class="ratio">@@FAILED@@</strong><span>No-call / failure rate</span></div>
+      <div class="card"><strong>@@REVIEW@@</strong><span>Samples needing QC review</span></div>
+    </section>
+    <section class="panel"><h2>Find samples to review</h2><p class="muted">Select a finding to filter the sample table. A subtype call can still have QC flags. Counts include every sample in the final run CSV.</p><div class="triage-grid">@@TRIAGE@@</div></section>
+    <section class="panel" aria-labelledby="assessment-title">
+      <h2 id="assessment-title">Run assessment <span class="assessment">@@ASSESSMENT@@</span></h2>
+      <ul>@@SUMMARY@@</ul>
+      <details><summary>Data availability and run notes</summary>@@WARNINGS@@<p class="muted">Rates use all sample rows in this run's CSV, including no-call rows. No controls are automatically excluded. Run acceptance also depends on the laboratory's control results.</p></details>
+    </section>
+    <div class="overview">
+      <section class="panel"><h2>qPCR comparison</h2><p class="muted">@@QPCR_RULE@@ Comparison uses @@QPCR_SOURCE@@ from the master. H1/H3/H5 assays compare the H subtype only.</p>@@QPCR_COUNTS@@</section>
+      <section class="panel"><details><summary>Other reported findings</summary><h3>Raw subtypes, before final result gating</h3>@@SUBTYPES@@<h3>Characterisation</h3>@@CHARACTERISATION@@<h3>Subclades and match status</h3>@@SUBCLADES@@</details></section>
+    </div>
+    <section class="panel" aria-labelledby="segments-title">
+      <h2 id="segments-title">Segment QC overview</h2>
+      <div class="scroll"><table>
+        <caption>Every ratio uses all @@TOTAL@@ samples. Pass + low coverage + missing/invalid = total. Missing measurements are not counted as passes.</caption>
+        <thead><tr><th scope="col">Segment</th><th scope="col">Outcome distribution</th><th scope="col">Pass ≥@@COVERAGE_THRESHOLD@@%</th><th scope="col">Fail: &lt;@@COVERAGE_THRESHOLD@@%</th><th scope="col">Missing / invalid</th><th scope="col">Median coverage</th><th scope="col">Median IRMA reads</th><th scope="col">Read-count availability</th></tr></thead>
+        <tbody>@@SEGMENT_ROWS@@</tbody>
+      </table></div>
+      <p class="muted">Coverage is the upstream consensus non-N percentage and can miss terminal truncation. <code>DEPTH_*</code> values are IRMA segment read counts, not mean per-base sequencing depth.</p>
+      <div class="legend"><span class="good">Pass ≥@@COVERAGE_THRESHOLD@@%</span><span class="review">Fail: low coverage</span><span class="missing">Missing / invalid</span></div>
+    </section>
+    <section class="panel" aria-labelledby="samples-title">
+      <h2 id="samples-title">Sample review</h2>
+      <p class="muted">Assessment: @@ASSESSED_COUNTS@@. Includes reported flags, coverage checks and Nextclade QC availability. Findings do not change the source NGS QC summary.</p>
+      <div class="filters">
+        <label class="search">Search samples or findings<input id="search" type="search" placeholder="Sample, barcode, subclade, review reason…"></label>
+        <label>QC assessment<select id="qc"><option value="">All samples</option><option>Review</option><option>No flags</option><option>Unavailable</option></select></label>
+        <label>Subtype<select id="subtype"><option value="">All subtypes</option>@@SUBTYPE_OPTIONS@@</select></label>
+        <label>Finding<select id="finding"><option value="">All findings</option>@@FINDING_OPTIONS@@</select></label>
+        <label>Segment with finding<select id="segment"><option value="">Any segment</option>@@SEGMENT_OPTIONS@@</select></label>
+        <label>qPCR comparison<select id="qpcr"><option value="">Any comparison</option>@@QPCR_OPTIONS@@</select></label>
+        <label>Segment values<select id="metric"><option value="coverage">Coverage (%)</option><option value="mixed">Mixed sites</option><option value="reads">IRMA segment reads</option></select></label>
+        <label>Sort by<select id="sort"><option value="priority">Review priority</option><option value="sample">Sample ID</option><option value="noise">Highest IRMA noise</option></select></label>
+        <button type="button" id="reset">Reset filters</button>
+        <button type="button" id="export-samples">Export filtered CSV</button>
+      </div>
+      <p class="muted" id="metric-note">Cell colours describe coverage. MP is the M segment.</p>
+      <p class="muted" id="visible-count" role="status" aria-live="polite">@@TOTAL@@ / @@TOTAL@@ samples shown · Coverage (%)</p>
+      <noscript><p>All samples and details remain available. Enable JavaScript to use filters and switch segment values.</p></noscript>
+      <div class="scroll"><table id="samples">
+        <caption>Open Details for qPCR source results, mixed-site counts, indels and the existing QC findings.</caption>
+        <thead><tr><th scope="col">Sample</th><th scope="col">Final call</th><th scope="col">qPCR</th><th scope="col">QC assessment</th>@@SEGMENT_HEADERS@@<th scope="col">IRMA noise</th><th scope="col">Review details</th></tr></thead>
+        <tbody>@@SAMPLE_ROWS@@</tbody>
+      </table></div>
+      <p class="empty" id="empty" hidden>No samples match these filters.</p>
+    </section>
+    <section class="panel" aria-labelledby="indels-title">
+      <h2 id="indels-title">Indel and frameshift viewer</h2>
+      <p class="muted">Reported amino-acid insertions, deletions and frameshifts. Repeated entries from HA1/HA2 or M1/M2 are shown once per segment and event type. Coordinates are preserved as reported.</p>
+      <div class="filters">
+        <label class="search">Search sample or event<input id="indel-search" type="search" placeholder="Sample ID, position or reported event…"></label>
+        <label>Segment<select id="indel-segment"><option value="">Any segment</option>@@SEGMENT_OPTIONS@@</select></label>
+        <label>Event type<select id="indel-kind"><option value="">All types</option><option>Insertion</option><option>Deletion</option><option>Frameshift</option></select></label>
+        <button type="button" id="indel-reset">Reset</button><button type="button" id="export-indels">Export filtered CSV</button>
+      </div>
+      <p id="indel-count" class="muted" role="status" aria-live="polite">@@INDEL_COUNT@@ reported events</p>
+      <div class="scroll"><table id="indels"><thead><tr><th>Sample</th><th>Segment</th><th>Type</th><th>Reported event</th><th>Source fields</th></tr></thead><tbody>@@INDEL_ROWS@@</tbody></table></div>
+      <p id="indel-empty" class="empty" hidden>No reported events match these filters. Missing measurements do not establish absence of indels.</p>
+    </section>
+    <section class="panel">
+      <h2 id="rules-title">Assessment rules and interpretation</h2>
+      <ul>
+        <li><strong>Run success / failure:</strong> a recognised subtype in the final <code>Sekvens_Resultat</code> counts as called. Empty, missing or unrecognised final results count as no call, even if a raw <code>Subtype</code> exists. When the final-result column is absent, recognised raw subtypes require HA and NA coverage ≥30%, matching the upstream gate. These rates measure subtype-call yield, not laboratory approval.</li>
+        <li><strong>qPCR:</strong> only <code>Påvist</code>, ignoring case and surrounding spaces, is positive in the assay fields. Negative, missing, multiple-positive and unrecognised results are distinguished. No subtype mismatch is inferred from missing qPCR or a missing sequencing call. FASTQ joins <code>Sample</code> to master <code>NGS_LW_ID</code>; FASTA joins <code>OriginalName</code> to <code>Key</code>. Identifiers remain text.</li>
+        <li><strong>Mixed sites:</strong> review when the segment count is strictly &gt;@@MIXED_THRESHOLD@@. Repeated segment counts in HA1/HA2 and M1/M2 are not summed. If copies disagree, the largest valid count is used for review and the disagreement is flagged in Details.</li>
+        <li><strong>IRMA noise:</strong> review when <code>IRMA_noise</code> is strictly &gt;@@NOISE_THRESHOLD@@. This is the reported alternate-match / match read ratio. Missing or invalid values remain unavailable.</li>
+        <li><strong>Reported QC:</strong> <code>NGS_QC_Sum</code> is preserved. An empty cell means no reported flags; a missing column or NA-like value means unavailable. Source codes: LC = low or missing coverage; FS = frame shift; MS = mixed sites. The existing source rules use coverage &lt;80% and mixed-site sum &gt;3.</li>
+        <li><strong>Segment outcomes:</strong> coverage ≥@@COVERAGE_THRESHOLD@@% passes this screen, coverage below that fails, and missing/invalid values have a separate category. The default 80% retains the existing pipeline criterion. This is consensus non-N content, not a depth or full-reference breadth measurement. Values outside 0–100% are invalid. Medians exclude unavailable measurements and retain zero.</li>
+        <li><strong>Other QC:</strong> the existing NGS summary, Nextclade QC, GISAID comments, characterisation, subclade evidence, reported reassortment screen and drug lookup codes remain available. Missing measurements do not mean zero. The report does not change any source calls or master values.</li>
+        <li><strong>Findings:</strong> characterisation and subclade labels describe reported genetic categories. Reassortment conclusions are similarity-screen flags. Drug lookup codes are displayed as reported. These fields do not establish antigenic phenotype, confirmed reassortment or clinical drug susceptibility.</li>
+      </ul>
+    </section>
+    <footer>
+      <p>Source: <strong>@@SOURCE@@</strong> · QC report generator @@VERSION@@ · Fully self-contained; no external requests.</p>
+      <p>Source CSV SHA-256: <code>@@SHA256@@</code></p>
+      <p>Master snapshot: <strong>@@MASTER_SOURCE@@</strong>. Only matched identifiers and qPCR result fields are included; unrelated master rows and patient metadata are omitted.</p>
+      <p>The companion JSON records the assessment, rules, counts and sample review data. Retain the source CSV and pipeline/reference provenance with this report.</p>
+    </footer>
+  </main>
+  <script>
+    "use strict";
+    const rows = Array.from(document.querySelectorAll("#samples tbody tr"));
+    const search = document.getElementById("search");
+    const qc = document.getElementById("qc");
+    const subtype = document.getElementById("subtype");
+    const metric = document.getElementById("metric");
+    const finding = document.getElementById("finding");
+    const segment = document.getElementById("segment");
+    const qpcr = document.getElementById("qpcr");
+    const sort = document.getElementById("sort");
+    const searchable = new Map(rows.map(row => [row, row.textContent.toLocaleLowerCase()]));
+    function filterRows() {
+      const query = search.value.trim().toLocaleLowerCase();
+      let visible = 0;
+      rows.forEach(row => {
+        const segments = row.dataset[finding.value] || row.dataset.segments;
+        row.hidden = !(searchable.get(row).includes(query) && (!qc.value || row.dataset.qc === qc.value)
+          && (!subtype.value || row.dataset.subtype === subtype.value)
+          && (!finding.value || row.dataset.flags.split(" ").includes(finding.value))
+          && (!segment.value || segments.split(" ").includes(segment.value))
+          && (!qpcr.value || row.dataset.qpcr === qpcr.value));
+        if (!row.hidden) visible++;
+      });
+      document.getElementById("visible-count").textContent = `${visible} / ${rows.length} samples shown · ${metric.selectedOptions[0].textContent}`;
+      document.getElementById("empty").hidden = visible !== 0;
+    }
+    function changeMetric() {
+      document.querySelectorAll("td.metric").forEach(cell => {
+        cell.textContent = cell.dataset[metric.value];
+        cell.className = "metric " + (metric.value === "mixed" ? cell.dataset.mixedLevel : cell.dataset.level);
+      });
+      document.getElementById("metric-note").textContent = metric.value === "mixed"
+        ? "Cell colours describe mixed sites: >@@MIXED_THRESHOLD@@ requires review. MP is the M segment."
+        : "Cell colours describe coverage, including when showing read counts. MP is the M segment.";
+      filterRows();
+    }
+    function sortRows() {
+      const ordered = [...rows].sort((a,b) => sort.value === "sample"
+        ? a.dataset.sample.localeCompare(b.dataset.sample, undefined, {numeric:true})
+        : Number(b.dataset[sort.value]) - Number(a.dataset[sort.value]) || a.dataset.sample.localeCompare(b.dataset.sample));
+      document.querySelector("#samples tbody").append(...ordered);
+    }
+    search.addEventListener("input", filterRows);
+    qc.addEventListener("change", filterRows);
+    subtype.addEventListener("change", filterRows);
+    metric.addEventListener("change", changeMetric);
+    [finding,segment,qpcr].forEach(control => control.addEventListener("change", filterRows));
+    sort.addEventListener("change", sortRows);
+    function resetFilters() {
+      [search,qc,subtype,finding,segment,qpcr].forEach(control => { control.value = ""; });
+      metric.value = "coverage"; sort.value = "priority"; sortRows(); changeMetric();
+    }
+    document.getElementById("reset").addEventListener("click", () => {
+      resetFilters();
+    });
+    document.querySelectorAll("[data-finding]").forEach(button => button.addEventListener("click", () => {
+      resetFilters(); finding.value = button.dataset.finding;
+      if (finding.value === "mixed") metric.value = "mixed";
+      changeMetric(); document.getElementById("samples-title").scrollIntoView({behavior:"smooth"});
+    }));
+    const indelRows = Array.from(document.querySelectorAll("#indels tbody tr"));
+    const indelSearch = document.getElementById("indel-search");
+    const indelSegment = document.getElementById("indel-segment");
+    const indelKind = document.getElementById("indel-kind");
+    function filterIndels() {
+      let visible = 0;
+      indelRows.forEach(row => {
+        row.hidden = !(row.textContent.toLocaleLowerCase().includes(indelSearch.value.trim().toLocaleLowerCase())
+          && (!indelSegment.value || row.dataset.segment === indelSegment.value)
+          && (!indelKind.value || row.dataset.kind === indelKind.value));
+        if (!row.hidden) visible++;
+      });
+      document.getElementById("indel-count").textContent = `${visible} / ${indelRows.length} reported events shown`;
+      document.getElementById("indel-empty").hidden = visible !== 0;
+    }
+    indelSearch.addEventListener("input", filterIndels);
+    [indelSegment,indelKind].forEach(control => control.addEventListener("change", filterIndels));
+    document.getElementById("indel-reset").addEventListener("click", () => {
+      [indelSearch,indelSegment,indelKind].forEach(control => { control.value = ""; }); filterIndels();
+    });
+    function exportCSV(selector, headers, filename) {
+      const values = [headers, ...Array.from(document.querySelectorAll(selector)).filter(row => !row.hidden).map(row => JSON.parse(row.dataset.export))];
+      const cell = value => {
+        let text = value == null ? "" : String(value);
+        if (/^[\s]*[=+@-]/.test(text) || /^[\t\r\n]/.test(text)) text = "'" + text;
+        return '"' + text.replace(/"/g, '""') + '"';
+      };
+      const blob = new Blob(["\uFEFF" + values.map(row => row.map(cell).join(",")).join("\r\n")], {type:"text/csv;charset=utf-8"});
+      const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = filename;
+      document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+    document.getElementById("export-samples").addEventListener("click", () => exportCSV("#samples tbody tr",
+      ["Sample","Outcome","Final subtype","qPCR expected","qPCR comparison","Mixed sites flagged","IRMA noise","HA coverage","NA coverage","MP coverage","NP coverage","NS coverage","PA coverage","PB1 coverage","PB2 coverage","Review reasons"], "qc_samples.csv"));
+    document.getElementById("export-indels").addEventListener("click", () => exportCSV("#indels tbody tr", ["Sample","Segment","Type","Event","Source fields"], "qc_indels.csv"));
+    document.getElementById("print").addEventListener("click", () => window.print());
+    sortRows(); filterRows(); filterIndels();
+  </script>
+</body>
+</html>

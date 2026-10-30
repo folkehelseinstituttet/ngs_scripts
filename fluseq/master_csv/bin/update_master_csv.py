@@ -130,7 +130,16 @@ def configuration(environ, validation=""):
     return config, None
 
 
-def update(config, report, workflow):
+def update(config, report, workflow, qc_output=None, qc_options=None):
+    def finish(stats, master):
+        if qc_output:
+            from report_qc_html import write_report
+            write_report(Path(report), qc_output, master, workflow,
+                         master_label=Path(config["master"]).name if config["master"] else config["master_name"],
+                         **(qc_options or {}))
+            stats["qc_html"] = str(qc_output)
+        return stats
+
     with tempfile.TemporaryDirectory(prefix="fluseq-master-") as directory:
         directory = Path(directory)
         metadata = config["metadata"]
@@ -138,9 +147,10 @@ def update(config, report, workflow):
             metadata = directory / "metadata.csv"
             config["metadata_smb"].get(config["metadata_name"], metadata)
         if config["master"] is not None:
-            return merge_files(
+            stats = merge_files(
                 config["master"], metadata, report, workflow, nonempty_report=config["nonempty_report"],
             )
+            return finish(stats, config["master"])
         remote, name = config["master_smb"], config["master_name"]
         with remote.lock(name + ".lock"):
             original = directory / "original.csv"
@@ -152,7 +162,7 @@ def update(config, report, workflow):
             candidate = directory / "candidate.csv"
             write_table(candidate, headers, rows)
             if digest(original) == digest(candidate):
-                return dict(stats, written=False)
+                return finish(dict(stats, written=False), original)
             suffix = backup_suffix()
             backup = name + ".bak." + suffix
             staged = name + ".tmp." + suffix
@@ -168,7 +178,28 @@ def update(config, report, workflow):
             remote.get(name, check)
             if digest(check) != digest(candidate):
                 raise MergeError(f"Remote master verification failed; backup is {backup}")
-            return dict(stats, written=True, backup=backup)
+            return finish(dict(stats, written=True, backup=backup), candidate)
+
+
+def check_identifiers(config, report=None, output=None, workflow="fastq"):
+    from diagnose_master_ids import find_conflicts, write_conflicts
+
+    if output:
+        protected = {Path(path).resolve() for path in (config["master"], config["metadata"], report) if path}
+        if Path(output).resolve() in protected:
+            raise MergeError("Identifier report must be separate from master, metadata and run report")
+    with tempfile.TemporaryDirectory(prefix="fluseq-identifier-audit-") as directory:
+        paths = {}
+        for kind in ("master", "metadata"):
+            paths[kind] = config[kind]
+            if paths[kind] is None:
+                paths[kind] = Path(directory) / (kind + ".csv")
+                config[kind + "_smb"].get(config[kind + "_name"], paths[kind])
+        conflicts = find_conflicts(read_table(paths["master"]), read_table(paths["metadata"]),
+                                   read_table(report) if report else None, workflow)
+        if output:
+            write_conflicts(output, conflicts)
+    return conflicts
 
 
 def main():
@@ -177,17 +208,68 @@ def main():
     parser.add_argument("--workflow", required=True, choices=("fastq", "fasta"))
     parser.add_argument("--validation", default="")
     parser.add_argument("--check-config", action="store_true", help="Validate local configuration before starting analysis")
+    parser.add_argument("--check-identifiers", action="store_true", help="Read-only audit of conflicting sequencing identifiers")
+    parser.add_argument("--identifier-report", type=Path, help="Write identifier conflict details to this local CSV")
+    parser.add_argument("--qc-output", type=Path, help="Write an offline HTML QC report and companion JSON after merging")
+    parser.add_argument("--qc-coverage-threshold", type=float, default=80)
+    parser.add_argument("--qc-smb-share", help="Upload and verify the generated QC files on this SMB share")
+    parser.add_argument("--qc-smb-dir", help="Existing destination directory for QC files")
+    parser.add_argument("--qc-smb-auth", default="/home/ngs/.smbcreds")
     args = parser.parse_args()
     try:
+        if args.identifier_report and not args.check_identifiers:
+            raise MergeError("--identifier-report requires --check-identifiers")
+        if args.check_identifiers and (args.check_config or args.qc_output or args.qc_smb_share or args.qc_smb_dir):
+            raise MergeError("Run --check-identifiers separately from configuration checks and QC generation/uploads")
+        if (args.qc_smb_share or args.qc_smb_dir) and not (args.qc_output and args.qc_smb_share and args.qc_smb_dir):
+            raise MergeError("QC upload requires --qc-output, --qc-smb-share and --qc-smb-dir")
+        if args.qc_output:
+            if not 0 < args.qc_coverage_threshold <= 100:
+                raise MergeError("QC coverage threshold must be greater than 0 and at most 100")
+            if args.qc_output.suffix.lower() != ".html":
+                raise MergeError("QC output must use an .html filename")
         config, reason = configuration(os.environ, args.validation)
+        if args.check_identifiers:
+            if config is None:
+                raise MergeError(f"Identifier check needs configured input paths: {reason}; set FLUSEQ_MASTER_UPDATE=true")
+            conflicts = check_identifiers(config, args.report, args.identifier_report, args.workflow)
+            sequences = {row["NGS_LW_ID"] for row in conflicts}
+            relevant = {row["NGS_LW_ID"] for row in conflicts if row["in_current_report"] == "yes"}
+            print(f"Identifier check: {len(sequences)} conflicting NGS_LW_ID values. Master and metadata were not changed.")
+            if args.report:
+                print(f"Conflicting identifiers involving this report: {len(relevant)}")
+            if args.identifier_report:
+                print(f"Identifier details saved to: {args.identifier_report}")
+            else:
+                for row in conflicts:
+                    print(f"  {row['source']} record {row['record']}: {row['conflict']}")
+                if conflicts:
+                    print("Use --identifier-report /path/to/conflicts.csv to save the identifiers and keys privately.")
+            parser.exit(2 if conflicts else 0)
         if config is None:
             print(f"Master CSV update skipped: {reason}")
+            if args.qc_output and not args.check_config:
+                if args.report is None or not args.report.is_file():
+                    raise MergeError("Final report CSV is missing")
+                from report_qc_html import write_report
+                write_report(args.report, args.qc_output, workflow=args.workflow,
+                             coverage_threshold=args.qc_coverage_threshold)
+                print(f"QC report created without master comparison: {args.qc_output}")
         elif args.check_config:
             print("Master CSV update configured; shared-file access will be checked at merge time")
         elif args.report is None or not args.report.is_file():
             raise MergeError("Final report CSV is missing")
         else:
-            print("Master CSV update: " + json.dumps(update(config, args.report, args.workflow), sort_keys=True))
+            print("Master CSV update: " + json.dumps(update(
+                config, args.report, args.workflow, args.qc_output,
+                {"coverage_threshold": args.qc_coverage_threshold},
+            ), sort_keys=True))
+        if args.qc_smb_share and not args.check_config:
+            remote = SMB(args.qc_smb_share, args.qc_smb_dir, args.qc_smb_auth)
+            with tempfile.TemporaryDirectory(prefix="fluseq-qc-upload-") as directory:
+                for path in (args.qc_output, args.qc_output.with_suffix(".json")):
+                    remote.put_verified(path, path.name, Path(directory) / "check")
+            print("QC HTML and JSON uploaded and verified")
     except (OSError, ValueError, csv.Error, ET.ParseError, subprocess.SubprocessError) as error:
         parser.exit(1, f"Master CSV update failed: {error}\n")
 

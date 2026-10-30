@@ -150,6 +150,7 @@ independently use a mounted path or SMB.
 | `FLUSEQ_METADATA_SMB_AUTH` | Same as master auth unless overridden |
 | `FLUSEQ_MASTER_NONEMPTY_REPORT` | `false`; set `true` to preserve old values for empty report cells |
 | `FLUSEQ_MASTER_TOOLS` | Wrapper directory's `master_csv` subdirectory |
+| `FLUSEQ_QC_COVERAGE_THRESHOLD` | `80`; coverage percentage used by the wrapper's HTML QC report |
 
 Export these settings in the server's existing launch environment. The early
 `--check-config` hook checks local paths/settings before analysis; remote access
@@ -163,18 +164,94 @@ python3 /home/ngs/ngs_scripts/fluseq/master_csv/bin/update_master_csv.py \
   --report /home/ngs/out_fluseq/INF077/reporthuman/INF077.csv
 ```
 
-When maintaining the helper from this pipeline checkout, refresh its standalone
-bundle along with the wrapper changes:
+Deploy the entire `master_csv/` directory along with the wrappers. It now also
+contains `bin/report_qc_html.py`, `bin/qc_metrics.py` and
+`bin/templates/report_qc.html`. If `FLUSEQ_MASTER_TOOLS` points elsewhere, that
+directory must contain these reporting files as well. The HTML renderer extends
+the initial renderer in `nf-core-fluseq`; this bundled version is run after the
+master merge so the qPCR comparison includes newly imported metadata.
+
+## HTML QC after merging
+
+The wrappers pass `--qc-output /path/to/<RUN>_qc.html` to `update_master_csv.py`.
+After a successful merge, the helper generates an offline HTML report and a
+companion JSON from the current run CSV and the updated master. For SMB, it uses
+the same verified candidate that was uploaded; a no-change retry still rebuilds
+the report. With master updates disabled, a report is generated without qPCR
+comparison. Validation continues to skip master writes.
+
+Only identifiers and qPCR result fields from matched master rows enter the
+report. Current coverage, mixed sites, indels, noise and final calls always come
+from the current run CSV, so older measurements retained in the master cannot
+make a failed current measurement appear successful. FASTQ matches `Sample` to
+`NGS_LW_ID`; FASTA matches `OriginalName` to `Key`. Duplicate join identifiers are
+rejected rather than matched arbitrarily.
+
+`Påvist` in a subtype-specific PCR result field is positive (case-insensitive,
+trimmed). H1, H3 and H5 compare the H component of a called subtype; B/Victoria
+and B/Yamagata compare lineage. Missing, negative-only, multiple-positive and
+unrecognised qPCR results have separate statuses. They are not counted as a
+subtype mismatch. A missing sequencing call is also shown separately.
+
+Success means a recognised final `Sekvens_Resultat`, independent of other QC
+flags. All current-report sample rows enter the denominator, including no calls;
+no controls are automatically excluded. Segment outcomes are coverage ≥80%,
+coverage <80%, or missing/invalid. The metric is the existing consensus non-N
+percentage, not mean sequencing depth or full-reference breadth; missing values
+are never treated as passes. Mixed-site counts >4 and IRMA noise >0.09 prompt
+review. HA1/HA2 and M1/M2 duplicate segment counts are not summed. The source
+`NGS_QC_Sum`, including its older mixed-site rule, remains visible and unchanged.
+
+The optional `--qc-smb-share`, `--qc-smb-dir` and `--qc-smb-auth` arguments upload
+and verify the HTML and JSON. The wrappers send them to the run's shared
+`reporthuman` directory (or the validation report directory). A report/upload
+failure exits non-zero and retains local report files. The master merge may
+already have completed; retrying the same merge/report is safe.
+
+To rebuild a report without a master write, use the standalone renderer:
 
 ```bash
-bundle=/path/to/ngs_scripts/fluseq/master_csv
-mkdir -p "$bundle/bin" "$bundle/assets/master_csv"
-cp bin/merge_master_csv.py bin/update_master_csv.py "$bundle/bin/"
-cp assets/master_csv/* "$bundle/assets/master_csv/"
-cp docs/master_csv.md "$bundle/README.md"
+python3 master_csv/bin/report_qc_html.py /path/to/run.csv \
+  --master /path/to/master.csv --outdir /path/to/reporthuman
 ```
 
+Add `--workflow fasta` when appropriate. The standalone renderer accepts
+`--coverage-threshold`, `--mixed-threshold` and `--noise-threshold`. Its optional
+`--qpcr-column` explicitly selects a column containing subtype labels instead of
+the default assay result fields. Changing a reporting threshold never changes
+the source CSV or the master.
+
 ## Writes and recovery
+
+If a merge reports `NGS_LW_ID maps to multiple master Keys`, it stopped before
+replacing the master. The same sequencing ID points to different `Key` values in
+the master, different `RekvNr` values in the metadata, or conflicting values
+across the two files. The check covers the whole inputs, including older samples
+outside the current report. It deliberately does not choose which record to keep.
+
+With the same exported location settings, audit the identifiers without any
+master/metadata changes or remote writes:
+
+```bash
+FLUSEQ_MASTER_UPDATE=true python3 /home/ngs/ngs_scripts/fluseq/master_csv/bin/update_master_csv.py \
+  --workflow fastq --check-identifiers \
+  --report /home/ngs/out_fluseq/INF109/reporthuman/INF109.csv \
+  --identifier-report /home/ngs/INF109_identifier_conflicts.csv
+```
+
+The diagnostic CSV lists each conflicting sequencing ID, its source (`master`
+or `metadata`), key, record number and whether it is involved in the supplied
+run report. Record numbering starts at 2 after the header and excludes blank
+records; quoted multiline cells count as one record. Only identifiers are
+exported, with owner-only file permissions. Standard output shows counts rather
+than identifiers. Exit code 2 means conflicts were found; 0 means this check
+found none. Other merge validations can still fail independently.
+
+Resolve the source identifiers against the lab records before retrying just the
+merge using the command above under Wrapper configuration. Existing analysis
+and uploaded results can be reused. Older rows whose key happens to equal their
+sequencing ID are not automatically treated as provisional: only rows carrying
+`Master_Key_Source=Sample` are eligible for the documented provisional rekeying.
 
 An exclusive `master.csv.lock` directory serializes participating writers across
 hosts. The helper reads the latest master under this lock, validates the inputs,
@@ -202,7 +279,7 @@ From the wrapper checkout, test metadata location defaults and overrides with
 synthetic CSVs and mocked SMB transfers:
 
 ```bash
-pytest -q tests/test_master_csv_configuration.py
+pytest -q tests/test_master_csv_configuration.py tests/test_master_csv_identifiers.py tests/test_qc_report.py
 ```
 
 Live shared-drive access and the real LabWare/master exports still require a
