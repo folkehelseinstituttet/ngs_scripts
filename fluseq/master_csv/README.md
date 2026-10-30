@@ -19,33 +19,48 @@ field mappings. Unsupported parsing/default rules fail explicitly.
 
 | Input | Identifier rule |
 | --- | --- |
-| Existing master | `Key` identifies one row |
-| LabWare metadata | `RekvNr` becomes master `Key`, as specified by `LABWAREDIRECT.xml` |
-| FASTQ report | `Sample` becomes `NGS_LW_ID`; join this to metadata or existing master `NGS_LW_ID` to obtain `Key`; unmatched samples use `Sample` as a provisional `Key` |
-| FASTA report | `OriginalName` becomes master `Key`; `SampleID` is retained as an extra field |
+| Existing master | `Prove_LW_ID` identifies one row and must be non-empty and unique; `Key` remains an ordinary data column |
+| LabWare metadata | `Prove_LW_ID` supplies the specimen index; the XML still maps `RekvNr` to the legacy `Key` data column |
+| FASTQ report | `Sample` becomes `NGS_LW_ID`; join the sequencing ID to metadata or the existing master to find `Prove_LW_ID` |
+| FASTA report | Resolve `OriginalName` against exact `Prove_LW_ID`, legacy `Key`, or previously stored `OriginalName`/`SampleID`; sequencing identifiers can also identify the row |
 
 No identifier is converted to a number, split, or approximately matched. Leading
 zeros remain intact. Samples without matching metadata are still included, with
 their report values and blank metadata-only fields for new rows. Previously
 stored metadata on existing rows is preserved. The summary counts samples with
-no matching metadata row as `without_metadata`. A FASTA record supplies its key
-through `OriginalName`. An unmatched FASTQ record uses `Sample` as both its
-provisional `Key` and `NGS_LW_ID`, with an additional `Master_Key_Source=Sample`
-field recording this choice. When metadata becomes available for that sequencing
-ID in a later report merge, the same row is updated to its `RekvNr` key and
-`Master_Key_Source=RekvNr`; existing values are preserved according to the update
-rules below. Unrelated samples are not re-keyed. `Master_Key_Source` is reserved
-for this provenance and must not appear in metadata or report inputs.
+no matching metadata row as `without_metadata`.
+
+When `Prove_LW_ID` is missing, use the sequencing ID as its provisional value and
+record `Master_Index_Source=Sequence_ID`. The sequencing ID is the first usable
+value in `NGS_LW_ID`, `Sequence_ID`, `SequenceID`, or `SampleID`, in that order.
+In FASTQ reports this is normally `Sample`, mapped to `NGS_LW_ID`; an unmatched
+FASTA report normally supplies `SampleID`. An unresolved FASTA record with only
+`OriginalName` needs a sequencing ID before it can be inserted. Missing IDs include
+blank cells and `NA`, `N/A`, `NaN`, `None`, `NULL`, or `-`, ignoring case.
+
+Existing rows with missing `Prove_LW_ID` are filled using unambiguous metadata
+matches (sequencing ID, then legacy identifiers) or the sequencing fallback.
+When metadata supplies the actual specimen ID for a marked fallback, the same
+row is reindexed and marked `Master_Index_Source=Prove_LW_ID`. Missing metadata
+never downgrades a known index. These index repairs can include rows outside the
+current report. A legacy row without any sequencing ID also retains the metadata
+sequencing ID when it is used as the fallback; other fields remain untouched.
+The summary's `reindexed` count reports repairs to existing master indexes. A row with neither a usable
+specimen ID nor a sequencing fallback stops the merge before writing.
+
+The old `Master_Key_Source` field is preserved as legacy provenance. Both it and
+`Master_Index_Source` are reserved and must not appear in metadata/report inputs.
 
 If a provisional key would collide with an unrelated existing key, or its later
-`RekvNr` resolves to another existing row, the merge stops for resolution rather
-than overwriting or combining ambiguous records. Duplicate keys, ambiguous
-sequencing IDs, and conflicting source columns that map to the same destination
-stop the merge before master replacement.
+specimen ID resolves to another existing row, the merge stops for resolution rather
+than overwriting or combining ambiguous records. Duplicate `Prove_LW_ID` values,
+ambiguous sequencing IDs, and conflicting source columns that map to the same
+destination stop the merge before master replacement.
 
-Only samples present in the current report are added or updated. Metadata-only
-rows do not create master entries, and existing samples outside the report retain
-their values. For a sample in the report, precedence is:
+Only samples present in the current report are added or have their metadata and
+results updated. Metadata-only rows do not create master entries. Apart from the
+index repairs above, samples outside the report retain their values. For a sample
+in the report, precedence is:
 
 1. Existing master values.
 2. Non-empty values from matching metadata.
@@ -54,8 +69,9 @@ their values. For a sample in the report, precedence is:
 Report columns absent from the new report retain their existing values. This
 allows FASTA updates to preserve FASTQ-specific measurements. The literal text
 `NA`, `None`, or `0` in data cells is retained and can replace an old value; it is
-not interpreted as a blank. To preserve old analysis values for empty report
-cells as well, pass `--nonempty-report`, or set
+not interpreted as a blank, except for identifier validation. The resolved
+`Prove_LW_ID` is protected from blank/missing report or metadata cells. To preserve
+old analysis values for empty report cells as well, pass `--nonempty-report`, or set
 `FLUSEQ_MASTER_NONEMPTY_REPORT=true` for wrappers.
 
 The first 193 columns follow the exact requested order in
@@ -67,11 +83,11 @@ spellings without case sensitivity. In particular, `Pasient_Kjonn` and
 Mapped fields use their master names. Unmapped and XML `__None__` fields are
 retained with their original names, including future metadata/report columns.
 The metadata export's original `Key` is retained as `Metadata_Key` because its
-XML uses `RekvNr` as the master key. Both `Prove_Sesong` and `Sesong` map to
+XML maps `RekvNr` to the legacy `Key` column. Both `Prove_Sesong` and `Sesong` map to
 `Prove_Sesong`; differing non-empty values are rejected rather than guessed.
 Both report spellings `Coverage-M` and `Coverage-MP` map to `NGS_Coverage_M`.
 No biological interpretation is performed, and no mappings beyond the supplied
-templates and these spelling aliases are inferred.
+templates, these spelling aliases, and the identifier rules above are inferred.
 
 ## Preview and manual updates
 
@@ -92,8 +108,8 @@ python3 bin/merge_master_csv.py \
 The preview leaves the master unchanged and requires a new output filename.
 Omit `--output` to update the master with a timestamped backup. Use
 `--workflow fasta` for the FASTA report. A first master may contain only the
-header `Key`; missing files are rejected to avoid creating a new database after
-a download/path error.
+header `Prove_LW_ID` (the legacy `Key` header is also accepted); missing files are
+rejected to avoid creating a new database after a download/path error.
 
 ## Wrapper configuration
 
@@ -188,7 +204,7 @@ case-sensitive comparison. For example, `SAMPLE|01-HA-H3N2` and
 existing matching ID, including its header description. New IDs are appended;
 existing IDs retain their position, and records absent from this run remain.
 Identical sequence content under different IDs does not collapse different
-samples. Header IDs are not translated to CSV `Key` or `OriginalName`, and a
+samples. Header IDs are not translated to CSV `Prove_LW_ID`, `Key`, or `OriginalName`, and a
 changed ID is a new record.
 
 Multiline records, UTF-8 BOM and CRLF line endings are supported. Blank lines
@@ -247,8 +263,10 @@ Only identifiers and qPCR result fields from matched master rows enter the
 report. Current coverage, mixed sites, indels, noise and final calls always come
 from the current run CSV, so older measurements retained in the master cannot
 make a failed current measurement appear successful. FASTQ matches `Sample` to
-`NGS_LW_ID`; FASTA matches `OriginalName` to `Key`. Duplicate join identifiers are
-rejected rather than matched arbitrarily.
+the sequencing ID (normally `NGS_LW_ID`). FASTA uses the exact identifier rules
+above, including legacy `Key` names. The detail view shows the matched
+`Prove_LW_ID`. Ambiguous join identifiers are rejected rather than matched
+arbitrarily. Standalone QC can still read older masters without the new index.
 
 `Påvist` in a subtype-specific PCR result field is positive (case-insensitive,
 trimmed). H1, H3 and H5 compare the H component of a called subtype; B/Victoria
@@ -286,9 +304,9 @@ the source CSV or the master.
 
 ## Writes and recovery
 
-If a merge reports `NGS_LW_ID maps to multiple master Keys`, it stopped before
-replacing the master. The same sequencing ID points to different `Key` values in
-the master, different `RekvNr` values in the metadata, or conflicting values
+If a merge reports that a sequencing ID maps to multiple `Prove_LW_ID` values,
+it stopped before replacing the master. The same sequencing ID points to different
+specimen indexes in the master or metadata, or conflicting values
 across the two files. The check covers the whole inputs, including older samples
 outside the current report. It deliberately does not choose which record to keep.
 
@@ -303,7 +321,8 @@ FLUSEQ_MASTER_UPDATE=true python3 /home/ngs/ngs_scripts/fluseq/master_csv/bin/up
 ```
 
 The diagnostic CSV lists each conflicting sequencing ID, its source (`master`
-or `metadata`), key, record number and whether it is involved in the supplied
+or `metadata`), effective `Prove_LW_ID`, index provenance, legacy `Key`, record
+number and whether it is involved in the supplied
 run report. Record numbering starts at 2 after the header and excludes blank
 records; quoted multiline cells count as one record. Only identifiers are
 exported, with owner-only file permissions. Standard output shows counts rather
@@ -312,9 +331,10 @@ found none. Other merge validations can still fail independently.
 
 Resolve the source identifiers against the lab records before retrying just the
 merge using the command above under Wrapper configuration. Existing analysis
-and uploaded results can be reused. Older rows whose key happens to equal their
-sequencing ID are not automatically treated as provisional: only rows carrying
-`Master_Key_Source=Sample` are eligible for the documented provisional rekeying.
+and uploaded results can be reused. An existing non-empty `Prove_LW_ID` that happens
+to equal its sequencing ID is not automatically treated as provisional: it needs
+`Master_Index_Source=Sequence_ID` for automatic replacement. Rows with a missing
+index are migrated using the rules above.
 
 An exclusive `master.csv.lock` directory serializes participating writers across
 hosts. The helper reads the latest master under this lock, validates the inputs,

@@ -23,6 +23,9 @@ from datetime import datetime, timezone
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets" / "master_csv"
 KEY_SOURCE = "Master_Key_Source"
+INDEX = "Prove_LW_ID"
+INDEX_SOURCE = "Master_Index_Source"
+SEQUENCE_COLUMNS = ("NGS_LW_ID", "Sequence_ID", "SequenceID", "SampleID")
 
 
 class MergeError(ValueError):
@@ -67,6 +70,8 @@ def schema(assets=ASSETS):
     columns = (Path(assets) / "columns.txt").read_text(encoding="utf-8").splitlines()
     canonical = {column.casefold(): column for column in columns}
     canonical[KEY_SOURCE.casefold()] = KEY_SOURCE
+    for column in (INDEX_SOURCE, *SEQUENCE_COLUMNS, "OriginalName"):
+        canonical[column.casefold()] = column
     # Preserve the exact spellings requested for the existing master export.
     for alias in ("Pasient_Kjonn", "Pasient_Kjønn"):
         canonical[alias.casefold()] = "Pasient_Kjnn"
@@ -117,21 +122,47 @@ def transform(table, mapping, canonical, label):
                 raise MergeError(f"{label}: conflicting columns for {dest} at row {number}")
             if value.strip() or dest not in output:
                 output[dest] = value
-        for key in ("Key", "NGS_LW_ID"):
+        for key in ("Key", INDEX, *SEQUENCE_COLUMNS, "OriginalName"):
             if key in output:
                 output[key] = output[key].strip()
         converted.append(output)
     return list(dict.fromkeys(targets.values())), converted
 
 
+def identifier(value):
+    value = (value or "").strip()
+    return "" if value.upper() in {"NA", "N/A", "NAN", "NONE", "NULL", "-"} else value
+
+
+def sequence_id(row):
+    """Sample maps to NGS_LW_ID in FASTQ; SampleID is the FASTA fallback."""
+    return next((value for column in SEQUENCE_COLUMNS if (value := identifier(row.get(column)))), "")
+
+
+def provisional(row):
+    return row.get(INDEX_SOURCE) == "Sequence_ID"
+
+
+def fill_index(row, label, number):
+    key = identifier(row.get(INDEX))
+    if not key:
+        key = sequence_id(row)
+        if not key:
+            raise MergeError(f"{label}: missing {INDEX} and sequencing ID at row {number}")
+        row[INDEX_SOURCE] = "Sequence_ID"
+    row[INDEX] = key
+    if provisional(row) and key != sequence_id(row):
+        raise MergeError(f"{label}: provisional {INDEX} must equal its sequencing ID at row {number}")
+
+
 def index_rows(rows, label):
     indexed = {}
     for number, row in enumerate(rows, 2):
-        key = row.get("Key", "")
-        if not key or key.upper() in {"NA", "NAN", "NONE", "NULL"}:
-            raise MergeError(f"{label}: missing Key at row {number}")
+        key = identifier(row.get(INDEX))
+        if not key:
+            raise MergeError(f"{label}: missing {INDEX} at row {number}")
         if key in indexed:
-            raise MergeError(f"{label}: duplicate Key at row {number}")
+            raise MergeError(f"{label}: duplicate {INDEX} at row {number}; resolve the duplicate rows first")
         indexed[key] = row
     return indexed
 
@@ -141,13 +172,13 @@ def sequence_index(*tables, source="input"):
     first_records = {}
     for rows in tables:
         for record, row in enumerate(rows, 2):
-            sequence = row.get("NGS_LW_ID", "").strip()
-            if not sequence or sequence.upper() in {"NA", "NAN", "NONE", "NULL"}:
+            sequence = sequence_id(row)
+            if not sequence:
                 continue
-            key = row["Key"]
+            key = row[INDEX]
             if sequence in indexed and indexed[sequence] != key:
                 raise MergeError(
-                    f"{source}: NGS_LW_ID maps to multiple master Keys "
+                    f"{source}: sequencing ID (NGS_LW_ID/Sequence_ID) maps to multiple {INDEX} values "
                     f"(records {first_records[sequence]} and {record}); "
                     "run update_master_csv.py --check-identifiers to locate the conflicting rows"
                 )
@@ -156,44 +187,85 @@ def sequence_index(*tables, source="input"):
     return indexed
 
 
-def resolve_report_keys(existing, metadata_rows, report_rows, workflow):
-    """Resolve sequencing IDs, including provisional rows awaiting metadata."""
-    by_sequence = sequence_index(existing.values(), source="master")
-    metadata_sequences = sequence_index(metadata_rows, source="metadata")
-    if workflow == "fastq":
-        relevant_sequences = {row.get("NGS_LW_ID", "") for row in report_rows}
-    else:
-        report_keys = {row.get("Key", "") for row in report_rows}
-        relevant_sequences = {row.get("NGS_LW_ID", "") for row in metadata_rows if row["Key"] in report_keys}
-    replacements = {}
-    resolved_keys = set()
-    for sequence, key in metadata_sequences.items():
-        old_key = by_sequence.get(sequence)
+def alias_index(rows, columns):
+    """Retain ambiguous aliases so only a lookup using that alias fails."""
+    aliases = {}
+    for row in rows:
+        for column in columns:
+            value = identifier(row.get(column))
+            if value:
+                aliases.setdefault(value, set()).add(row[INDEX])
+    return aliases
+
+
+def exact_alias(aliases, value, label):
+    matches = aliases.get(identifier(value), set())
+    if len(matches) > 1:
+        raise MergeError(f"{label}: ambiguous identifier matches multiple {INDEX} values")
+    return next(iter(matches), None)
+
+
+def prepare_indexes(master_rows, metadata_rows):
+    """Migrate missing indexes and reconcile explicitly marked fallbacks."""
+    for number, row in enumerate(metadata_rows, 2):
+        fill_index(row, "metadata", number)
+    meta = index_rows(metadata_rows, "metadata")
+    meta_sequences = sequence_index(metadata_rows, source="metadata")
+    legacy = alias_index(metadata_rows, (INDEX, "Key"))
+    reindexed = set()
+    for number, row in enumerate(master_rows, 2):
+        missing = not identifier(row.get(INDEX))
+        if missing or provisional(row):
+            if not missing:
+                fill_index(row, "master", number)
+            match = meta_sequences.get(sequence_id(row))
+            if match is None:
+                matches = {key for column in ("Key", "OriginalName")
+                           if (key := exact_alias(legacy, row.get(column), f"master row {number}")) is not None}
+                if len(matches) > 1:
+                    raise MergeError(f"master: legacy identifiers disagree at row {number}")
+                match = next(iter(matches), None)
+            if match is not None and not provisional(meta[match]):
+                row[INDEX] = match
+                row[INDEX_SOURCE] = INDEX
+                reindexed.add(match)
+            else:
+                if match is not None and not sequence_id(row):
+                    # Old FASTA-only rows may have just Key. Retain the matched
+                    # sequencing ID as evidence for their new fallback index.
+                    column = next(column for column in SEQUENCE_COLUMNS if identifier(meta[match].get(column)))
+                    row[column] = meta[match][column]
+                fill_index(row, "master", number)
+                if missing:
+                    reindexed.add(row[INDEX])
+    existing = index_rows(master_rows, "master")
+    master_sequences = sequence_index(master_rows, source="master")
+    for sequence, key in meta_sequences.items():
+        old_key = master_sequences.get(sequence)
         if old_key is None:
             continue
-        old = existing[old_key]
-        if old.get(KEY_SOURCE) != "Sample":
-            if old_key != key:
-                raise MergeError(
-                    "NGS_LW_ID maps to multiple master Keys (master Key differs from metadata RekvNr); "
-                    "run update_master_csv.py --check-identifiers to locate the conflicting rows"
-                )
-            continue
-        if old_key != sequence:
-            raise MergeError("Provisional master Key must equal its NGS_LW_ID")
-        if sequence not in relevant_sequences:
-            continue
-        if key != old_key and key in existing:
-            raise MergeError("Provisional sample resolves to an existing master Key; resolve the duplicate rows first")
-        replacements[old_key] = dict(old, Key=key, **{KEY_SOURCE: "RekvNr"})
-        resolved_keys.add(key)
-    # Keep unrelated samples and the existing row order intact.
-    existing = {
-        replacements[key]["Key"] if key in replacements else key: replacements.get(key, row)
-        for key, row in existing.items()
-    }
-    by_sequence.update(metadata_sequences)
-    return existing, by_sequence, resolved_keys
+        if provisional(meta[key]) and not provisional(existing[old_key]):
+            # Missing metadata must never downgrade a known specimen identifier.
+            meta[key][INDEX] = old_key
+            meta[key][INDEX_SOURCE] = INDEX
+        elif old_key != key:
+            raise MergeError(
+                f"Sequencing ID maps to multiple {INDEX} values (master differs from metadata); "
+                "run update_master_csv.py --check-identifiers to locate the conflicting rows"
+            )
+    meta = index_rows(metadata_rows, "metadata")
+    by_sequence = sequence_index(master_rows, metadata_rows, source="master and metadata")
+    return existing, meta, by_sequence, reindexed
+
+
+def fasta_match(row, aliases, sequences):
+    name = exact_alias(aliases, row.get("OriginalName"), "FASTA OriginalName")
+    sequence = sequences.get(sequence_id(row))
+    sample = exact_alias(aliases, row.get("SampleID"), "FASTA SampleID")
+    matches = {key for key in (name, sequence, sample) if key is not None}
+    if len(matches) > 1:
+        raise MergeError("FASTA identifiers disagree; resolve the sample identifiers first")
+    return next(iter(matches), None)
 
 
 def merge_tables(master, metadata, report, workflow, assets=ASSETS, nonempty_report=False):
@@ -203,67 +275,72 @@ def merge_tables(master, metadata, report, workflow, assets=ASSETS, nonempty_rep
     report_map = read_mapping(Path(assets) / ("FLUSEQ.xml" if workflow == "fastq" else "FLUSEQFASTA.xml"), canonical)
     # Both spellings are emitted by the current report writers.
     report_map.update({"Coverage-M": "NGS_Coverage_M", "Coverage-MP": "NGS_Coverage_M"})
+    if workflow == "fasta":
+        report_map["OriginalName"] = "OriginalName"
     master_headers, master_rows = transform(master, {}, canonical, "master")
     metadata_headers, metadata_rows = transform(metadata, metadata_map, canonical, "metadata")
     report_headers, report_rows = transform(report, report_map, canonical, "report")
-    if KEY_SOURCE in metadata_headers or KEY_SOURCE in report_headers:
-        raise MergeError(f"{KEY_SOURCE} is reserved for master key provenance")
-    if "Key" not in master_headers:
-        raise MergeError("master: required column Key is absent")
-    if "RekvNr" not in metadata[0]:
-        raise MergeError("metadata: required column RekvNr is absent (LABWAREDIRECT key)")
+    for reserved in (KEY_SOURCE, INDEX_SOURCE):
+        if reserved in metadata_headers or reserved in report_headers:
+            raise MergeError(f"{reserved} is reserved for master identifier provenance")
+    if not {INDEX, "Key"}.intersection(master_headers):
+        raise MergeError(f"master: required column {INDEX} is absent (legacy Key header also accepted)")
+    if not {INDEX, *SEQUENCE_COLUMNS}.intersection(metadata_headers):
+        raise MergeError(f"metadata: requires {INDEX} or a sequencing ID column")
     required = "Sample" if workflow == "fastq" else "OriginalName"
     if required not in report[0] or not report_rows:
         raise MergeError(f"report: requires {required} and at least one data row")
-    existing = index_rows(master_rows, "master")
-    meta = index_rows(metadata_rows, "metadata")
-    existing, by_sequence, resolved_keys = resolve_report_keys(existing, metadata_rows, report_rows, workflow)
-    provisional_keys = set()
-    if workflow == "fastq":
-        for number, row in enumerate(report_rows, 2):
-            sequence = row.get("NGS_LW_ID", "")
-            if not sequence or sequence.upper() in {"NA", "NAN", "NONE", "NULL"}:
-                raise MergeError(f"report: missing Sample at row {number}")
-            key = by_sequence.get(sequence)
-            if key is None:
-                key = sequence
-                if key in existing or key in meta:
-                    raise MergeError(f"report: provisional Sample key collides with an unrelated Key at row {number}")
-                row[KEY_SOURCE] = "Sample"
-                provisional_keys.add(key)
-            elif existing.get(key, {}).get(KEY_SOURCE) == "Sample" and existing[key].get("NGS_LW_ID") != sequence:
-                raise MergeError(f"report: Sample maps to an unrelated provisional Key at row {number}")
-            if row.get("Key", key) != key:
-                raise MergeError(f"report: Key and Sample disagree at row {number}")
-            row["Key"] = key
+    existing, meta, by_sequence, reindexed = prepare_indexes(master_rows, metadata_rows)
+    aliases = alias_index([*existing.values(), *meta.values()], (INDEX, "Key", "OriginalName", "SampleID"))
+    for number, row in enumerate(report_rows, 2):
+        if not identifier(row.get("NGS_LW_ID" if workflow == "fastq" else "OriginalName")):
+            raise MergeError(f"report: missing {required} at row {number}")
+        key = by_sequence.get(sequence_id(row)) if workflow == "fastq" else fasta_match(row, aliases, by_sequence)
+        supplied = identifier(row.get(INDEX))
+        if supplied and key is not None and supplied != key:
+            raise MergeError(f"report: {INDEX} and report identifier disagree at row {number}")
+        if key is None:
+            key = supplied or sequence_id(row)
+            if not key:
+                raise MergeError(f"report: missing {INDEX} and sequencing ID at row {number}")
+            if not supplied and (key in existing or key in meta):
+                raise MergeError(f"report: provisional sequencing ID collides with an unrelated {INDEX} at row {number}")
+            if not supplied:
+                row[INDEX_SOURCE] = "Sequence_ID"
+        row[INDEX] = key
     incoming = index_rows(report_rows, "report")
-    # Only samples in this report are changed or inserted. Metadata-only rows
-    # must not create entries for samples that have not been analysed.
+    # Apart from index migration, only report samples are updated or inserted.
+    # Metadata-only rows must not create entries for unanalysed samples.
     added = updated = unchanged = without_metadata = 0
     for key, row in incoming.items():
         old = existing.get(key)
-        merged = dict(old or {"Key": key})
-        if key in meta and merged.get(KEY_SOURCE) != "Sample":
+        merged = dict(old or {INDEX: key})
+        if key in meta:
             merged.update({name: value for name, value in meta[key].items() if value.strip()})
         else:
             without_metadata += 1
         merged.update({name: value for name, value in row.items() if not nonempty_report or value.strip()})
+        merged[INDEX] = key  # A blank report cell must never erase the index.
         if old is None:
             added += 1
-        elif key not in resolved_keys and all(
+        elif key not in reindexed and all(
             old.get(name, "") == merged.get(name, "") for name in old.keys() | merged.keys()
         ):
             unchanged += 1
         else:
             updated += 1
         existing[key] = merged
+    for number, row in enumerate(existing.values(), 2):
+        fill_index(row, "merged master", number)
+    index_rows(existing.values(), "merged master")
     sequence_index(existing.values(), source="merged master")
     headers = list(dict.fromkeys(columns + master_headers + metadata_headers + report_headers))
-    if provisional_keys and KEY_SOURCE not in headers:
-        headers.append(KEY_SOURCE)
+    if any(INDEX_SOURCE in row for row in existing.values()) and INDEX_SOURCE not in headers:
+        headers.append(INDEX_SOURCE)
     return headers, list(existing.values()), {
         "added": added, "updated": updated, "unchanged": unchanged,
         "without_metadata": without_metadata, "total": len(existing), "columns": len(headers),
+        "reindexed": len(reindexed),
     }
 
 

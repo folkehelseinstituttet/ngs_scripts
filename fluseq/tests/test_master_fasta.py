@@ -201,7 +201,7 @@ def test_remote_failure_is_not_treated_as_empty_master(fasta, remote, monkeypatc
 def test_csv_and_fasta_update_share_location(fasta, tmp_path, workflow):
     updater = importlib.import_module("update_master_csv")
     master = write(tmp_path / "master.csv", "Key\n")
-    write(tmp_path / "NGS_PREP_INF_report.csv", "RekvNr;NGS_LW_ID\n0008;SEQ1\n")
+    write(tmp_path / "NGS_PREP_INF_report.csv", "RekvNr;Prove_LW_ID;NGS_LW_ID\n0008;P0008;SEQ1\n")
     report = write(tmp_path / "run.csv", "Sample\nSEQ1\n" if workflow == "fastq" else "OriginalName\n0008\n")
     run_fasta = write(tmp_path / "run.fasta", ">SEQ1|01-HA-H3N2\nACGT\n")
     config, _ = updater.configuration({"FLUSEQ_MASTER_CSV": str(master)})
@@ -215,7 +215,7 @@ def test_csv_and_fasta_update_share_location(fasta, tmp_path, workflow):
 def test_malformed_run_fasta_stops_before_csv_write(fasta, tmp_path):
     updater = importlib.import_module("update_master_csv")
     master = write(tmp_path / "master.csv", "Key\n")
-    write(tmp_path / "NGS_PREP_INF_report.csv", "RekvNr;NGS_LW_ID\n0008;SEQ1\n")
+    write(tmp_path / "NGS_PREP_INF_report.csv", "RekvNr;Prove_LW_ID;NGS_LW_ID\n0008;P0008;SEQ1\n")
     report = write(tmp_path / "run.csv", "Sample\nSEQ1\n")
     incoming = write(tmp_path / "bad.fasta", ">EMPTY\n")
     config, _ = updater.configuration({"FLUSEQ_MASTER_CSV": str(master)})

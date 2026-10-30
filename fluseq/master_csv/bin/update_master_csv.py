@@ -258,9 +258,9 @@ def main():
             if config is None:
                 raise MergeError(f"Identifier check needs configured input paths: {reason}; set FLUSEQ_MASTER_UPDATE=true")
             conflicts = check_identifiers(config, args.report, args.identifier_report, args.workflow)
-            sequences = {row["NGS_LW_ID"] for row in conflicts}
-            relevant = {row["NGS_LW_ID"] for row in conflicts if row["in_current_report"] == "yes"}
-            print(f"Identifier check: {len(sequences)} conflicting NGS_LW_ID values. Master and metadata were not changed.")
+            sequences = {row["Sequence_ID"] for row in conflicts}
+            relevant = {row["Sequence_ID"] for row in conflicts if row["in_current_report"] == "yes"}
+            print(f"Identifier check: {len(sequences)} conflicting sequencing IDs (NGS_LW_ID/Sequence_ID). Master and metadata were not changed.")
             if args.report:
                 print(f"Conflicting identifiers involving this report: {len(relevant)}")
             if args.identifier_report:

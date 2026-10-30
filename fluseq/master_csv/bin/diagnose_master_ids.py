@@ -5,10 +5,14 @@ import os
 from pathlib import Path
 import tempfile
 
-from merge_master_csv import ASSETS, KEY_SOURCE, MergeError, read_mapping, schema, transform, write_table
+from merge_master_csv import (
+    ASSETS, INDEX, INDEX_SOURCE, KEY_SOURCE, MergeError, identifier, sequence_id,
+    read_mapping, schema, transform, write_table,
+)
 
 
-COLUMNS = ["NGS_LW_ID", "source", "record", "Key", "Master_Key_Source", "in_current_report", "conflict"]
+COLUMNS = ["Sequence_ID", "NGS_LW_ID", "source", "record", INDEX, INDEX_SOURCE,
+           "Key", KEY_SOURCE, "in_current_report", "conflict"]
 
 
 def find_conflicts(master, metadata, report=None, workflow="fastq"):
@@ -27,35 +31,37 @@ def find_conflicts(master, metadata, report=None, workflow="fastq"):
     groups = defaultdict(list)
     for source, rows in (("master", master_rows), ("metadata", metadata_rows)):
         for record, row in enumerate(rows, 2):
-            sequence = row.get("NGS_LW_ID", "").strip()
-            # Match the merger's missing-identifier rules exactly.
-            if not sequence or sequence.upper() in {"NA", "NAN", "NONE", "NULL"}:
+            sequence = sequence_id(row)
+            if not sequence:
                 continue
+            key = identifier(row.get(INDEX))
             groups[sequence].append({
-                "NGS_LW_ID": sequence, "source": source, "record": record,
+                "Sequence_ID": sequence, "NGS_LW_ID": row.get("NGS_LW_ID", ""), "source": source, "record": record,
+                INDEX: key or sequence, INDEX_SOURCE: row.get(INDEX_SOURCE, "") if key else "Sequence_ID",
                 "Key": row.get("Key", ""), "Master_Key_Source": row.get(KEY_SOURCE, ""),
             })
 
     conflicts = []
     for sequence, records in sorted(groups.items()):
         master_records = [row for row in records if row["source"] == "master"]
-        master_keys = {row["Key"] for row in master_records}
-        metadata_keys = {row["Key"] for row in records if row["source"] == "metadata"}
+        metadata_records = [row for row in records if row["source"] == "metadata"]
+        master_keys = {row[INDEX] for row in master_records}
+        metadata_keys = {row[INDEX] for row in metadata_records}
         reasons = []
         if len(master_keys) > 1:
-            reasons.append("multiple Keys within master")
+            reasons.append(f"multiple {INDEX} values within master")
         if len(metadata_keys) > 1:
-            reasons.append("multiple RekvNr values within metadata")
+            reasons.append(f"multiple {INDEX} values within metadata")
         if master_keys and metadata_keys and master_keys != metadata_keys:
-            provisional = len(master_records) == 1 and len(metadata_keys) == 1 and (
-                master_records[0]["Master_Key_Source"] == "Sample" and master_records[0]["Key"] == sequence
-            )
+            provisional = len(master_records) == len(metadata_records) == 1 and any(
+                row[INDEX_SOURCE] == "Sequence_ID" and row[INDEX] == sequence for row in records)
             if not provisional:
-                reasons.append("master Key differs from metadata RekvNr")
+                reasons.append(f"master {INDEX} differs from metadata {INDEX}")
         if not reasons:
             continue
         involved = "not checked" if report_ids is None else (
-            "yes" if (sequence in report_ids if workflow == "fastq" else any(row["Key"] in report_ids for row in records)) else "no"
+            "yes" if (sequence in report_ids if workflow == "fastq" else any(
+                row[column] in report_ids for row in records for column in (INDEX, "Key"))) else "no"
         )
         conflicts.extend(dict(row, in_current_report=involved, conflict="; ".join(reasons)) for row in records)
     return conflicts

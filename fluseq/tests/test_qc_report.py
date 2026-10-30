@@ -63,7 +63,7 @@ def write_csv(path, rows, delimiter=","):
 ])
 def test_qpcr_uses_pavist_and_assay_resolution(qc, tmp_path, results, call, status):
     path = write_csv(tmp_path / "run.csv", [sample(Sekvens_Resultat=call)])
-    master = [{"Key": "0008", "NGS_LW_ID": "001", **results}]
+    master = [{"Key": "0008", "Prove_LW_ID": "P0008", "NGS_LW_ID": "001", **results}]
     record = qc.build_report(path, master)["samples"][0]
     assert record["qpcr"]["status"] == status
     assert record["flags"]["mismatch"] == (status == "Mismatch")
@@ -128,7 +128,7 @@ def test_indels_deduplicate_and_keep_type_and_source(qc):
 
 def test_fasta_joins_original_name_and_does_not_use_old_master_qc(qc, tmp_path):
     row = sample("internal-id", OriginalName="000123", IRMA_noise="NA", **{"Coverage-HA": "NA"})
-    master = [{"Key": "000123", "NGS_LW_ID": "another-run", "PCR_H3_Res": "Påvist",
+    master = [{"Key": "000123", "Prove_LW_ID": "P000123", "NGS_LW_ID": "another-run", "PCR_H3_Res": "Påvist",
                "NGS_IRMA_noise": "0.5", "NGS_Coverage_HA": "100"}]
     result = qc.build_report(write_csv(tmp_path / "fasta.csv", [row]), master, workflow="fasta")["samples"][0]
     assert result["sample"] == "000123"
@@ -139,7 +139,7 @@ def test_fasta_joins_original_name_and_does_not_use_old_master_qc(qc, tmp_path):
 
 def test_ambiguous_master_identifiers_fail(qc, tmp_path):
     path = write_csv(tmp_path / "run.csv", [sample()])
-    with pytest.raises(ValueError, match="duplicate NGS_LW_ID"):
+    with pytest.raises(ValueError, match="duplicate sequencing identifiers"):
         qc.build_report(path, [{"NGS_LW_ID": "001"}, {"NGS_LW_ID": "001"}])
 
 
@@ -180,7 +180,7 @@ def test_merge_creates_qc_with_new_metadata_and_regenerates_on_retry(qc, tmp_pat
     updater = importlib.import_module("update_master_csv")
     master = tmp_path / "master.csv"
     master.write_text("Key\n")
-    write_csv(tmp_path / "NGS_PREP_INF_report.csv", [{"RekvNr": "0008", "NGS_LW_ID": "001", "PCR_H1_Res": "Påvist"}], ";")
+    write_csv(tmp_path / "NGS_PREP_INF_report.csv", [{"RekvNr": "0008", "Prove_LW_ID": "P0008", "NGS_LW_ID": "001", "PCR_H1_Res": "Påvist"}], ";")
     source = write_csv(tmp_path / "run.csv", [sample()])
     config, _ = updater.configuration({"FLUSEQ_MASTER_CSV": str(master)})
     output = tmp_path / "run_qc.html"
@@ -211,7 +211,7 @@ def test_smb_merge_and_verified_qc_upload(qc, tmp_path, workflow, corrupt_upload
     (remote / "results").mkdir()
     (remote / "master/master.csv").write_text("Key\n")
     write_csv(remote / "master/NGS_PREP_INF_report.csv", [
-        {"RekvNr": "0008", "NGS_LW_ID": "001", "PCR_H1_Res": "Påvist"}], ";")
+        {"RekvNr": "0008", "Prove_LW_ID": "P0008", "NGS_LW_ID": "001", "PCR_H1_Res": "Påvist"}], ";")
     source = write_csv(tmp_path / "run.csv", [sample(OriginalName="0008")])
     run_fasta = tmp_path / "run.fasta"
     run_fasta.write_text(">001|01-HA-H3N2\nACGT\n")

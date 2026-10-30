@@ -27,11 +27,11 @@ def test_mounted_merge_uses_sibling_or_explicit_metadata(updater, master, tmp_pa
     # Mounted inputs must work without smbclient or its authentication file.
     monkeypatch.setattr(updater.shutil, "which", lambda name: None)
     metadata = master.with_name("NGS_PREP_INF_report.csv")
-    metadata.write_text("RekvNr;NGS_LW_ID;Note\n001;SEQ1;sibling\n")
+    metadata.write_text("RekvNr;Prove_LW_ID;NGS_LW_ID;Note\n001;P001;SEQ1;sibling\n")
     environ = {"FLUSEQ_MASTER_CSV": str(master)}
     if override:
         metadata = tmp_path / "separate.csv"
-        metadata.write_text("RekvNr;NGS_LW_ID;Note\n001;SEQ1;override\n")
+        metadata.write_text("RekvNr;Prove_LW_ID;NGS_LW_ID;Note\n001;P001;SEQ1;override\n")
         environ["FLUSEQ_METADATA_CSV"] = str(metadata)
         environ["FLUSEQ_METADATA_SMB_SHARE"] = "//unused/share"
     report = tmp_path / "report.csv"
@@ -45,6 +45,7 @@ def test_mounted_merge_uses_sibling_or_explicit_metadata(updater, master, tmp_pa
     assert stats["without_metadata"] == 0
     _, rows = updater.read_table(master)
     assert rows[0]["Key"] == "001"
+    assert rows[0]["Prove_LW_ID"] == "P001"
     assert rows[0]["Note"] == ("override" if override else "sibling")
     assert Path(stats["backup"]).read_text() == "Key\n"
 

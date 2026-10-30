@@ -3,6 +3,11 @@
 import math
 import re
 
+from merge_master_csv import (
+    INDEX, MergeError, alias_index, fasta_match, identifier, index_rows, schema,
+    sequence_id, sequence_index, transform,
+)
+
 SEGMENT_PROTEINS = {
     "HA": ("HA", "HA1", "HA2"), "NA": ("NA",),
     "MP": ("M", "MP", "M1", "M2", "MP1", "MP2"),
@@ -107,16 +112,33 @@ def indels(row):
 
 
 def master_index(rows, workflow):
-    column = "Key" if workflow == "fasta" else "NGS_LW_ID"
-    index = {}
+    _, canonical = schema()
+    headers = list(dict.fromkeys(name for row in rows for name in row))
+    _, rows = transform((headers, rows), {}, canonical, "QC master")
+    matched = []
+    seen = set()
     for row in rows:
-        key = clean(lookup(row, column))
+        # Reading an old master for QC remains supported; this never writes it.
+        key = identifier(row.get(INDEX)) or sequence_id(row) or identifier(row.get("Key"))
         if not key:
             continue
-        if key in index:
-            raise ValueError(f"Master CSV has duplicate {column} identifiers; qPCR matching is ambiguous")
-        index[key] = row
-    return index
+        row[INDEX] = key
+        sequence = sequence_id(row)
+        if workflow == "fastq" and sequence and sequence in seen:
+            raise MergeError("Master CSV has duplicate sequencing identifiers; qPCR matching is ambiguous")
+        seen.add(sequence)
+        matched.append(row)
+    return {
+        "rows": index_rows(matched, "QC master"),
+        "sequences": sequence_index(matched, source="QC master"),
+        "aliases": alias_index(matched, (INDEX, "Key", "OriginalName", "SampleID")),
+    }
+
+
+def master_match(row, index, workflow):
+    key = (index["sequences"].get(row["Sample"]) if workflow == "fastq"
+           else fasta_match(row, index["aliases"], index["sequences"]))
+    return index["rows"].get(key)
 
 
 def compare_qpcr(master_row, called, column=None):

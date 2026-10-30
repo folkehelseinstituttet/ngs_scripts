@@ -15,7 +15,7 @@ from pathlib import Path
 from statistics import median
 
 from merge_master_csv import read_table
-from qc_metrics import clean, number, lookup, complete_subtype, mixed_sites, indels, master_index, compare_qpcr
+from qc_metrics import clean, number, lookup, complete_subtype, mixed_sites, indels, master_index, master_match, compare_qpcr
 
 VERSION = "2.0.0"
 SEGMENTS = ("HA", "NA", "MP", "NP", "NS", "PA", "PB1", "PB2")
@@ -167,7 +167,7 @@ def summarise_sample(row, fields, master_row=None, coverage_threshold=80, mixed_
         "called_subtype": called,
         "outcome": "Called" if called else "No call",
         "qpcr": qpcr,
-        "master_key": clean(lookup(master_row or {}, "Key")),
+        "master_key": clean(lookup(master_row or {}, "Prove_LW_ID")),
         "mixed_sites": mixed,
         "high_mixed_segments": high_mixed,
         "low_coverage_segments": low,
@@ -198,7 +198,7 @@ def build_report(path, master_rows=None, workflow="fastq", coverage_threshold=80
         raise ValueError("Noise threshold must be finite and non-negative")
     fields, rows, digest = read_csv(path, workflow)
     index = master_index(master_rows or [], workflow)
-    samples = [summarise_sample(row, fields, index.get(row["Sample"]), coverage_threshold, mixed_threshold,
+    samples = [summarise_sample(row, fields, master_match(row, index, workflow), coverage_threshold, mixed_threshold,
                                 noise_threshold, qpcr_column) for row in rows]
     metadata = {
         column: sorted({clean(row.get(column)) for row in rows if clean(row.get(column))})
@@ -364,7 +364,7 @@ def render(report, template):
             "Reported NGS QC": sample["reported_qc"] or sample["reported_qc_status"],
             "Sequence result": sample["sequence_result"] or "Unavailable",
             "Raw subtype (before result gating)": sample["raw_subtype"] or "Unavailable",
-            "Master key": sample["master_key"] or "No master match",
+            "Master index (Prove_LW_ID)": sample["master_key"] or "No master match",
             "qPCR evidence": "; ".join(f"{key}: {value}" for key, value in sample["qpcr"]["evidence"].items()) or "Unavailable",
             "Mixed-site source counts": "; ".join(
                 f"{column}: {value}" for data in sample["mixed_sites"].values() for column, value in data["sources"].items()
