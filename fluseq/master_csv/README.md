@@ -118,10 +118,12 @@ The updated `ngs_scripts/fluseq/fluseq_wrapper.sh` and
 `ngs_scripts/fluseq/master_csv/`. `FLUSEQ_MASTER_TOOLS` can instead point to a
 pipeline checkout containing `bin/` and `assets/master_csv/`.
 
-The default `FLUSEQ_MASTER_UPDATE=auto` enables merging when a master/metadata
-location is configured. With no configuration, the wrapper prints a clear skip
-message. `true` enables merging using the defaults below or explicit overrides;
-`false` explicitly disables updates. Validation runs always skip updates.
+Both human wrappers default to `FLUSEQ_MASTER_UPDATE=true`, enabling CSV and
+FASTA updates using the defaults below or explicit overrides. Add `-M` to the
+wrapper command or set `FLUSEQ_MASTER_UPDATE=false` to skip both updates.
+Validation runs always skip updates. `FLUSEQ_MASTER_UPDATE=auto` enables updates
+only when a master/metadata location is configured. The standalone update tool
+defaults to `auto` when the variable is unset.
 
 For now, place `NGS_PREP_INF_report.csv` in the same directory as `master.csv`.
 Metadata defaults to that directory for both mounted files and SMB transfers.
@@ -130,16 +132,11 @@ No separate metadata location needs to be configured.
 For mounted files:
 
 ```bash
-export FLUSEQ_MASTER_UPDATE=true
 export FLUSEQ_MASTER_CSV='/mnt/n/Virologi/NGS/1-NGS-Analyser/2-Utvikling/Seksjons for Influensa og andre luftveisvirus - NGS analysis database/data/INF/master.csv'
 ```
 
 The mount path is an example and must match the server's mounts. For the
-existing `smbclient` setup, enable the shared-directory defaults:
-
-```bash
-export FLUSEQ_MASTER_UPDATE=true
-```
+existing `smbclient` setup, the wrappers use the shared-directory defaults.
 
 The master defaults to share `//pos1-fhi-svm01.fhi.no/styrt`, based on the existing
 wrappers, and directory
@@ -154,7 +151,7 @@ independently use a mounted path or SMB.
 
 | Environment variable | Default / purpose |
 | --- | --- |
-| `FLUSEQ_MASTER_UPDATE` | `auto`, `true`, or `false` |
+| `FLUSEQ_MASTER_UPDATE` | `true` in wrappers, `auto` for the standalone tool; accepts `auto`, `true`, or `false` |
 | `FLUSEQ_MASTER_CSV` | Mounted master path; overrides master SMB settings |
 | `FLUSEQ_METADATA_CSV` | Defaults beside the mounted master unless a metadata SMB share is set; an explicit path overrides metadata SMB settings |
 | `FLUSEQ_MASTER_SMB_SHARE` | `//pos1-fhi-svm01.fhi.no/styrt` |

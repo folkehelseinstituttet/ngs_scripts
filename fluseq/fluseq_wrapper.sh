@@ -46,7 +46,8 @@ usage() {
     echo "  -t                 Suppress Teams notifications for testing (pipeline still runs)"
     echo "  -b BRANCH          Pipeline branch/tag to use (default: master)"
     echo "  -P PATH            PCR JSON file or directory (default: /mnt/tempdata/influensa_db/flu_seq_db/pcr-primers)"
-    echo "  Master CSV: set FLUSEQ_MASTER_UPDATE=true; metadata defaults beside master.csv (see master_csv/README.md)"
+    echo "  -M                 Skip master CSV and FASTA updates (e.g., for testing)"
+    echo "  Master updates default to enabled; FLUSEQ_MASTER_UPDATE=false also disables them (see master_csv/README.md)"
     exit "${1:-1}"
 }
 
@@ -61,11 +62,13 @@ PIPELINE_BRANCH="master"
 PRIMER_CHECK_PCR="${PRIMER_CHECK_PCR:-/mnt/tempdata/influensa_db/flu_seq_db/pcr-primers}"
 PRIMER_CHECK_CONTAINER="${PRIMER_CHECK_CONTAINER:-ghcr.io/rasmuskoriis/primer-checker:latest}"
 PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
+export FLUSEQ_MASTER_UPDATE="${FLUSEQ_MASTER_UPDATE:-true}"
 
-while getopts "htr:a:s:y:v:b:P:" opt; do
+while getopts "htMr:a:s:y:v:b:P:" opt; do
     case "$opt" in
         h) usage 0 ;;
         t) TEST_MODE=true ;;
+        M) export FLUSEQ_MASTER_UPDATE=false ;;
         r) RUN="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
         s) SEASON="$OPTARG" ;;

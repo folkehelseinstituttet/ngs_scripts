@@ -120,10 +120,13 @@ browser, with no installation or web server. It includes:
 - IRMA noise **greater than 0.09**, plus the existing QC and characterisation findings.
 - Finding buttons, sample and qPCR filters, sortable samples, CSV exports and printing.
 
-Enable the master merge to include up-to-date qPCR comparisons:
+Master updates are enabled by default in both human wrappers, providing
+up-to-date qPCR comparisons. To skip the CSV and FASTA updates for a test run,
+add `-M` to the wrapper command, or set the environment variable for that run:
 
 ```bash
-export FLUSEQ_MASTER_UPDATE=true
+FLUSEQ_MASTER_UPDATE=false bash /home/ngs/ngs_scripts/fluseq/fluseq_wrapper.sh \
+  -r INF077 -a influensa -s Ses2526 -y 2026
 ```
 
 Place `NGS_PREP_INF_report.csv` beside the master as described in
@@ -159,8 +162,9 @@ definitions, denominator choices and missing-data handling.
 Both human wrappers merge the completed `reporthuman/<RUN>.fasta` into
 `master.fasta` in the same directory as `master.csv`, after the CSV merge.
 This uses the same mounted directory or SMB share and credentials.
-`FLUSEQ_MASTER_UPDATE=true` enables both master updates; validation runs and
-`FLUSEQ_MASTER_UPDATE=false` skip both.
+Both master updates are enabled by default in the human wrappers; `-M`,
+`FLUSEQ_MASTER_UPDATE=false`, and validation runs skip both. The FASTQ
+wrapper's `-t` suppresses Teams notifications but does not disable updates.
 
 Records match by their exact FASTA ID (the complete first whitespace-delimited
 token after `>`), including any segment suffix. New IDs are appended; existing
