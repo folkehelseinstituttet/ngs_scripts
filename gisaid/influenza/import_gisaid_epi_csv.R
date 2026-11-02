@@ -24,13 +24,47 @@ mapping <- c(
   "PB1 Segment_Id" = "GISAID_PB1_ID", "PB2 Segment_Id" = "GISAID_PB2_ID"
 )
 
-# Use the same lock directory as the FluSeq master CSV updater.
-lock_path <- paste0(master_path, ".lock")
-if (!dir.create(lock_path, showWarnings = FALSE)) {
-  stop("Could not acquire master lock: ", lock_path, ". Check for an active writer or a stale lock.")
+# Use the same exclusive lock directory as the FluSeq master CSV updater.
+acquire_master_lock <- function(lock_path) {
+  wait_seconds <- suppressWarnings(as.numeric(Sys.getenv("GISAID_LOCK_WAIT_SECONDS", "30")))
+  if (length(wait_seconds) != 1L || !is.finite(wait_seconds) || wait_seconds < 0) {
+    stop("GISAID_LOCK_WAIT_SECONDS must be a nonnegative number of seconds.")
+  }
+  deadline <- proc.time()[["elapsed"]] + wait_seconds
+  notified <- FALSE
+  repeat {
+    if (dir.create(lock_path, showWarnings = FALSE)) return(invisible(NULL))
+    if (!file.exists(lock_path)) {
+      stop("Could not create master lock: ", lock_path,
+           ". Check access and write permission for the master directory.")
+    }
+    remaining <- deadline - proc.time()[["elapsed"]]
+    if (remaining <= 0) {
+      stop("Master lock still exists: ", lock_path,
+           ". Check for an active writer; remove the lock only after confirming it is stale.")
+    }
+    if (!notified) {
+      message("Master is locked; waiting up to ", wait_seconds, " seconds: ", lock_path)
+      notified <- TRUE
+    }
+    Sys.sleep(min(1, remaining))
+  }
 }
+
+release_master_lock <- function(lock_path) {
+  # R's unlink(recursive = FALSE) does not remove directories, and
+  # file.remove() does not remove directories on Windows.
+  if (!dir.exists(lock_path)) return(invisible(NULL))
+  if (length(list.files(lock_path, all.files = TRUE, no.. = TRUE)) ||
+      unlink(lock_path, recursive = TRUE) != 0L) {
+    warning("Could not remove master lock; check it before retrying: ", lock_path)
+  }
+}
+
+lock_path <- paste0(master_path, ".lock")
 import_exports <- function() {
-  on.exit(unlink(lock_path, recursive = FALSE), add = TRUE)
+  acquire_master_lock(lock_path)
+  on.exit(release_master_lock(lock_path), add = TRUE)
   original_hash <- unname(tools::md5sum(master_path))
   master <- readr::read_delim(master_path, delim = ";", col_types = readr::cols(.default = readr::col_character()),
                               na = character(), trim_ws = FALSE, name_repair = "minimal", show_col_types = FALSE)
@@ -52,9 +86,17 @@ import_exports <- function() {
     x
   })
   exports <- do.call(rbind, exports)
-  if (any(!nzchar(exports$Submitting_Sample_Id))) stop("An export row has no Submitting_Sample_Id.")
+  missing_sample_id <- !nzchar(exports$Submitting_Sample_Id)
+  if (any(missing_sample_id)) {
+    message("Skipping ", sum(missing_sample_id), " export row(s) with a missing Submitting_Sample_Id.")
+    exports <- exports[!missing_sample_id, , drop = FALSE]
+  }
   unmatched <- unique(exports$Submitting_Sample_Id[!exports$Submitting_Sample_Id %in% keys])
-  if (length(unmatched)) stop("Export sample IDs not found in master Key: ", paste(unmatched, collapse = ", "))
+  if (length(unmatched)) {
+    message("Skipping ", length(unmatched), " export sample ID(s) not found in master Key: ",
+            paste(unmatched, collapse = ", "))
+    exports <- exports[!exports$Submitting_Sample_Id %in% unmatched, , drop = FALSE]
+  }
 
   # Segment fields have the form EPI123|SEGMENT|Submitting_Sample_Id.
   segment_cols <- names(mapping)[grepl(" Segment_Id$", names(mapping))]

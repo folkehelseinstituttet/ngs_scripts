@@ -20,6 +20,48 @@ def empty():
     return table(headers=("Prove_LW_ID",))
 
 
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig", "utf-16", "cp1252"])
+def test_norwegian_text_survives_supported_csv_encodings(merger, tmp_path, encoding):
+    source = tmp_path / "input.csv"
+    source.write_bytes("Prove_LW_ID;Pasient_Fylke_Name;PCR_H3_Res\n1;Møre og Romsdal;Påvist\n".encode(encoding))
+    headers, rows = merger.read_table(source)
+    merger.repair_metadata_text(rows[0])
+    output = tmp_path / "output.csv"
+    merger.write_table(output, headers, rows)
+    assert merger.read_table(output)[1][0] == {
+        "Prove_LW_ID": "1", "Pasient_Fylke_Name": "Møre og Romsdal", "PCR_H3_Res": "Påvist"}
+
+
+def test_merge_repairs_known_text_in_all_rows_and_preserves_other_fields(merger, tmp_path):
+    master = tmp_path / "master.csv"
+    metadata = tmp_path / "metadata.csv"
+    report = tmp_path / "run.csv"
+    merger.write_table(master, *table(
+        {"Prove_LW_ID": "1", "NGS_LW_ID": "S1", "Pasient_Fylke_Name": "Tr ndelag",
+         "PCR_H1_Res": "Ikke p vist", "Other": "M re g Romsdal"},
+        {"Prove_LW_ID": "2", "NGS_LW_ID": "S2", "Pasient_Fylke_Name": "M re g Romsdal",
+         "PCR_H3_Res": "P vist"},
+        {"Prove_LW_ID": "3", "NGS_LW_ID": "S3", "Pasient_Fylke_Name": " stfold",
+         "PCR_H3_Res": "Mulig p vist"},
+        {"Prove_LW_ID": "4", "NGS_LW_ID": "S4", "Pasient_Fylke_Name": "MÃ¸re og Romsdal",
+         "PCR_H3_Res": "PÃ¥vist"},
+        {"Prove_LW_ID": "5", "NGS_LW_ID": "S5", "Pasient_Fylke_Name": "Værøy æøå ÆØÅ"},
+    ))
+    merger.write_table(metadata, *table({"Prove_LW_ID": "1", "NGS_LW_ID": "S1",
+                                         "Pasient_Fylke_Name": "Tr ndelag", "PCR_H3_Res": "P vist"}))
+    merger.write_table(report, *table({"Sample": "S1"}))
+    stats = merger.merge_files(master, metadata, report, "fastq")
+    _, rows = merger.read_table(master)
+    assert [row["Pasient_Fylke_Name"] for row in rows] == [
+        "Trøndelag", "Møre og Romsdal", "Østfold", "Møre og Romsdal", "Værøy æøå ÆØÅ"]
+    assert rows[0]["PCR_H1_Res"] == "Ikke påvist" and rows[0]["PCR_H3_Res"] == "Påvist"
+    assert rows[1]["PCR_H3_Res"] == rows[3]["PCR_H3_Res"] == "Påvist"
+    assert rows[2]["PCR_H3_Res"] == "Mulig p vist"
+    assert rows[0]["Other"] == "M re g Romsdal"
+    assert stats["text_repaired"] == 4
+    assert not merger.merge_files(master, metadata, report, "fastq")["written"]
+
+
 def test_specimen_is_index_even_when_legacy_keys_are_blank_or_duplicated(merger):
     master = table(
         {"Prove_LW_ID": "0001", "Key": "same", "NGS_LW_ID": "SEQ1", "Old": "keep"},

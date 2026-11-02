@@ -59,7 +59,7 @@ destination stop the merge before master replacement.
 
 Only samples present in the current report are added or have their metadata and
 results updated. Metadata-only rows do not create master entries. Apart from the
-index repairs above, samples outside the report retain their values. For a sample
+index and known text repairs described here, samples outside the report retain their values. For a sample
 in the report, precedence is:
 
 1. Existing master values.
@@ -88,6 +88,16 @@ XML maps `RekvNr` to the legacy `Key` column. Both `Prove_Sesong` and `Sesong` m
 Both report spellings `Coverage-M` and `Coverage-MP` map to `NGS_Coverage_M`.
 No biological interpretation is performed, and no mappings beyond the supplied
 templates, these spelling aliases, and the identifier rules above are inferred.
+
+On each master merge, known damaged text is repaired in all master rows, including
+rows outside the current run: `Tr ndelag`, `M re g Romsdal`, and ` stfold` in
+`Pasient_Fylke_Name` become `Trøndelag`, `Møre og Romsdal`, and `Østfold`;
+`P vist` and `Ikke p vist` in `PCR_*_Res` become `Påvist` and `Ikke påvist`.
+These fields also receive NFC Unicode normalization and reversible UTF-8/Windows-1252
+mojibake repair. Unrecognised damaged text and other fields are left unchanged.
+The summary's `text_repaired` counts rows repaired. Existing shared masters are
+updated by the next successful enabled merge, with the usual backup; a preview
+can be made first as described below.
 
 ## Preview and manual updates
 
@@ -265,8 +275,10 @@ above, including legacy `Key` names. The detail view shows the matched
 `Prove_LW_ID`. Ambiguous join identifiers are rejected rather than matched
 arbitrarily. Standalone QC can still read older masters without the new index.
 
-`Påvist` in a subtype-specific PCR result field is positive (case-insensitive,
-trimmed). H1, H3 and H5 compare the H component of a called subtype; B/Victoria
+`Påvist` or the observed export form `P vist` in a subtype-specific PCR result
+field is positive. `Ikke påvist` and `Ikke p vist` are negative. Comparison
+ignores case and extra whitespace and preserves the original result in the
+report's qPCR evidence. H1, H3 and H5 compare the H component of a called subtype; B/Victoria
 and B/Yamagata compare lineage. Missing, negative-only, multiple-positive and
 unrecognised qPCR results have separate statuses. They are not counted as a
 subtype mismatch. A missing sequencing call is also shown separately.

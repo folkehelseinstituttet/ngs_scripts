@@ -45,6 +45,16 @@ fix_mojibake_utf8 <- function(x) {
   out
 }
 
+repair_county <- function(x) {
+  x <- fix_mojibake_utf8(x)
+  normalized <- tolower(gsub("[[:space:]]+", " ", trimws(x)))
+  replacements <- c("tr ndelag" = "Trøndelag", "m re g romsdal" = "Møre og Romsdal",
+                    "stfold" = "Østfold")
+  hit <- !is.na(normalized) & normalized %in% names(replacements)
+  x[hit] <- unname(replacements[normalized[hit]])
+  x
+}
+
 # Define metadata
 passage <- "Clinical Specimen"
 host <- "Human"
@@ -117,9 +127,13 @@ fludb <- fludb %>%
   )
 
 if (!nrow(fludb)) stop("No eligible samples found for run: ", SID)
-if (any(!nzchar(trimws(fludb$key))) || anyDuplicated(fludb$key)) {
-  stop("Eligible samples must have unique, nonempty Key values.")
+missing_key <- is.na(fludb$key) | !nzchar(trimws(fludb$key))
+if (any(missing_key)) {
+  message("Skipping ", sum(missing_key), " eligible sample(s) with missing Key values.")
+  fludb <- fludb[!missing_key, , drop = FALSE]
 }
+if (!nrow(fludb)) stop("No eligible samples with a nonempty Key found for run: ", SID)
+if (anyDuplicated(fludb$key)) stop("Eligible samples must have unique Key values.")
 fludb$ngs_lw_id <- trimws(fludb$ngs_lw_id)
 all_lw_ids <- trimws(master_id_map$ngs_lw_id)
 if (anyDuplicated(all_lw_ids[nzchar(all_lw_ids) & all_lw_ids %in% fludb$ngs_lw_id])) {
@@ -170,8 +184,8 @@ if (anyDuplicated(paste(filtered_seq$key, filtered_seq$experiment, sep = "|"))) 
 missing_sequences <- setdiff(fludb$key, filtered_seq$key)
 if (length(missing_sequences)) stop("No FASTA records found for samples: ", paste(missing_sequences, collapse = ", "))
 
-# Normalize county names before they are used in output fields
-fludb$pasient_fylke_name <- fix_mojibake_utf8(fludb$pasient_fylke_name)
+# Normalize known damaged county names before they are used in output fields.
+fludb$pasient_fylke_name <- repair_county(fludb$pasient_fylke_name)
 
 # Data cleaning and manipulation
 fludb <- fludb %>% 

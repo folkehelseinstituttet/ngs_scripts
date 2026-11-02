@@ -51,12 +51,17 @@ def write_csv(path, rows, delimiter=","):
 
 @pytest.mark.parametrize(("results", "call", "status"), [
     ({"PCR_H3_Res": "  PÅvist  "}, "A/H3N2", "Match"),
+    ({"PCR_H1_Res": "Ikke p vist", "PCR_H3_Res": "P vist"}, "A/H3N2", "Match"),
+    ({"PCR_H1_Res": "Ikke p vist", "PCR_H3_Res": "P vist"}, "A/H1N1", "Mismatch"),
+    ({"PCR_H3_Res": "  P   VIST "}, "A/H3N2", "Match"),
+    ({"PCR_H3_Res": " IKKE  P  VIST "}, "A/H3N2", "No positive subtype qPCR"),
     ({"PCR_H1_Res": "Påvist"}, "A/H3N2", "Mismatch"),
     ({"PCR_H1_Res": "Påvist"}, "A/H1N1", "Match"),
     ({"PCR_Bvic_Res": "påvist"}, "B/Victoria", "Match"),
     ({"PCR_Byam_Res": "Påvist"}, "B/Victoria", "Mismatch"),
     ({"PCR_H3_Res": "Ikke påvist"}, "A/H3N2", "No positive subtype qPCR"),
     ({"PCR_H3_Res": "Positiv"}, "A/H3N2", "Unrecognised qPCR result"),
+    ({"PCR_H3_Res": "Mulig P vist"}, "A/H3N2", "Unrecognised qPCR result"),
     ({"PCR_H1_Res": "Påvist", "PCR_H3_Res": "Påvist"}, "A/H3N2", "Multiple qPCR calls"),
     ({"PCR_H3_Res": "Påvist"}, "NA", "No sequence call"),
     ({}, "A/H3N2", "qPCR unavailable"),
@@ -67,6 +72,17 @@ def test_qpcr_uses_pavist_and_assay_resolution(qc, tmp_path, results, call, stat
     record = qc.build_report(path, master)["samples"][0]
     assert record["qpcr"]["status"] == status
     assert record["flags"]["mismatch"] == (status == "Mismatch")
+
+
+def test_qpcr_html_preserves_observed_evidence(qc, tmp_path):
+    run = write_csv(tmp_path / "run.csv", [sample()])
+    master = write_csv(tmp_path / "master.csv", [{"Prove_LW_ID": "P0008", "NGS_LW_ID": "001",
+        "PCR_H1_Res": "Ikke p vist", "PCR_H3_Res": "P vist"}])
+    output = tmp_path / "run_qc.html"
+    qc.write_report(run, output, master=master)
+    html = output.read_text(encoding="utf-8")
+    assert "PCR_H1_Res: Ikke p vist; PCR_H3_Res: P vist" in html
+    assert 'data-qpcr="Match"' in html
 
 
 def test_run_and_segment_denominators_include_failed_samples(qc, tmp_path):

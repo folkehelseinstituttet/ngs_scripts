@@ -110,7 +110,8 @@ master CSV merge. The HTML is a single offline file: open it directly in a
 browser, with no installation or web server. It includes:
 
 - qPCR mismatches using the master's `PCR_H1_Res`, `PCR_H3_Res`, `PCR_H5_Res`,
-  `PCR_Bvic_Res` and `PCR_Byam_Res`; `Påvist` is positive, ignoring case/spaces.
+  `PCR_Bvic_Res` and `PCR_Byam_Res`; `Påvist` and `P vist` are positive,
+  ignoring case and extra whitespace.
 - Successful final subtype calls and no-call rates for every row in the run report.
 - Per-segment pass, low-coverage failure and missing/invalid counts and percentages.
   The default coverage threshold is 80%, matching the existing pipeline.

@@ -13,8 +13,10 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import tempfile
+import unicodedata
 import uuid
 import xml.etree.ElementTree as ET
 from contextlib import contextmanager
@@ -132,6 +134,35 @@ def transform(table, mapping, canonical, label):
 def identifier(value):
     value = (value or "").strip()
     return "" if value.upper() in {"NA", "N/A", "NAN", "NONE", "NULL", "-"} else value
+
+
+def repair_metadata_text(row):
+    """Repair known damaged values in county and PCR result fields only."""
+    county_names = {
+        "tr ndelag": "Trøndelag", "m re g romsdal": "Møre og Romsdal",
+        "stfold": "Østfold",
+    }
+    pcr_results = {"p vist": "Påvist", "ikke p vist": "Ikke påvist"}
+    changed = False
+    for name, value in row.items():
+        is_county = name.casefold() == "pasient_fylke_name"
+        is_pcr_result = bool(re.fullmatch(r"PCR_.+_Res", name, flags=re.IGNORECASE))
+        if not (is_county or is_pcr_result):
+            continue
+        repaired = value
+        # Undo reversible UTF-8-as-Windows-1252 mojibake only when valid.
+        if any(marker in repaired for marker in ("Ã", "Â", "â")):
+            try:
+                repaired = repaired.encode("cp1252").decode("utf-8")
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                pass
+        repaired = unicodedata.normalize("NFC", repaired)
+        lookup_value = " ".join(repaired.casefold().split())
+        repaired = (county_names if is_county else pcr_results).get(lookup_value, repaired)
+        if repaired != value:
+            row[name] = repaired
+            changed = True
+    return changed
 
 
 def sequence_id(row):
@@ -330,8 +361,10 @@ def merge_tables(master, metadata, report, workflow, assets=ASSETS, nonempty_rep
         else:
             updated += 1
         existing[key] = merged
+    text_repaired = 0
     for number, row in enumerate(existing.values(), 2):
         fill_index(row, "merged master", number)
+        text_repaired += repair_metadata_text(row)
     index_rows(existing.values(), "merged master")
     sequence_index(existing.values(), source="merged master")
     headers = list(dict.fromkeys(columns + master_headers + metadata_headers + report_headers))
@@ -340,7 +373,7 @@ def merge_tables(master, metadata, report, workflow, assets=ASSETS, nonempty_rep
     return headers, list(existing.values()), {
         "added": added, "updated": updated, "unchanged": unchanged,
         "without_metadata": without_metadata, "total": len(existing), "columns": len(headers),
-        "reindexed": len(reindexed),
+        "reindexed": len(reindexed), "text_repaired": text_repaired,
     }
 
 

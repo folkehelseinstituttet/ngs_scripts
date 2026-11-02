@@ -14,8 +14,8 @@ SEGMENT_PROTEINS = {
     "NP": ("NP",), "NS": ("NS",), "PA": ("PA",), "PB1": ("PB1",), "PB2": ("PB2",),
 }
 MISSING = {"", "NA", "NAN", "NONE", "NULL", "N/A", "-"}
-POSITIVE = {"påvist"}
-NEGATIVE = {"negativ", "negative", "neg", "ikke påvist", "not detected"}
+POSITIVE = {"påvist", "p vist"}
+NEGATIVE = {"negativ", "negative", "neg", "ikke påvist", "ikke p vist", "not detected"}
 ASSAYS = {"H1": "A/H1", "H3": "A/H3", "H5": "A/H5", "Bvic": "B/Victoria", "Byam": "B/Yamagata"}
 
 
@@ -161,9 +161,12 @@ def compare_qpcr(master_row, called, column=None):
             if not raw:
                 continue
             result["evidence"][name] = raw
-            if raw.casefold() in POSITIVE:
+            # Some exports replace the å in Påvist with whitespace. Only
+            # recognize the specific observed form; retain the original evidence.
+            normalized = " ".join(raw.casefold().split())
+            if normalized in POSITIVE:
                 expected.append(label)
-            elif raw.casefold() not in NEGATIVE:
+            elif normalized not in NEGATIVE:
                 result["unrecognised"].append(name)
     result["expected"] = "; ".join(expected)
     if result["unrecognised"]:

@@ -275,7 +275,7 @@ def build_report(path, master_rows=None, workflow="fastq", coverage_threshold=80
             "coverage_threshold_percent": coverage_threshold,
             "mixed_sites_threshold": mixed_threshold,
             "noise_threshold": noise_threshold,
-            "qpcr_positive": "Explicit subtype labels" if qpcr_column else "Påvist (case-insensitive, whitespace trimmed)",
+            "qpcr_positive": "Explicit subtype labels" if qpcr_column else "Påvist or P vist (case-insensitive, whitespace normalized); Ikke påvist or Ikke p vist is negative",
             "qpcr_source": qpcr_column or "PCR_H1_Res, PCR_H3_Res, PCR_H5_Res, PCR_Bvic_Res, PCR_Byam_Res",
             "denominator": "All sample rows in the final run report, including no-call rows; no controls excluded",
             "subtype_success": "Recognised final Sekvens_Resultat; raw Subtype alone cannot override an empty final result",
