@@ -29,6 +29,46 @@ Using PowerShell on a FHI laptop, run the script `INF.R` by typing in:
 This should create a directory with today's date here: `N:\Virologi\NGS\1-NGS-Analyser\1-Rutine\2-Resultater\Influensa\11-Nextstrain`.  
 That directory should contain three directories (H1, H3 and VIC) which each should contain three files.
 
+### Prepare influenza input from the FluSeq master CSV and FASTA
+
+`INF_master_csv.R` is an alternative to `INF.R`. It reads `master.csv` and
+`master.fasta` from the FluSeq master directory and uses the semicolon-delimited
+`Innsender_GISAID.csv` lookup in the GISAID directory. It requires the R package
+`writexl`. From the repository's `nextstrain/influenza` directory, run:
+
+```powershell
+& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" "INF_master_csv.R"
+```
+
+It writes the same dated output directory and H1, H3 and VIC file names as
+`INF.R`: `metadata.xlsx`, `raw_sequences_ha.fasta`, and
+`raw_sequences_na.fasta`. It copies the files to `N:\Virologi\NGS\tmp\flu_nextstrain`
+for the existing wrapper. Existing files with those names are overwritten, as
+with the original script.
+
+For testing with other input files and output directories, specify paths:
+
+```powershell
+& "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" "INF_master_csv.R" `
+  --master "C:\test\master.csv" --fasta "C:\test\master.fasta" `
+  --lab "C:\test\Innsender_GISAID.csv" `
+  --output "C:\test\output" --staging "C:\test\staging"
+```
+
+If `--fasta` is omitted it defaults to `master.fasta` beside `master.csv`.
+The lookup matches master `Prove_Innsender_ID` to `Innsender_nr` as text and
+uses the corresponding `GISAID_Id` as `Originating_Lab`. Missing matches or
+empty GISAID IDs use the existing default `3869` and are counted in the log.
+The script uses eligible H1N1, H3N2 and B/Victoria rows in the master, skips
+rows without a `Key`, and matches FASTA sample identifiers exactly against the
+master's sequencing and other sample IDs. Ambiguous matches and duplicate
+sample/segment records stop the build. It reports records with no matching
+sample and eligible samples without a FASTA record. The master FASTA only
+contains sequences that have been added to that archive; older sequences may
+need to be added before the new files contain the same historical data as
+the previous workflow. The original source script's additional selection
+criteria are not bundled in this repository and cannot be verified here.
+
 ### Build Nextstrain-tree (VM)
 
 Using PowerShell, log on the server. 

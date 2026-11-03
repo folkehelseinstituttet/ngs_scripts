@@ -1,0 +1,80 @@
+# Base-R integration checks; use package writers when installed, otherwise a TSV test substitute.
+source("nextstrain/influenza/INF_master_csv.R", encoding = "UTF-8")
+test_dir <- tempfile("nextstrain-master-test-")
+dir.create(test_dir)
+master <- data.frame(
+  Key = c("252600001", "252600002", "252600003", "", "252600004"),
+  NGS_LW_ID = c("SEQ1", "SEQ2", "SEQ3", "SEQ4", "SEQ5"),
+  NGS_Sekvens_Resultat = c("A/H1N1", "A/H3N2", "B/Victoria", "A/H1N1", "N1"),
+  Pasient_Fylke_Nr = c("50", "15", "31", "03", "03"),
+  Pasient_Fylke_Name = c("Tr ndelag", "M re g Romsdal", " stfold", "Oslo", "Oslo"),
+  Prove_Tatt = c("2026-10-25", "26.10.2026", "2026-10-27", "2026-10-28", "2026-10-29"),
+  Prove_Innsender_ID = c("AALESUND-MIKR", " AHUS-MIKR ", "UNKNOWN", "AALESUND-MIKR", "AALESUND-MIKR"),
+  Prove_Kategori = c("", "", "Ref", "", ""), stringsAsFactors = FALSE)
+master_path <- file.path(test_dir, "master.csv")
+write.table(master, master_path, sep = ";", row.names = FALSE, na = "", fileEncoding = "UTF-8")
+fasta_path <- file.path(test_dir, "master.fasta")
+writeLines(c(
+  ">SEQ1|01-HA-H1N1 description", "AC", "GT", ">SEQ1|02-NA-H1N1", "AAAC",
+  ">SEQ2|01-HA-H3N2", "CCCC", ">SEQ3|01-HA-Bvic", "GGGG", ">SEQ3|02-NA-Bvic", "TTTT",
+  ">OTHER|01-HA-H1N1", "ACGT"), fasta_path, useBytes = TRUE)
+lab <- data.frame(Innsender_nr = c("AALESUND-MIKR", "AHUS-MIKR", "TOM-MIKR"),
+                  Innsender_navn = c("Helse M\u00f8re og Romsdal", "Akershus", "T\u00f8nsberg"),
+                  GISAID_Id = c("1447", "1433", ""),
+                  `Institution Name` = c("Aalesund Hospital", "Akershus University Hospital", "Unknown"),
+                  check.names = FALSE)
+lab_path <- file.path(test_dir, "Innsender_GISAID.csv")
+write.table(lab, lab_path, sep = ";", quote = FALSE, row.names = FALSE, na = "", fileEncoding = "UTF-8")
+lab <- read_lab_lookup(lab_path)
+stopifnot(lab$Innsender_nr[1] == "AALESUND-MIKR", lab$Innsender_navn[1] == "Helse M\u00f8re og Romsdal")
+cp1252_path <- file.path(test_dir, "lookup-cp1252.csv")
+write.table(lab, cp1252_path, sep = ";", row.names = FALSE, na = "", fileEncoding = "CP1252")
+stopifnot(identical(read_lab_lookup(cp1252_path), lab))
+real_xlsx <- requireNamespace("writexl", quietly = TRUE) && requireNamespace("readxl", quietly = TRUE)
+check_dependencies <- function() invisible(NULL)
+if (!real_xlsx) write_metadata <- function(data, path) {
+  write.table(data, path, sep = "\t", row.names = FALSE, na = "", fileEncoding = "UTF-8")
+}
+output <- file.path(test_dir, "output")
+staging <- file.path(test_dir, "staging")
+main(c("--master", master_path, "--fasta", fasta_path, "--lab", lab_path, "--output", output, "--staging", staging))
+build <- file.path(output, paste0(format(Sys.Date(), "%Y-%m-%d"), "_Nextstrain_Build"))
+expected_files <- as.vector(outer(c("H1", "H3", "VIC"), c("metadata.xlsx", "raw_sequences_ha.fasta", "raw_sequences_na.fasta"), paste, sep = "/"))
+stopifnot(setequal(list.files(build, recursive = TRUE), expected_files),
+          setequal(list.files(staging, recursive = TRUE), expected_files))
+for (f in expected_files) stopifnot(identical(unname(tools::md5sum(file.path(build, f))), unname(tools::md5sum(file.path(staging, f)))))
+metadata <- function(group) {
+  path <- file.path(build, group, "metadata.xlsx")
+  if (real_xlsx) as.data.frame(readxl::read_excel(path), stringsAsFactors = FALSE) else
+    read.delim(path, colClasses = "character", na.strings = character(), check.names = FALSE, fileEncoding = "UTF-8")
+}
+h1 <- metadata("H1"); h3 <- metadata("H3"); vic <- metadata("VIC")
+stopifnot(identical(names(h1), c("Isolate_Name", "Isolate_Id", "Passage_History", "Location", "Authors", "Originating_Lab", "Collection_Date", "Submission_Date")),
+          h1$Isolate_Name == "A/Norway/00001/2026", h1$Location == "Europe / Norway / Tr\u00f8ndelag",
+          h1$Originating_Lab == "1447", h1$Collection_Date == "2026-10-25",
+          h3$Isolate_Name == "A/Norway/00002/2026", h3$Originating_Lab == "1433", h3$Collection_Date == "2026-10-26",
+          vic$Isolate_Name == "252600003", vic$Originating_Lab == "3869")
+stopifnot(identical(readLines(file.path(build, "H1/raw_sequences_ha.fasta")), c(">A/Norway/00001/2026", "ACGT")),
+          identical(readLines(file.path(build, "H1/raw_sequences_na.fasta")), c(">A/Norway/00001/2026", "AAAC")),
+          identical(readLines(file.path(build, "VIC/raw_sequences_ha.fasta")), c(">252600003", "GGGG")),
+          length(readLines(file.path(build, "H3/raw_sequences_na.fasta"))) == 0L)
+# Empty output groups should still produce a valid metadata table with the right columns.
+samples <- prepare_metadata(read_master(master_path), lab)
+empty_lab <- read_master(master_path)
+empty_lab$prove_innsender_id[1] <- "TOM-MIKR"
+stopifnot(prepare_metadata(empty_lab, lab)$originating_lab[1] == "3869")
+err <- tryCatch(prepare_metadata(read_master(master_path), rbind(lab, lab[1, ])),
+                error = function(e) conditionMessage(e))
+stopifnot(grepl("duplicate submitter IDs", err, fixed = TRUE))
+stopifnot(nrow(metadata_for_group(samples[samples$group == "H1", , drop = FALSE], "H3")) == 0L)
+stopifnot(identical(county_from_nr(c("", "", ""), c("Tr ndelag", "M\u00c3\u00b8re og Romsdal", " stfold")),
+                    c("Tr\u00f8ndelag", "M\u00f8re og Romsdal", "\u00d8stfold")))
+ambiguous <- samples
+ambiguous$ngs_lw_id[2] <- ambiguous$ngs_lw_id[1]
+err <- tryCatch(read_sequences(fasta_path, ambiguous), error = function(e) conditionMessage(e))
+stopifnot(grepl("matches multiple master rows", err, fixed = TRUE))
+writeLines(c(">SEQ1|HA", "ACGT", ">SEQ1|01-HA-H1N1", "ACGT"), fasta_path)
+err <- tryCatch(read_sequences(fasta_path, samples), error = function(e) conditionMessage(e))
+stopifnot(grepl("Multiple FASTA records", err, fixed = TRUE))
+unlink(test_dir, recursive = TRUE)
+cat("Nextstrain master CSV integration checks passed", if (!real_xlsx) "(Excel writer substituted; packages not installed)" else "with real XLSX files", "\n")
