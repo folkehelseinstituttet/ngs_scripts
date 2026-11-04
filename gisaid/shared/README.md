@@ -22,6 +22,11 @@ is required; set `GISAID_NODE` to its executable path if `node` is not on PATH.
 This reader uses local/mounted/UNC filesystem access; it does not fetch via SMB
 credentials, contact a server, or upload anything to GISAID.
 
+If the R approval check fails, its error includes the Node.js exit status and
+the reader's diagnostic output (for example, a missing `config.json` or
+unreadable `reviews/`). A missing Node.js executable has a separate error with
+instructions for `GISAID_NODE`. These failures do not write a submission.
+
 The reader uses the same configuration, identifier, fingerprint and review-history
 rules as the solution. Only a single current history head with assessment exactly
 `Approved` passes. Pending, outdated, conflicting, rejected and follow-up rows

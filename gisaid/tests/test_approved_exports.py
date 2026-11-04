@@ -239,6 +239,38 @@ def test_approval_R_adapter_preserves_text_and_current_approved_rows(tmp_path):
     result = subprocess.run(['Rscript', str(script), str(GISAID / 'shared/approval.R'), str(HELPER), str(master)],
                             capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+    assert 'Sequence Review approval filter:' in result.stdout
+
+
+@pytest.mark.parametrize('failure', ['config', 'reviews', 'missing-node', 'helper-output'])
+def test_approval_R_adapter_reports_failure_reason(tmp_path, failure):
+    master, _ = make_dataset(tmp_path, 'INF')
+    helper = HELPER
+    env = dict(os.environ)
+    if failure in {'config', 'reviews'}:
+        missing = master.with_name('config.json' if failure == 'config' else 'reviews')
+        if missing.is_dir():
+            missing.rmdir()
+        else:
+            missing.unlink()
+        expected = ['Approval filter failed:', 'ENOENT', missing.name, 'exit status 1']
+    elif failure == 'missing-node':
+        env['GISAID_NODE'] = str(tmp_path / 'missing node.exe')
+        expected = ['Node.js executable not found:', 'GISAID_NODE']
+    else:
+        helper = tmp_path / 'failing helper.cjs'
+        helper.write_text('console.log("stdout diagnostic"); console.error("stderr diagnostic"); process.exitCode = 23;')
+        expected = ['stdout diagnostic', 'stderr diagnostic', 'exit status 23']
+    script = tmp_path / 'test.R'
+    script.write_text('args <- commandArgs(TRUE)\nsource(args[1])\n'
+                      'read_approved_master(args[2], args[3], "INF")\n')
+    result = subprocess.run(['Rscript', str(script), str(GISAID / 'shared/approval.R'), str(helper), str(master)],
+                            capture_output=True, text=True, env=env, timeout=15)
+    assert result.returncode != 0
+    assert 'no submission was written' in result.stderr
+    for text in expected:
+        assert text in result.stderr
+    assert not list(tmp_path.rglob('approved.csv'))
 
 
 def test_composite_review_keys_match_solution_fingerprints(tmp_path):
