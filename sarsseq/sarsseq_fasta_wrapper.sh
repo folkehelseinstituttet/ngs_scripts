@@ -8,6 +8,7 @@ source ~/miniconda3/etc/profile.d/conda.sh
 # Version: dev
 
 SCRIPT_NAME=$(basename "$0")
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
     echo "Usage: $SCRIPT_NAME [OPTIONS]"
@@ -21,6 +22,10 @@ usage() {
     echo "  -v <validation>    Specify validation flag (e.g., VER)"
     echo "  -b <branch>        Pipeline branch/tag to use (default: master)"
     echo "  -P PATH            PCR JSON file or directory (default: /mnt/tempdata/sars_db/pcr-primers)"
+    echo "  -M                 Skip master CSV and FASTA updates (e.g., for testing)"
+    echo "  Master CSV/FASTA updates default to enabled; SARSSEQ_MASTER_UPDATE=false also disables them."
+    echo "              SARSSEQ_MASTER_CSV sets a mounted master; validation runs skip updates."
+    echo "              See master_csv/README.md for configuration and SARSSEQ_MASTER_TOOLS."
     exit 1
 }
 
@@ -36,11 +41,13 @@ PIPELINE_BRANCH="master"
 PRIMER_CHECK_PCR="${PRIMER_CHECK_PCR:-/mnt/tempdata/sars_db/pcr-primers}"
 PRIMER_CHECK_CONTAINER="${PRIMER_CHECK_CONTAINER:-ghcr.io/rasmuskoriis/primer-checker:latest}"
 PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
+export SARSSEQ_MASTER_UPDATE="${SARSSEQ_MASTER_UPDATE:-true}"
 
 # Parse options
-while getopts "hr:p:a:s:y:v:b:P:" opt; do
+while getopts "hMr:p:a:s:y:v:b:P:" opt; do
     case "$opt" in
         h) usage ;;
+        M) export SARSSEQ_MASTER_UPDATE=false ;;
         r) RUN="$OPTARG" ;;
         p) PRIMER="$OPTARG" ;;
         a) AGENS="$OPTARG" ;;
@@ -58,6 +65,11 @@ if [[ -z "$RUN" || -z "$AGENS" || -z "$YEAR" ]]; then
     echo "ERROR: -r, -a, and -y are required."
     usage
 fi
+
+# Validate master configuration before downloads or analysis.
+# shellcheck source=master_csv/wrapper_integration.sh
+source "$SCRIPT_DIR/master_csv/wrapper_integration.sh"
+sars_master_preflight fasta "$VALIDATION_FLAG"
 
 # Print parsed arguments
 echo "Run: $RUN"
@@ -210,6 +222,11 @@ lcd $LOCAL_UPLOAD_RUN/report
 mput *.csv
 EOF
 fi
+
+QC_REMOTE_DIR="$SMB_DIR/$RUN/report"
+if [ "$SKIP_RESULTS_MOVE" = true ]; then QC_REMOTE_DIR="$SMB_DIR_ANALYSIS"; fi
+echo "Updating SC2 master CSV/FASTA and publishing verified SARS QC"
+sars_master_update fasta "$VALIDATION_FLAG" "$LOCAL_UPLOAD_RUN" "$RUN" false "$QC_REMOTE_DIR"
 
 echo "Done. Final local result location:"
 echo "$LOCAL_UPLOAD_RUN"

@@ -88,39 +88,43 @@ class SMB:
             self.command("rmdir", name)
 
 
-def configuration(environ, validation=""):
-    mode = environ.get("FLUSEQ_MASTER_UPDATE", "auto").lower()
+def configuration(environ, validation="", *, prefix="FLUSEQ", master_share=MASTER_SHARE,
+                  master_directory=MASTER_DIR, metadata_name="NGS_PREP_INF_report.csv"):
+    def setting(name, default=None):
+        return environ.get(f"{prefix}_{name}", default)
+
+    mode = setting("MASTER_UPDATE", "auto").lower()
     if mode not in {"auto", "true", "false"}:
-        raise MergeError("FLUSEQ_MASTER_UPDATE must be auto, true, or false")
+        raise MergeError(f"{prefix}_MASTER_UPDATE must be auto, true, or false")
     if validation:
         return None, "validation run"
     if mode == "false":
-        return None, "FLUSEQ_MASTER_UPDATE=false"
-    configured = any(environ.get(name) for name in (
-        "FLUSEQ_MASTER_CSV", "FLUSEQ_METADATA_CSV", "FLUSEQ_METADATA_SMB_SHARE",
-        "FLUSEQ_MASTER_SMB_SHARE", "FLUSEQ_MASTER_SMB_DIR",
+        return None, f"{prefix}_MASTER_UPDATE=false"
+    configured = any(setting(name) for name in (
+        "MASTER_CSV", "METADATA_CSV", "METADATA_SMB_SHARE",
+        "MASTER_SMB_SHARE", "MASTER_SMB_DIR",
     ))
     if mode == "auto" and not configured:
-        return None, "set FLUSEQ_MASTER_UPDATE=true to use the default shared directory (see master_csv/README.md)"
-    nonempty = environ.get("FLUSEQ_MASTER_NONEMPTY_REPORT", "false").lower()
+        return None, f"set {prefix}_MASTER_UPDATE=true to use the default shared directory (see master_csv/README.md)"
+    nonempty = setting("MASTER_NONEMPTY_REPORT", "false").lower()
     if nonempty not in {"true", "false"}:
-        raise MergeError("FLUSEQ_MASTER_NONEMPTY_REPORT must be true or false")
-    master_name = environ.get("FLUSEQ_MASTER_SMB_NAME", "master.csv")
-    metadata_name = environ.get("FLUSEQ_METADATA_SMB_NAME", "NGS_PREP_INF_report.csv")
+        raise MergeError(f"{prefix}_MASTER_NONEMPTY_REPORT must be true or false")
+    master_name = setting("MASTER_SMB_NAME", "master.csv")
+    metadata_name = setting("METADATA_SMB_NAME", metadata_name)
     for name in (master_name, metadata_name):
         smb_quote(name)
         if "/" in name or "\\" in name or name in {".", ".."}:
             raise MergeError("SMB_NAME must be a filename; configure its directory separately")
-    master = environ.get("FLUSEQ_MASTER_CSV") or None
-    master_share = environ.get("FLUSEQ_MASTER_SMB_SHARE", MASTER_SHARE)
-    master_directory = environ.get("FLUSEQ_MASTER_SMB_DIR", MASTER_DIR)
-    metadata = environ.get("FLUSEQ_METADATA_CSV") or None
-    metadata_share = environ.get("FLUSEQ_METADATA_SMB_SHARE") or None
+    master = setting("MASTER_CSV") or None
+    master_share = setting("MASTER_SMB_SHARE", master_share)
+    master_directory = setting("MASTER_SMB_DIR", master_directory)
+    metadata = setting("METADATA_CSV") or None
+    metadata_share = setting("METADATA_SMB_SHARE") or None
     # Until a separate export location is configured, read metadata beside the master.
     if master and not metadata and not metadata_share:
         metadata = str(Path(master).with_name(metadata_name))
-    auth = environ.get("FLUSEQ_MASTER_SMB_AUTH", "/home/ngs/.smbcreds")
-    metadata_auth = environ.get("FLUSEQ_METADATA_SMB_AUTH", auth)
+    auth = setting("MASTER_SMB_AUTH", "/home/ngs/.smbcreds")
+    metadata_auth = setting("METADATA_SMB_AUTH", auth)
     for label, path in (("master", master), ("metadata", metadata)):
         if path and not Path(path).is_file():
             raise MergeError(f"Configured {label} CSV does not exist: {path}")
@@ -138,7 +142,7 @@ def configuration(environ, validation=""):
         ),
         "metadata_smb": None if metadata else SMB(
             metadata_share or master_share,
-            environ.get("FLUSEQ_METADATA_SMB_DIR", master_directory), metadata_auth,
+            setting("METADATA_SMB_DIR", master_directory), metadata_auth,
         ),
         "master_name": master_name,
         "metadata_name": metadata_name,
@@ -147,7 +151,7 @@ def configuration(environ, validation=""):
     return config, None
 
 
-def update(config, report, workflow, qc_output=None, qc_options=None, fasta=None):
+def update(config, report, workflow, qc_output=None, qc_options=None, fasta=None, *, table_merger=None):
     if fasta:
         from merge_master_fasta import prepare_fasta
         fasta_records = prepare_fasta(config, fasta)  # Validate and snapshot before changing the CSV.
@@ -173,13 +177,14 @@ def update(config, report, workflow, qc_output=None, qc_options=None, fasta=None
         if config["master"] is not None:
             stats = merge_files(
                 config["master"], metadata, report, workflow, nonempty_report=config["nonempty_report"],
+                table_merger=table_merger,
             )
             return finish(stats, config["master"])
         remote, name = config["master_smb"], config["master_name"]
         with remote.lock(name + ".lock"):
             original = directory / "original.csv"
             remote.get(name, original)  # A missing/inaccessible master is never treated as an empty database.
-            headers, rows, stats = merge_tables(
+            headers, rows, stats = (table_merger or merge_tables)(
                 read_table(original), read_table(metadata), read_table(report), workflow,
                 nonempty_report=config["nonempty_report"],
             )

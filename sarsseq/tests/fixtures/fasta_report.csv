@@ -1,0 +1,2 @@
+Sample;RunID;Date;Instrument ID;Primer;Release Version;NGS_Script_vers;coverage;QC_overall_pct;cdsCoverage;NC_Genome_MixedSites;NC_Genome_QC;NC_Genome_frameShifts;Nextclade_pango;partiallyAliased;clade;NGS_QC_Sum;GISAID_Comment
+SEQ1;SART001;2026-02-04;SYNTHETIC;TEST;test;synthetic;0.95;95;S:0.95,E:1,M:1,N:1;0;good;No frameShifts;TEST.1;TEST.1;TEST;;

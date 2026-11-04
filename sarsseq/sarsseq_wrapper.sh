@@ -22,6 +22,7 @@ usage() {
     echo "  -P <path>          PCR JSON file or directory (default: /mnt/tempdata/sars_db/pcr-primers)"
     echo "  -N <dir>           NGS primer assets (default: the sequencing scheme selected with -p)"
     echo "  -o                 Run in offline mode using local cached pipeline/resources"
+    echo "  -M                 Skip master CSV and FASTA updates (e.g., for testing)"
     echo "  --local-fastq-dir <dir>"
     echo "                     Use a local FASTQ samples directory instead of copying from the N-drive"
     echo "  --local-samplesheet <csv>"
@@ -30,6 +31,9 @@ usage() {
     echo "                     Run the FASTA workflow on local FASTA input instead of the FASTQ workflow"
     echo "  --outdir <dir>     Write this run's pipeline output to an explicit local directory"
     echo "  --workdir <dir>    Write this run's Nextflow work directory to an explicit local directory"
+    echo "  Master CSV/FASTA updates default to enabled; SARSSEQ_MASTER_UPDATE=false also disables them."
+    echo "              SARSSEQ_MASTER_CSV sets a mounted master; validation/offline runs skip updates."
+    echo "              See master_csv/README.md for configuration and SARSSEQ_MASTER_TOOLS."
     echo ""
     echo "Offline environment overrides:"
     echo "  BASE_DIR                     Local base directory for temp/cache paths (default: /mnt/tempdata)"
@@ -66,6 +70,7 @@ PRIMER_CHECK_PCR="${PRIMER_CHECK_PCR:-/mnt/tempdata/sars_db/pcr-primers}"
 PRIMER_CHECK_NGS_DIR="${PRIMER_CHECK_NGS_DIR:-}"
 PRIMER_CHECK_CONTAINER="${PRIMER_CHECK_CONTAINER:-ghcr.io/rasmuskoriis/primer-checker:latest}"
 PRIMER_CHECK_ENABLED="${PRIMER_CHECK_ENABLED:-true}"
+export SARSSEQ_MASTER_UPDATE="${SARSSEQ_MASTER_UPDATE:-true}"
 
 # Parse options
 while [ "$#" -gt 0 ]; do
@@ -82,6 +87,7 @@ while [ "$#" -gt 0 ]; do
         -P|--pcr-primers) PRIMER_CHECK_PCR="${2:?Missing value for $1}"; shift 2 ;;
         -N|--ngs-primers) PRIMER_CHECK_NGS_DIR="${2:?Missing value for $1}"; shift 2 ;;
         -o|--offline) OFFLINE_MODE=true; shift ;;
+        -M) export SARSSEQ_MASTER_UPDATE=false; shift ;;
         --local-fastq-dir) LOCAL_FASTQ_DIR="${2:?Missing value for $1}"; shift 2 ;;
         --local-samplesheet) LOCAL_SAMPLESHEET="${2:?Missing value for $1}"; shift 2 ;;
         --local-fasta) LOCAL_FASTA="${2:?Missing value for $1}"; shift 2 ;;
@@ -111,6 +117,12 @@ if [ -z "${RUN}" ] || [ -z "${AGENS}" ] || [ -z "${YEAR}" ]; then
     echo "ERROR: -r <run>, -a <agens>, and -y <year> are required."
     usage
 fi
+
+# Validate master configuration before downloads or analysis.
+# shellcheck source=master_csv/wrapper_integration.sh
+source "$SCRIPT_DIR/master_csv/wrapper_integration.sh"
+MASTER_WORKFLOW="${PIPELINE_FILE%-workflow}"
+sars_master_preflight "$MASTER_WORKFLOW" "$VALIDATION_FLAG" "$OFFLINE_MODE"
 
 # Initialize conda after logging is ready so setup failures are retained.
 CONDA_PROFILE="${CONDA_PROFILE:-$HOME/miniconda3/etc/profile.d/conda.sh}"
@@ -511,6 +523,8 @@ if [ "$PIPELINE_FILE" = "fasta-workflow" ]; then
     echo "Local FASTA input provided; skipping FASTQ copy from the N drive."
 elif [ -n "$LOCAL_FASTQ_DIR" ]; then
     echo "Local FASTQ directory provided; skipping FASTQ copy from the N drive."
+elif [ "$OFFLINE_MODE" = true ]; then
+    echo "Offline mode enabled: using cached FASTQ input under $TMP_DIR/$RUN."
 else
     echo "Copying fastq files from the N drive"
     smbclient "$SMB_HOST" -A "$SMB_AUTH" -D "$SMB_INPUT" <<EOF
@@ -529,10 +543,10 @@ if [ "$PIPELINE_FILE" = "fasta-workflow" ]; then
     SAMPLESHEET=""
 elif [ -n "$LOCAL_FASTQ_DIR" ]; then
     SAMPLEDIR="$LOCAL_FASTQ_DIR"
-    SAMPLESHEET="${LOCAL_SAMPLESHEET:-/mnt/tempdata/fastq/${RUN}.csv}"
+    SAMPLESHEET="${LOCAL_SAMPLESHEET:-$TMP_DIR/${RUN}.csv}"
 else
     SAMPLEDIR=$(find "$TMP_DIR/$RUN" -type d -path "*X*/fastq_pass" -print -quit 2>/dev/null || true)
-    SAMPLESHEET="${LOCAL_SAMPLESHEET:-/mnt/tempdata/fastq/${RUN}.csv}"
+    SAMPLESHEET="${LOCAL_SAMPLESHEET:-$TMP_DIR/${RUN}.csv}"
 fi
 
 if [ "$PIPELINE_FILE" = "fastq-workflow" ] && [ -z "${SAMPLEDIR}" ]; then
@@ -721,6 +735,8 @@ fi
 ################################################################################
 if [ "$OFFLINE_MODE" = true ]; then
     echo "Offline mode enabled: skipping dashboard DB merge/upload and N-drive result upload."
+    WRAPPER_PHASE="Local SARS QC generation"
+    sars_master_update "$MASTER_WORKFLOW" "$VALIDATION_FLAG" "$RUN_OUT" "$RUN" true
     echo "Done. Results are in: $RUN_OUT"
     wrapper_logs_complete "$RUN_OUT"
     exit 0
@@ -801,6 +817,12 @@ mput *.csv
 EOF
     fi
 fi
+
+QC_REMOTE_DIR="$SMB_DIR/$RUN/report"
+if [ "$SKIP_RESULTS_MOVE" = true ]; then QC_REMOTE_DIR="$SMB_DIR_ANALYSIS"; fi
+WRAPPER_PHASE="SC2 master CSV/FASTA update and SARS QC publishing"
+wrapper_logs_status "Updating SC2 master CSV/FASTA and publishing verified SARS QC"
+sars_master_update "$MASTER_WORKFLOW" "$VALIDATION_FLAG" "$RUN_OUT" "$RUN" "$OFFLINE_MODE" "$QC_REMOTE_DIR"
 
 wrapper_logs_status "Required result uploads completed"
 CLEAN_RUN_INPUT=""

@@ -1,5 +1,11 @@
 # SUBMISSION TO GISAID
 
+For the master-based workflow with required current approval in the Sequence
+Review solution, use the [SC2 exporter](sars-cov-2/README_CSV.md) or
+[INF exporter](influenza/README_CSV.md). Approval is an additional requirement;
+existing metadata and QC filters still apply. The database-based preparation
+instructions below describe the legacy workflow and do not apply this gate.
+
 # Table of Contents
 1. [SARS-CoV-2](#sars-cov-2)
 2. [Influenza](#influenza)

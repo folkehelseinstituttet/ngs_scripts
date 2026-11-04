@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@@TITLE@@ · SARS run QC</title>
+<!-- Layout and styling adapted from the Influenza QC report. -->
+<style>
+    :root { --ink:#182e36; --muted:#526871; --teal:#087f78; --border:#d6e2e4; --paper:#fff; --bg:#f1f6f6; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    header { background:#123a43; color:white; padding:38px max(24px,calc((100vw - 1480px)/2)); border-top:6px solid #47c7b3; }
+    .eyebrow { margin:0; color:#9fdfd5; font-size:12px; font-weight:750; letter-spacing:.18em; text-transform:uppercase; }
+    h1 { font-size:clamp(30px,4vw,46px); line-height:1.15; margin:12px 0; overflow-wrap:anywhere; }
+    header p { margin:8px 0; color:#d2e4e7; }
+    .header-line { display:flex; justify-content:space-between; align-items:center; gap:20px; }
+    button,select,input { font:inherit; border:1px solid #a4b9bf; border-radius:7px; padding:9px 12px; color:var(--ink); background:white; }
+    button { cursor:pointer; }
+    button:hover { background:#e5f6f2; }
+    :focus-visible { outline:3px solid #138aaf; outline-offset:3px; }
+    main { max-width:1528px; margin:auto; padding:26px 24px 50px; }
+    h2 { font-size:21px; margin:0 0 12px; letter-spacing:-.02em; }
+    h3 { font-size:16px; margin:0 0 16px; }
+    p { margin:8px 0; }
+    .muted,small { color:var(--muted); }
+    small { display:block; font-size:12px; font-weight:400; }
+    .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px; }
+    .card,.panel { background:var(--paper); border:1px solid var(--border); border-radius:12px; }
+    .card { padding:20px 22px; border-top:4px solid #66838d; }
+    .card.good-card { border-top-color:#178775; }
+    .card.review-card { border-top-color:#bd761b; }
+    .card strong { display:block; font-size:36px; line-height:1.3; font-variant-numeric:tabular-nums; }
+    .card strong.ratio { font-size:25px; padding:7px 0; }
+    .card span { font-size:13px; color:var(--muted); }
+    .panel { padding:23px; margin-bottom:22px; }
+    .assessment { display:inline-block; font-size:14px; font-weight:750; padding:6px 12px; background:#eef3f4; border-radius:6px; }
+    .overview { display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+    .overview .panel { min-width:0; }
+    .notice { border-left:4px solid #bd761b; padding:10px 14px; background:#fff5e6; }
+    ul { padding-left:22px; }
+    li { margin-bottom:7px; }
+    .distribution { display:grid; grid-template-columns:1fr auto; gap:4px 16px; margin:13px 0; }
+    .distribution span { overflow-wrap:anywhere; }
+    progress { grid-column:1 / -1; width:100%; height:6px; border:none; border-radius:8px; background:#e6efef; accent-color:var(--teal); }
+    progress::-webkit-progress-bar { background:#e6efef; border-radius:8px; }
+    progress::-webkit-progress-value { background:var(--teal); border-radius:8px; }
+    progress::-moz-progress-bar { background:var(--teal); border-radius:8px; }
+    .scroll { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    caption { text-align:left; padding:0 0 12px; color:var(--muted); }
+    th,td { padding:11px 10px; text-align:left; border-bottom:1px solid var(--border); vertical-align:top; }
+    thead th { color:#45616a; background:#f2f7f7; font-size:11px; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
+    tbody th { font-weight:650; overflow-wrap:anywhere; }
+    tbody tr:hover { background:#f7fafb; }
+    .metric { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; border:3px solid white; border-radius:5px; }
+    .good { background:#dff3eb; color:#12604e; }
+    .review { background:#fff0d8; color:#8a4d07; }
+    .bad { background:#ffe5e7; color:#9e2731; }
+    .missing { background:#edf0f3; color:#52616e; }
+    .badge { display:inline-block; border-radius:5px; padding:3px 7px; font-size:12px; font-weight:650; white-space:nowrap; }
+    .filters { display:flex; flex-wrap:wrap; align-items:end; gap:13px; margin:18px 0; }
+    label { display:grid; gap:4px; font-size:12px; font-weight:650; }
+    label.search { flex:1; min-width:220px; }
+    .legend { display:flex; flex-wrap:wrap; gap:12px; font-size:12px; margin:12px 0; }
+    .legend span { padding:3px 8px; border-radius:4px; }
+    summary { cursor:pointer; color:#086d68; font-weight:650; }
+    .sample-details { max-width:560px; min-width:300px; white-space:normal; padding-top:12px; overflow-wrap:anywhere; }
+    dl { margin:10px 0; }
+    dt { margin-top:10px; font-size:12px; font-weight:750; }
+    dd { margin:3px 0 0; }
+    footer { font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
+    .empty { padding:18px; color:var(--muted); }
+    .triage-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:18px; }
+    .triage { text-align:left; padding:14px; border-color:var(--border); font-size:13px; }
+    .triage strong { display:block; font-size:25px; color:var(--teal); }
+    .stack { display:flex; width:120px; height:16px; border-radius:4px; overflow:hidden; background:#edf0f3; }
+    .stack .good { background:#48a990; } .stack .review { background:#e6ac51; } .stack .missing { background:#c4cdd4; }
+    nav { display:flex; gap:20px; flex-wrap:wrap; margin-top:18px; } nav a { color:#b8f0e6; }
+    #samples { min-width:1330px; } #indels td { overflow-wrap:anywhere; max-width:450px; }
+    .scroll { max-height:75vh; } thead th { position:sticky; top:0; z-index:1; }
+    [hidden] { display:none !important; }
+    @media(max-width:760px) {
+      .cards { grid-template-columns:repeat(2,1fr); }
+      .overview { grid-template-columns:1fr; gap:0; }
+      .triage-grid { grid-template-columns:repeat(2,1fr); }
+      main { padding:18px 12px; }
+      .panel { padding:17px; }
+      .header-line { align-items:start; }
+    }
+    @media print {
+      @page { size:landscape; margin:12mm; }
+      body { background:white; font-size:11px; }
+      header { padding:12px; color:var(--ink); background:white; }
+      header p,.eyebrow { color:var(--ink); }
+      h1 { font-size:26px; }
+      main { padding:12px 0; }
+      .filters,.print-button,nav,.triage-grid { display:none; }
+      .scroll { overflow:visible; }
+      .scroll { max-height:none; } #samples { min-width:0; } thead th { position:static; }
+      .panel { break-inside:auto; }
+      .card,.distribution,tr { break-inside:avoid; }
+      th,td { padding:5px 3px; }
+      table { font-size:10px; }
+      thead { display:table-header-group; }
+      .metric { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+      .sample-details { min-width:0; max-width:180px; }
+    }
+
+.badge { background:#edf3f4; }
+.run-meta { display:grid; grid-template-columns:minmax(120px, 1fr) 4fr; gap:8px; }
+dd { overflow-wrap:anywhere; margin:0; }
+#samples { min-width:1200px; }
+</style>
+</head>
+<body>
+<header>
+  <p class="eyebrow">SARS-CoV-2 / @@WORKFLOW@@ / Run QC</p>
+  <div class="header-line"><h1>@@TITLE@@</h1><button id="print" class="print-button">Print / save PDF</button></div>
+  <p>Genome quality, lineage assignments and samples needing review</p>
+  <nav aria-label="Report sections"><a href="#samples-title">Sample review</a><a href="#regions-title">Coverage outcomes</a><a href="#indels-title">Indel viewer</a><a href="#rules-title">Assessment rules</a></nav>
+</header>
+<main>
+  <section class="cards" aria-label="Run outcomes">
+    <div class="card"><strong>@@TOTAL@@</strong><span>Samples in report</span></div>
+    <div class="card good-card"><strong class="ratio">@@ASSIGNED@@</strong><span>Reported lineage assignments</span></div>
+    <div class="card review-card"><strong class="ratio">@@UNASSIGNED@@</strong><span>Lineage unavailable</span></div>
+    <div class="card"><strong>@@REVIEW@@</strong><span>Samples needing QC review</span></div>
+  </section>
+  <section class="panel"><h2>Find samples to review</h2><p class="muted">A reported lineage can still have QC flags. Select a finding to filter the sample table.</p><div class="triage-grid">@@TRIAGE@@</div></section>
+  <section class="panel">
+    <h2>Run assessment <span class="assessment">@@ASSESSMENT@@</span></h2>
+    <p>Genome coverage screen: ≥@@COVERAGE_THRESHOLD@@%. CDS coverage screen: ≥@@CDS_THRESHOLD@@%. Review genome mixed sites when &gt;@@MIXED_THRESHOLD@@.</p>
+    <details><summary>Run provenance and availability</summary><dl class="run-meta">@@METADATA@@</dl><ul>@@NOTES@@</ul></details>
+    <p class="muted">All run rows contribute to the counts, including unassigned samples. No controls are automatically excluded. This report does not decide laboratory acceptance.</p>
+  </section>
+  <div class="overview">
+    <section class="panel"><h2>qPCR evidence</h2><p class="muted">SC2 detection results and Ct values from matched master rows. Ct alone is not a positive call. These assays do not establish lineage concordance.</p>@@QPCR_COUNTS@@</section>
+    <section class="panel"><h2>Reported lineages</h2>@@LINEAGE_COUNTS@@<details><summary>Reported clades</summary>@@CLADE_COUNTS@@</details></section>
+  </div>
+  <section class="panel">
+    <h2 id="regions-title">Genome and CDS coverage</h2>
+    <div class="scroll"><table><caption>Pass + low coverage + missing/invalid = all @@TOTAL@@ run samples. Medians exclude unavailable values and retain zero.</caption>
+      <thead><tr><th>Region</th><th>Screen threshold</th><th>Pass</th><th>Low coverage</th><th>Missing / invalid</th><th>Median coverage</th></tr></thead><tbody>@@REGION_ROWS@@</tbody>
+    </table></div>
+    <p class="muted">Genome coverage is the reported reference-genome coverage fraction, shown as percent. CDS coverage is per coding region. Neither is a sequencing-depth measurement.</p>
+  </section>
+  <section class="panel">
+    <h2 id="samples-title">Sample review</h2>
+    <div class="filters">
+      <label class="search">Search samples or findings<input id="search" type="search" placeholder="Sample, barcode, lineage, review reason…"></label>
+      <label>QC assessment<select id="qc"><option value="">All samples</option><option>Review</option><option>No flags</option><option>Unavailable</option></select></label>
+      <label>Lineage<select id="lineage"><option value="">All lineages</option>@@LINEAGES@@</select></label>
+      <label>Finding<select id="finding"><option value="">All findings</option>@@FINDINGS@@</select></label>
+      <label>Region with finding<select id="region"><option value="">Any region</option>@@REGIONS@@</select></label>
+      <label>qPCR evidence<select id="qpcr"><option value="">Any evidence</option>@@QPCR_OPTIONS@@</select></label>
+      <label>Sort by<select id="sort"><option value="priority">Review priority</option><option value="sample">Sample ID</option></select></label>
+      <button id="reset">Reset filters</button><button id="export-samples">Export filtered CSV</button><button id="export-json">Download full JSON</button>
+    </div>
+    <p id="visible-count" role="status" aria-live="polite">@@TOTAL@@ / @@TOTAL@@ samples shown</p>
+    <noscript><p>All samples and details remain available; JavaScript enables filters and downloads.</p></noscript>
+    <div class="scroll"><table id="samples"><caption>Coverage columns show percentages. Details include all CDS source values, availability and review reasons.</caption>
+      <thead><tr><th>Sample</th><th>Lineage / clade</th><th>qPCR</th><th>QC assessment</th><th>Genome</th><th>S</th><th>ORF1a</th><th>ORF1b</th><th>Genome mixed sites</th><th>Nextclade QC</th><th>Review details</th></tr></thead><tbody>@@SAMPLE_ROWS@@</tbody>
+    </table></div><p id="empty" class="empty" hidden>No samples match these filters.</p>
+  </section>
+  <section class="panel">
+    <h2 id="indels-title">Indel and frameshift viewer</h2>
+    <p class="muted">Existing report events only; coordinates and labels are preserved. No new sequence calls are made. Missing fields do not establish absence of events.</p>
+    <div class="filters">
+      <label class="search">Search sample or event<input id="indel-search" type="search"></label>
+      <label>Region<select id="indel-region"><option value="">Any region</option>@@REGIONS@@</select></label>
+      <label>Event type<select id="indel-kind"><option value="">All types</option><option>Deletion</option><option>Insertion</option><option>Frameshift</option></select></label>
+      <button id="indel-reset">Reset</button><button id="export-indels">Export filtered CSV</button>
+    </div>
+    <p id="indel-count" role="status" aria-live="polite">@@EVENT_COUNT@@ reported events</p>
+    <div class="scroll"><table id="indels"><thead><tr><th>Sample</th><th>Region</th><th>Type</th><th>Reported event</th><th>Source field</th></tr></thead><tbody>@@EVENT_ROWS@@</tbody></table></div>
+    <p id="indel-empty" hidden>No reported events match these filters.</p>
+  </section>
+  <section class="panel">
+    <h2 id="rules-title">Assessment rules</h2><ul>@@RULES@@</ul>
+    <p>Genome mixed-site copies are never summed. First-present source precedence and any inconsistent values are recorded in Details and JSON.</p>
+    <p>Influenza segment read counts, IRMA noise, reassortment and Influenza characterisation are not part of this SC2 report. Their absence creates no QC flags. Available drug review codes are displayed as reported and are not clinical susceptibility conclusions.</p>
+  </section>
+  <footer><p>Source: <strong>@@SOURCE@@</strong> · Generator @@VERSION@@ · Fully self-contained; no external requests.</p>
+    <p>Source CSV SHA-256: <code>@@HASH@@</code></p><p>Master: <strong>@@MASTER@@</strong>. Only matched identifiers and SC2 qPCR evidence are included; patient metadata is omitted.</p>
+  </footer>
+</main>
+<script id="report-data" type="application/json">@@JSON@@</script>
+<script>
+"use strict";
+const byId = id => document.getElementById(id);
+const rows = Array.from(document.querySelectorAll('#samples tbody tr'));
+const controls = ['search','qc','lineage','finding','region','qpcr'].map(byId);
+function filterRows() {
+  const [search,qc,lineage,finding,region,qpcr] = controls.map(control => control.value);
+  let visible = 0;
+  for (const row of rows) {
+    const regions = ['coverage','missing','indels','mixed'].includes(finding) ? row.dataset[finding] : row.dataset.regions;
+    row.hidden = !(row.textContent.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())
+      && (!qc || row.dataset.qc === qc) && (!lineage || row.dataset.lineage === lineage)
+      && (!finding || row.dataset.flags.split(' ').includes(finding))
+      && (!region || regions.split(' ').includes(region)) && (!qpcr || row.dataset.qpcr === qpcr));
+    if (!row.hidden) visible++;
+  }
+  byId('visible-count').textContent = `${visible} / ${rows.length} samples shown`;
+  byId('empty').hidden = visible !== 0;
+}
+function sortRows() {
+  const ordered = [...rows].sort((a,b) => byId('sort').value === 'sample'
+    ? a.dataset.sample.localeCompare(b.dataset.sample, undefined, {numeric:true})
+    : Number(b.dataset.priority) - Number(a.dataset.priority) || a.dataset.sample.localeCompare(b.dataset.sample));
+  document.querySelector('#samples tbody').append(...ordered);
+}
+controls.forEach(control => control.addEventListener(control.tagName === 'INPUT' ? 'input' : 'change', filterRows));
+byId('sort').addEventListener('change', sortRows);
+function reset() { controls.forEach(control => {control.value = '';}); byId('sort').value = 'priority'; sortRows(); filterRows(); }
+byId('reset').addEventListener('click', reset);
+document.querySelectorAll('[data-finding]').forEach(button => button.addEventListener('click', () => {
+  reset(); byId('finding').value = button.dataset.finding; filterRows(); byId('samples-title').scrollIntoView({behavior:'smooth'});
+}));
+const events = Array.from(document.querySelectorAll('#indels tbody tr'));
+function filterEvents() {
+  let visible = 0;
+  for (const row of events) {
+    row.hidden = !(row.textContent.toLocaleLowerCase().includes(byId('indel-search').value.trim().toLocaleLowerCase())
+      && (!byId('indel-region').value || row.dataset.region === byId('indel-region').value)
+      && (!byId('indel-kind').value || row.dataset.kind === byId('indel-kind').value));
+    if (!row.hidden) visible++;
+  }
+  byId('indel-count').textContent = `${visible} / ${events.length} reported events shown`;
+  byId('indel-empty').hidden = visible !== 0;
+}
+byId('indel-search').addEventListener('input', filterEvents);
+['indel-region','indel-kind'].forEach(id => byId(id).addEventListener('change', filterEvents));
+byId('indel-reset').addEventListener('click', () => { ['indel-search','indel-region','indel-kind'].forEach(id => {byId(id).value = '';}); filterEvents(); });
+function download(content, type, filename) {
+  const url = URL.createObjectURL(new Blob([content], {type}));
+  const link = document.createElement('a'); link.href = url; link.download = filename;
+  document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportCSV(selector, headers, filename) {
+  const values = [headers, ...Array.from(document.querySelectorAll(selector)).filter(row => !row.hidden).map(row => JSON.parse(row.dataset.export))];
+  const cell = value => {
+    let text = value == null ? '' : String(value);
+    if (/^\s*[=+@-]/.test(text) || /^[\t\r\n]/.test(text)) text = "'" + text;
+    return '"' + text.replace(/"/g, '""') + '"';
+  };
+  download('\uFEFF' + values.map(row => row.map(cell).join(',')).join('\r\n'), 'text/csv;charset=utf-8', filename);
+}
+byId('export-samples').addEventListener('click', () => exportCSV('#samples tbody tr',
+  ['Sample','Lineage','Clade','QC assessment','qPCR evidence','Nextclade QC','Genome mixed sites',
+   'Genome coverage','S coverage','ORF1a coverage','ORF1b coverage','E coverage','M coverage','N coverage',
+   'ORF3a coverage','ORF6 coverage','ORF7a coverage','ORF7b coverage','ORF8 coverage','ORF9b coverage','Review reasons'], 'sars_qc_samples.csv'));
+byId('export-indels').addEventListener('click', () => exportCSV('#indels tbody tr', ['Sample','Region','Type','Reported event','Source field'], 'sars_qc_indels.csv'));
+byId('export-json').addEventListener('click', () => download(JSON.stringify(JSON.parse(byId('report-data').textContent), null, 2), 'application/json', 'sars_qc.json'));
+byId('print').addEventListener('click', () => window.print());
+sortRows(); filterRows(); filterEvents();
+</script>
+</body>
+</html>

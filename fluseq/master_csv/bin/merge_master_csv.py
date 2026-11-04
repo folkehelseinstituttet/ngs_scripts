@@ -411,7 +411,9 @@ def master_lock(master):
         lock.rmdir()
 
 
-def merge_files(master, metadata, report, workflow, output=None, assets=ASSETS, nonempty_report=False, encoding="auto"):
+def merge_files(master, metadata, report, workflow, output=None, assets=ASSETS, nonempty_report=False, encoding="auto", *, table_merger=None):
+    # Other surveillance schemas can reuse the same locked/verified transaction.
+    table_merger = table_merger or merge_tables
     master, metadata, report = (Path(path).resolve() for path in (master, metadata, report))
     output = Path(output).resolve() if output else master
     if master in (metadata, report) or output in (metadata, report):
@@ -421,7 +423,7 @@ def merge_files(master, metadata, report, workflow, output=None, assets=ASSETS, 
         raise MergeError("Preview output already exists; choose a new path")
     with master_lock(master):
         original = digest(master)
-        headers, rows, stats = merge_tables(
+        headers, rows, stats = table_merger(
             read_table(master, encoding), read_table(metadata, encoding), read_table(report, encoding),
             workflow, assets, nonempty_report,
         )

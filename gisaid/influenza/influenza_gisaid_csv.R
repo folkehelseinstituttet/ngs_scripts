@@ -1,13 +1,13 @@
 # CSV-based influenza GISAID submission.
-# Usage: Rscript influenza_gisaid_csv.R RUNID [master.csv]
+# Usage: Rscript influenza_gisaid_csv.R RUNID [master.csv] [lab_lookup.csv] [output_dir]
 # FASTA files must be in the same directory as master.csv. Headers must have
 # NGS_LW_ID and segment, e.g. >2820073-INFA|01-HA-H1N1.
 # The output uses master Key in the submission headers.
-# Capture command-line arguments
-args <- commandArgs(trailingOnly = TRUE)
+# In the R console, set gisaid_args <- c("RUNID", ...) before source().
+args <- if (exists("gisaid_args", inherits = FALSE)) gisaid_args else commandArgs(trailingOnly = TRUE)
 
-if (length(args) < 1) {
-  stop("Missing required argument: SID (RunID).")
+if (!is.character(args) || length(args) < 1 || anyNA(args) || !nzchar(trimws(args[1]))) {
+  stop('Missing RunID. Use Rscript with RUNID, or set gisaid_args <- c("RUNID") before source().')
 }
 
 # Assign the arguments to variables
@@ -16,9 +16,42 @@ SID <- args[1]  # RunID from argument
 master_path <- if (length(args) >= 2) args[2] else
   "N:/Virologi/NGS/1-NGS-Analyser/2-Utvikling/Seksjons for Influensa og andre luftveisvirus - NGS analysis database/data/INF/master.csv"
 if (!file.exists(master_path)) stop("Master CSV not found: ", master_path)
+if (length(args) > 4) stop("Expected RUNID [master.csv] [lab_lookup.csv] [output_dir].")
+lab_path <- if (length(args) >= 3) args[3] else
+  "N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender_GISAID.csv"
+submission_dir <- if (length(args) >= 4) args[4] else
+  "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/10-GISAID"
+locate_gisaid_shared <- function() {
+  complete <- function(directory) all(file.exists(file.path(directory,
+    c("approval.R", "approved_master.cjs", "sequence_review_core.cjs"))))
+  override <- Sys.getenv("GISAID_SHARED_DIR", unset = "")
+  if (nzchar(override)) {
+    if (!complete(override)) stop("GISAID_SHARED_DIR must contain the complete gisaid/shared directory.")
+    return(normalizePath(override, mustWork = TRUE))
+  }
+  # source() supplies ofile in its call frame; prefer it over an outer Rscript.
+  source_files <- unlist(lapply(sys.frames(), function(frame) {
+    value <- get0("ofile", envir = frame, inherits = FALSE)
+    if (is.character(value)) value else character()
+  }), use.names = FALSE)
+  cli_files <- sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE))
+  script_files <- c(rev(source_files), cli_files)
+  script_files <- script_files[!is.na(script_files) & nzchar(script_files)]
+  candidates <- c(file.path(dirname(script_files), "..", "shared"),
+                  file.path(getwd(), "gisaid", "shared"),
+                  file.path(getwd(), "shared"), file.path(getwd(), "..", "shared"))
+  for (directory in unique(candidates)) {
+    if (complete(directory)) return(normalizePath(directory, mustWork = TRUE))
+  }
+  stop(paste('Cannot locate gisaid/shared. Use source() with the full script path,',
+             'run console selections from the repository, gisaid or influenza directory,',
+             'or set GISAID_SHARED_DIR to the complete shared directory.'))
+}
+shared_dir <- locate_gisaid_shared()
+source(file.path(shared_dir, "approval.R"))
+approval_helper <- file.path(shared_dir, "approved_master.cjs")
 
 library(lubridate)
-library(tidyverse)
 library(stringr)
 library(magrittr)
 library(dplyr)
@@ -69,18 +102,17 @@ Sequencing_Strategy <- "Targeted-amplification "
 
 # Read originating-lab IDs from the semicolon-delimited submitter lookup
 Lab_ID <- readr::read_delim(
-  "N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender_GISAID.csv",
+  lab_path,
   delim = ";",
   col_types = readr::cols(.default = readr::col_character()),
   trim_ws = TRUE
 ) %>%
   select(Innsender_nr, GISAID_Id)
 
-# Preserve identifiers and literal NA text as strings, including leading zeroes.
-fludb <- readr::read_delim(master_path, delim = ";",
-  col_types = readr::cols(.default = readr::col_character()),
-  na = character(), trim_ws = FALSE, name_repair = "minimal", show_col_types = FALSE)
-if (nrow(readr::problems(fludb))) stop("Could not parse master CSV.")
+# Require a current, conflict-free Approved review before existing metadata/QC filters.
+# This reads config.json and reviews/ beside master.csv, without modifying them.
+approved_snapshot <- read_approved_master(approval_helper, master_path, "INF")
+fludb <- tibble::as_tibble(approved_snapshot$rows, .name_repair = "minimal")
 required <- c("Key", "NGS_Run_ID", "NGS_Sekvens_Resultat", "GISAID_Kommentar",
   "Pasient_Fylke_Nr", "Pasient_Alder", "Prove_Tatt", "Pasient_Kjnn",
   "Prove_Innsender_ID", "Pasient_Fylke_Name", "Pasient_Status", "Prove_Kategori",
@@ -91,7 +123,8 @@ missing <- setdiff(required, names(fludb))
 if (length(missing)) stop("Missing master CSV columns: ", paste(missing, collapse = ", "))
 fludb <- fludb[, required]
 names(fludb) <- tolower(names(fludb))
-master_id_map <- fludb[, c("key", "ngs_lw_id")]
+master_id_map <- approved_snapshot$identities[, c("Key", "NGS_LW_ID")]
+names(master_id_map) <- c("key", "ngs_lw_id")
 
 # Proceed with data filtering and selection
 fludb <- fludb %>%
@@ -409,7 +442,7 @@ submission <- tmp %>%
   select(all_of(desired_order))
 
 # Define the output file path and filename
-output_dir <- "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/10-GISAID"
+output_dir <- submission_dir
 output_filename_excel <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".xlsx")
 output_path_excel <- file.path(output_dir, output_filename_excel)
 
@@ -417,7 +450,7 @@ output_path_excel <- file.path(output_dir, output_filename_excel)
 # write.xlsx(submission, output_path_excel, rownames = FALSE)
 
 # Set the output file path and filename for CSV
-output_dir_csv <- "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/10-GISAID"
+output_dir_csv <- submission_dir
 output_filename_csv <- paste0("GISAID SUBMISSION - ", format(Sys.Date(), "%U-%Y"), ".csv")
 output_path_csv <- file.path(output_dir_csv, output_filename_csv)
 
@@ -494,6 +527,7 @@ if (!nrow(filtered_seq)) stop("All matching FASTA segments were excluded by QC."
 if (any(!submission$Submitting_Sample_Id %in% filtered_seq$key)) {
   stop("At least one sample has no FASTA segment remaining after QC.")
 }
+approval_command(approval_helper, master_path, "INF", "--expect-token", approved_snapshot$token)
 write.csv(submission, output_path_csv, row.names = FALSE, fileEncoding = "UTF-8")
 fasta_lines <- unlist(lapply(seq_len(nrow(filtered_seq)), function(i) {
   c(paste0(">", filtered_seq$experiment[i], "|", filtered_seq$key[i]), filtered_seq$sequence[i])

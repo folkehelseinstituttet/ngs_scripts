@@ -8,13 +8,42 @@ quoted in PowerShell.
 
 ## Prepare a submission
 
-Install R packages `tidyverse` and `lubridate`, then run:
+Install Node.js 18+ and R packages `readr`, `dplyr`, `tidyr`, `tibble`, `purrr`,
+`stringr`, `magrittr` and `lubridate` (an existing `tidyverse` installation supplies
+the relevant packages), then run:
 
 ```powershell
 Rscript .\influenza\influenza_gisaid_csv.R "RUNID"
 # Optional alternative master path:
 Rscript .\influenza\influenza_gisaid_csv.R "RUNID" "C:\path\to\master.csv"
+# Optional lab lookup and output directory; existing defaults are retained:
+Rscript .\influenza\influenza_gisaid_csv.R "RUNID" "C:\data\INF\master.csv" "C:\data\Innsender_GISAID.csv" "C:\submission-review"
 ```
+
+In the R/RStudio console, set the arguments explicitly and source the script:
+
+```r
+gisaid_args <- c("RUNID")
+source("C:/path/to/ngs_scripts/gisaid/influenza/influenza_gisaid_csv.R")
+# Optional paths use the same order as the command-line arguments:
+# gisaid_args <- c("RUNID", "C:/data/INF/master.csv", "C:/data/Innsender_GISAID.csv", "C:/submission-review")
+```
+
+The full `source()` path locates the shared helpers even when the working directory
+is elsewhere. When running selected lines instead, use the repository root,
+`gisaid`, or `gisaid/influenza` as the working directory. For another layout, set
+`Sys.setenv(GISAID_SHARED_DIR = "C:/path/to/ngs_scripts/gisaid/shared")` before
+running the code. Keep all shared files together. These launch methods still use
+the Node.js approval reader described below.
+
+Only samples with a **current, conflict-free Approved decision in Sequence
+Review** are eligible. The exporter reads `config.json` and `reviews/` beside
+the selected master. Missing approval storage fails; unreviewed, outdated,
+conflicting, rejected and follow-up decisions are excluded. There is no bypass.
+Current approved manual overrides are applied before the existing metadata and
+QC filters. A CSV `NGS_QC_Assessment` value alone does not establish approval.
+See the [shared approval rules](../shared/README.md), including legacy IDs and
+the `GISAID_NODE` executable override. Master and reviews remain read-only.
 
 The script reads FASTA files (`.fasta`, `.fa`, `.fna` or `.fas`) in the same
 folder as the master. The first `|`-delimited header field must match the master
@@ -25,12 +54,16 @@ and counted in the console output; duplicate nonempty keys still cause an error.
 If every eligible row lacks a key, the script stops without a submission. `M` is
 converted to `MP`. Matching duplicate sample/segment
 records cause an error. The script
-filters the run and applies the existing `NGS_QC_Sum` rules to both the metadata
+filters the run, keeps the existing subtype/result and GISAID-comment exclusions,
+and applies the existing `NGS_QC_Sum` rules to both the metadata
 and the output FASTA. The metadata and FASTA are written to the original
 `10-GISAID` output directory, using the original week-based filenames. Running
 again in the same week overwrites those output files. The existing `Innsender_GISAID.csv` lookup remains necessary.
 Known damaged county names `Tr ndelag`, `M re g Romsdal`, and ` stfold` are
 also repaired in the submission CSV, including when reading an older master.
+Approval/master inputs are checked again before output. Regenerate after any
+later result or review changes. The legacy SQL-based exporter does not implement
+this gate; use `influenza_gisaid_csv.R` for the approved master-based workflow.
 
 ## Import accession IDs
 
