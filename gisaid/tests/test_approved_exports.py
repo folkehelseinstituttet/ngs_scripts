@@ -358,7 +358,9 @@ def test_sc2_missing_lab_address_is_reported_without_inventing_one(tmp_path):
 
 
 @pytest.mark.parametrize('launch', ['source', 'source-from-wrapper', 'console-repo', 'console-gisaid',
-                                  'console-influenza', 'console-override'])
+                                  'console-influenza', 'console-override',
+                                  pytest.param('console-default-share', marks=pytest.mark.skipif(
+                                      os.name == 'nt', reason='Simulated N: directory is Linux-only; never write a real mapped drive'))])
 def test_inf_source_and_console_launches_without_script_file_argument(tmp_path, r_exporter, launch):
     master, rows = make_dataset(tmp_path, 'INF')
     review(master, rows[0], 'current')
@@ -383,9 +385,14 @@ def test_inf_source_and_console_launches_without_script_file_argument(tmp_path, 
         # eval(parse()) simulates console selections: no source frame or --file.
         code += 'eval(parse(text=readLines(Sys.getenv("TEST_SCRIPT"))), envir=.GlobalEnv)'
         cwd = {'console-repo': checkout, 'console-gisaid': checkout / 'gisaid',
-               'console-influenza': script.parent, 'console-override': tmp_path}[launch]
+               'console-influenza': script.parent, 'console-override': tmp_path,
+               'console-default-share': tmp_path}[launch]
         if launch == 'console-override':
             env['GISAID_SHARED_DIR'] = str(shared)
+        if launch == 'console-default-share':
+            # On Linux N:/ is an ordinary relative path within this isolated test.
+            # Execute console code from elsewhere with no helper-path override.
+            shutil.copytree(shared, tmp_path / 'N:/Virologi/NGS/tmp/ngs_scripts/gisaid/shared')
     command = ['Rscript', '-e', code]
     if launch == 'source-from-wrapper':
         wrapper = tmp_path / 'outer script.R'

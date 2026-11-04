@@ -1,5 +1,11 @@
 # SC2 deployment and acceptance checks
 
+On the submission workstation, store the complete checkout at
+`N:/Virologi/NGS/tmp/ngs_scripts` (the folder name includes the final `s`).
+The INF R script has that shared-helper location as a built-in fallback for
+console selections. SC2 uses its own script location. Existing master/data
+locations are already configured separately.
+
 Deploy the complete `ngs_scripts` checkout, including `fluseq/master_csv`,
 `sarsseq/master_csv`, `gisaid/shared` and both GISAID directories. The R script
 locates shared files using its `source()` path or the documented shared-directory

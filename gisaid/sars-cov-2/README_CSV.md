@@ -12,8 +12,12 @@ readers and the approval reader are used. See the
 
 ## Run
 
+Store the complete checkout at `N:/Virologi/NGS/tmp/ngs_scripts`. SC2 finds its
+shared code relative to the script, independent of the current working directory.
+The default master, lab and output locations below are already configured.
+
 ```powershell
-python .\gisaid\sars-cov-2\sc2_gisaid_csv.py RUNID GISAID_USERNAME --assembly-method "Verified assembly method for this run"
+python "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/sars-cov-2/sc2_gisaid_csv.py" RUNID GISAID_USERNAME --assembly-method "Verified assembly method for this run"
 ```
 
 For mounted/custom paths and a new local output prefix:
@@ -107,8 +111,8 @@ Use a mounted drive or UNC path; this standalone importer does not invoke
 `smbclient`. The default master is the same SC2 N-drive path as the exporter.
 
 ```powershell
-python .\gisaid\sars-cov-2\import_gisaid_accessions.py --master "N:/path/data/SC2/master.csv" --dry-run "C:/Downloads/gisaid_metadata.tsv"
-python .\gisaid\sars-cov-2\import_gisaid_accessions.py --master "N:/path/data/SC2/master.csv" "C:/Downloads/gisaid_metadata.tsv"
+python "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/sars-cov-2/import_gisaid_accessions.py" --dry-run "C:/Downloads/gisaid_metadata.tsv"
+python "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/sars-cov-2/import_gisaid_accessions.py" "C:/Downloads/gisaid_metadata.tsv"
 ```
 
 Pass multiple returned TSV/CSV files in one invocation if needed. Standard

@@ -20,18 +20,22 @@ Rscript .\influenza\influenza_gisaid_csv.R "RUNID" "C:\path\to\master.csv"
 Rscript .\influenza\influenza_gisaid_csv.R "RUNID" "C:\data\INF\master.csv" "C:\data\Innsender_GISAID.csv" "C:\submission-review"
 ```
 
-In the R/RStudio console, set the arguments explicitly and source the script:
+The standard code location is `N:/Virologi/NGS/tmp/ngs_scripts`. Store the complete
+checkout there, keeping the folder name `ngs_scripts`. In the R/RStudio console:
 
 ```r
 gisaid_args <- c("RUNID")
-source("C:/path/to/ngs_scripts/gisaid/influenza/influenza_gisaid_csv.R")
+source("N:/Virologi/NGS/tmp/ngs_scripts/gisaid/influenza/influenza_gisaid_csv.R")
 # Optional paths use the same order as the command-line arguments:
 # gisaid_args <- c("RUNID", "C:/data/INF/master.csv", "C:/data/Innsender_GISAID.csv", "C:/submission-review")
 ```
 
 The full `source()` path locates the shared helpers even when the working directory
-is elsewhere. When running selected lines instead, use the repository root,
-`gisaid`, or `gisaid/influenza` as the working directory. For another layout, set
+is elsewhere. When running selected lines instead, the script also checks
+`N:/Virologi/NGS/tmp/ngs_scripts/gisaid/shared` automatically, so no working-directory
+or helper-path setting is needed for the standard installation. Source-relative
+and repository working-directory detection still support other checkouts. An
+explicit `GISAID_SHARED_DIR` overrides detection and must be valid. For another layout, set
 `Sys.setenv(GISAID_SHARED_DIR = "C:/path/to/ngs_scripts/gisaid/shared")` before
 running the code. Keep all shared files together. These launch methods still use
 the Node.js approval reader described below.

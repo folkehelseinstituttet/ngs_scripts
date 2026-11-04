@@ -22,6 +22,8 @@ lab_path <- if (length(args) >= 3) args[3] else
 submission_dir <- if (length(args) >= 4) args[4] else
   "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/Influensa/10-GISAID"
 locate_gisaid_shared <- function() {
+  # Standard workstation checkout; also supports pasted/selected code in R.
+  default_shared <- "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/shared"
   complete <- function(directory) all(file.exists(file.path(directory,
     c("approval.R", "approved_master.cjs", "sequence_review_core.cjs"))))
   override <- Sys.getenv("GISAID_SHARED_DIR", unset = "")
@@ -39,11 +41,13 @@ locate_gisaid_shared <- function() {
   script_files <- script_files[!is.na(script_files) & nzchar(script_files)]
   candidates <- c(file.path(dirname(script_files), "..", "shared"),
                   file.path(getwd(), "gisaid", "shared"),
-                  file.path(getwd(), "shared"), file.path(getwd(), "..", "shared"))
+                  file.path(getwd(), "shared"), file.path(getwd(), "..", "shared"),
+                  default_shared)
   for (directory in unique(candidates)) {
     if (complete(directory)) return(normalizePath(directory, mustWork = TRUE))
   }
-  stop(paste('Cannot locate gisaid/shared. Use source() with the full script path,',
+  stop(paste('Cannot locate gisaid/shared. Expected the complete checkout at',
+             'N:/Virologi/NGS/tmp/ngs_scripts. Use source() with the full script path,',
              'run console selections from the repository, gisaid or influenza directory,',
              'or set GISAID_SHARED_DIR to the complete shared directory.'))
 }
