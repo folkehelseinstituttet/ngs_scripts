@@ -27,6 +27,7 @@ MASTER = ('N:/Virologi/NGS/1-NGS-Analyser/2-Utvikling/'
 LABS = 'N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender_GISAID.csv'
 OUTDIR = 'N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/4-GISAIDsubmisjon'
 AUTHORS = 'Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; Knutsen, MF'
+ASSEMBLY_METHOD = 'ARTIC 1.6.2'
 SUBMITTING_LAB = 'Norwegian Institute of Public Health, Department of Virology'
 SUBMITTING_ADDRESS = 'P.O.Box 222 Skoyen, 0213 Oslo, Norway'
 COLUMNS = ['submitter', 'fn', 'covv_virus_name', 'covv_type', 'covv_passage',
@@ -246,7 +247,8 @@ def main():
     parser.add_argument('--lab-lookup', type=Path, default=Path(LABS))
     parser.add_argument('--output-dir', type=Path, default=Path(OUTDIR))
     parser.add_argument('--prefix', help='New output filename prefix; default matches the legacy week/year name')
-    parser.add_argument('--assembly-method', required=True, help='Verified assembly method for this run')
+    parser.add_argument('--assembly-method', default=ASSEMBLY_METHOD,
+                        help='Assembly software recorded in metadata (default: %(default)s); override for historical/external assemblies')
     parser.add_argument('--sequencing-technology', default='Oxford Nanopore - GridION')
     parser.add_argument('--authors', default=AUTHORS)
     args = parser.parse_args()

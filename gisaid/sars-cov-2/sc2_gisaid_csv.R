@@ -1,5 +1,6 @@
-# R-only SC2 GISAID export. Usage: Rscript sc2_gisaid_csv.R RUNID USER --assembly-method METHOD [options]
-# In RStudio set gisaid_args <- c("RUNID", "USER", "--assembly-method", "METHOD") before source().
+# R-only SC2 GISAID export. Usage: Rscript sc2_gisaid_csv.R RUNID USER [options]
+# In RStudio set gisaid_args <- c("RUNID", "USER") before source().
+# Assembly method defaults to ARTIC 1.6.2; --assembly-method METHOD overrides it.
 args <- if (exists("gisaid_args", inherits = FALSE)) gisaid_args else commandArgs(trailingOnly = TRUE)
 locate_gisaid_shared <- function() {
   complete <- function(directory) all(file.exists(file.path(directory, "approval.R"))) &&
@@ -24,10 +25,10 @@ locate_gisaid_shared <- function() {
 }
 if (!is.character(args) || anyNA(args)) stop("gisaid_args must be a character vector without missing values.", call. = FALSE)
 if (identical(args, "--help")) {
-  cat("Usage: Rscript sc2_gisaid_csv.R RUNID USER --assembly-method METHOD [options]\n",
-      "Options: --master --fasta --lab-lookup --output-dir --prefix --sequencing-technology --authors\n", sep = "")
+  cat("Usage: Rscript sc2_gisaid_csv.R RUNID USER [options]\n",
+      "Options: --assembly-method --master --fasta --lab-lookup --output-dir --prefix --sequencing-technology --authors\n", sep = "")
 } else {
-  if (length(args) < 2L) stop('Provide RUNID USER --assembly-method METHOD, using Rscript or gisaid_args before source().', call. = FALSE)
+  if (length(args) < 2L) stop('Provide RUNID USER, using Rscript or gisaid_args before source().', call. = FALSE)
   shared_dir <- locate_gisaid_shared()
   source(file.path(shared_dir, "approval.R"), encoding = "UTF-8")
   source(file.path(shared_dir, "..", "sars-cov-2", "sc2_export.R"), encoding = "UTF-8")

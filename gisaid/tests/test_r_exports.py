@@ -318,3 +318,59 @@ def test_r_detects_input_change_during_approval_loading(tmp_path):
     result = subprocess.run(['Rscript', '-e', code, str(GISAID / 'shared/approval.R'), str(master)],
                             capture_output=True, text=True, timeout=30)
     assert result.returncode != 0 and 'changed while reading' in result.stderr
+
+
+@pytest.mark.parametrize('exporter', ['R', 'Python'])
+@pytest.mark.parametrize('method', [None, 'Verified historical method'])
+def test_sc2_assembly_method_default_and_override(tmp_path, exporter, method):
+    from test_approved_exports import sc2_command
+    master, rows = make_dataset(tmp_path)
+    review(master, rows[0], 'current')
+    command = r_sc2_command(master, tmp_path) if exporter == 'R' else sc2_command(master, tmp_path)
+    option = command.index('--assembly-method')
+    if method is None:
+        del command[option:option + 2]
+    else:
+        command[option + 1] = method
+    env = {**os.environ, 'TZ': 'UTC'}
+    if exporter == 'R': env['GISAID_NODE'] = '/missing/node'
+    result = subprocess.run(command, capture_output=True, text=True, env=env, timeout=60)
+    assert result.returncode == 0, result.stderr
+    output = tmp_path / ('r-output' if exporter == 'R' else 'output') / 'synthetic.csv'
+    import csv
+    with output.open() as handle:
+        submission = list(csv.DictReader(handle))
+    assert submission[0]['covv_assembly_method'] == (method or 'ARTIC 1.6.2')
+
+
+@pytest.mark.parametrize('pathogen', ['INF', 'SC2'])
+@pytest.mark.skipif(os.name == 'nt', reason='Simulated N: drive is local to a Linux test; never write a real mapped drive')
+def test_r_exporters_accept_only_run_and_user_with_standard_defaults(tmp_path, pathogen):
+    from test_approved_exports import INF
+    master, rows = make_dataset(tmp_path, pathogen)
+    review(master, rows[0], 'current')
+    # Mirror the documented N: layout inside the temporary working directory.
+    dataset = tmp_path / ('N:/Virologi/NGS/1-NGS-Analyser/2-Utvikling/'
+        f'Seksjons for Influensa og andre luftveisvirus - NGS analysis database/data/{pathogen}')
+    shutil.copytree(master.parent, dataset)
+    lab = tmp_path / 'N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender_GISAID.csv'
+    lab.parent.mkdir(parents=True)
+    shutil.copyfile(tmp_path / 'labs.csv', lab)
+    destination = ('Influensa/10-GISAID' if pathogen == 'INF' else 'SARS-CoV-2/4-GISAIDsubmisjon')
+    output = tmp_path / f'N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/{destination}'
+    output.mkdir(parents=True)
+    script = INF if pathogen == 'INF' else GISAID / 'sars-cov-2/sc2_gisaid_csv.R'
+    result = subprocess.run(['Rscript', str(script), 'RUN', 'synthetic-user'], cwd=tmp_path,
+                            capture_output=True, text=True, timeout=60,
+                            env={**os.environ, 'GISAID_NODE': '/missing/node', 'TZ': 'UTC'})
+    assert result.returncode == 0, result.stderr
+    import csv
+    with next(output.glob('*.csv')).open() as handle:
+        submission = list(csv.DictReader(handle))
+    assert len(submission) == 1 and next(output.glob('*.fasta')).read_text().startswith('>')
+    if pathogen == 'SC2':
+        assert submission[0]['submitter'] == 'synthetic-user'
+        assert submission[0]['covv_assembly_method'] == 'ARTIC 1.6.2'
+    else:
+        assert submission[0]['Submitting_Sample_Id'] == rows[0]['Key']
+        assert submission[0]['Assembly_Method'] == 'IRMA FLU-minion'

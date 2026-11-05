@@ -21,13 +21,13 @@ shared code relative to the script, independent of the current working directory
 The default master, lab and output locations below are already configured.
 
 ```powershell
-Rscript "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/sars-cov-2/sc2_gisaid_csv.R" RUNID GISAID_USERNAME --assembly-method "Verified assembly method for this run"
+Rscript "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/sars-cov-2/sc2_gisaid_csv.R" RUNID GISAID_USERNAME
 ```
 
 In RStudio, set the same arguments before sourcing the full path:
 
 ```r
-gisaid_args <- c("RUNID", "GISAID_USERNAME", "--assembly-method", "Verified assembly method for this run")
+gisaid_args <- c("RUNID", "GISAID_USERNAME")
 source("N:/Virologi/NGS/tmp/ngs_scripts/gisaid/sars-cov-2/sc2_gisaid_csv.R", encoding = "UTF-8")
 ```
 
@@ -46,11 +46,14 @@ Rscript gisaid/sars-cov-2/sc2_gisaid_csv.R RUNID GISAID_USERNAME \
   --assembly-method 'Verified assembly method for this run'
 ```
 
-The assembly method must be explicitly supplied: the old script's hardcoded IRMA
-method is not assumed to describe a current SC2 run. The technology defaults to
-the legacy `Oxford Nanopore - GridION`; override `--sequencing-technology` for
-other runs. `--authors` overrides the legacy author list. Check both against the
-run before preparing a submission.
+The assembly method records the software used to generate the consensus sequence;
+it does not run assembly. It defaults to `ARTIC 1.6.2`, matching the ARTIC version
+declared by the current SC2 pipeline checkout. For historical runs or externally
+assembled FASTAs, use `--assembly-method "Actual software and version"` to record
+their original method. The Python alternative uses the same default and override.
+The technology defaults to the legacy `Oxford Nanopore - GridION`; override
+`--sequencing-technology` for other runs. `--authors` overrides the legacy author
+list. Check these values against the run before preparing a submission.
 
 Defaults:
 
@@ -59,6 +62,7 @@ Defaults:
 - Lab lookup: `N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender_GISAID.csv`.
 - Output: `N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/4-GISAIDsubmisjon`.
 - Prefix: `GISAID SUBMISSION - <week>-<year>`, matching the legacy naming scheme.
+- Assembly method: `ARTIC 1.6.2`; override for historical or external assemblies.
 
 Existing output files are never overwritten. Choose a new `--prefix` or directory
 for a new export. The manifest is written last; use a submission only after a

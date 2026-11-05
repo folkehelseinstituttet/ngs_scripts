@@ -7,6 +7,28 @@ existing metadata and QC filters still apply. Both submission exporters can run
 entirely in R, without installing Node.js or Python. The database-based preparation
 instructions below describe the legacy workflow and do not apply this gate.
 
+For the standard N-drive checkout, paste this once in PowerShell to find R
+without specifying its version (uses Rscript on PATH, otherwise the most
+recently installed R under Program Files):
+
+```powershell
+$Rscript = if (Get-Command Rscript.exe -ErrorAction SilentlyContinue) { (Get-Command Rscript.exe).Source } else { (Get-ChildItem "$env:ProgramFiles\R\R-*\bin\Rscript.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName }
+```
+
+Then use the command for the pathogen, changing only `RUN` and `USER`:
+
+```powershell
+# Influenza
+& $Rscript "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/influenza/influenza_gisaid_csv.R" "RUN" "USER"
+# SC2
+& $Rscript "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/sars-cov-2/sc2_gisaid_csv.R" "RUN" "USER"
+```
+
+These commands prepare submission files in the standard output directories;
+upload remains a separate step. Assembly methods default to `IRMA FLU-minion`
+for influenza and `ARTIC 1.6.2` for SC2. The existing pathogen-specific filters
+and required current Sequence Review approvals remain in place.
+
 # Table of Contents
 1. [SARS-CoV-2](#sars-cov-2)
 2. [Influenza](#influenza)

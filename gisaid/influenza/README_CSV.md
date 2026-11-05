@@ -21,22 +21,28 @@ install.packages(c("jsonlite", "digest", "readr", "dplyr", "tidyr", "tibble",
 Then run:
 
 ```powershell
-Rscript .\influenza\influenza_gisaid_csv.R "RUNID"
+Rscript .\influenza\influenza_gisaid_csv.R "RUNID" "GISAID_USERNAME"
 # Optional alternative master path:
-Rscript .\influenza\influenza_gisaid_csv.R "RUNID" "C:\path\to\master.csv"
+Rscript .\influenza\influenza_gisaid_csv.R "RUNID" "GISAID_USERNAME" "C:\path\to\master.csv"
 # Optional lab lookup and output directory; existing defaults are retained:
-Rscript .\influenza\influenza_gisaid_csv.R "RUNID" "C:\data\INF\master.csv" "C:\data\Innsender_GISAID.csv" "C:\submission-review"
+Rscript .\influenza\influenza_gisaid_csv.R "RUNID" "GISAID_USERNAME" "C:\data\INF\master.csv" "C:\data\Innsender_GISAID.csv" "C:\submission-review"
 ```
 
 The standard code location is `N:/Virologi/NGS/tmp/ngs_scripts`. Store the complete
 checkout there, keeping the folder name `ngs_scripts`. In the R/RStudio console:
 
 ```r
-gisaid_args <- c("RUNID")
+gisaid_args <- c("RUNID", "GISAID_USERNAME")
 source("N:/Virologi/NGS/tmp/ngs_scripts/gisaid/influenza/influenza_gisaid_csv.R", encoding = "UTF-8")
 # Optional paths use the same order as the command-line arguments:
-# gisaid_args <- c("RUNID", "C:/data/INF/master.csv", "C:/data/Innsender_GISAID.csv", "C:/submission-review")
+# gisaid_args <- c("RUNID", "GISAID_USERNAME", "C:/data/INF/master.csv", "C:/data/Innsender_GISAID.csv", "C:/submission-review")
 ```
+
+The standard command takes just `RUNID` and `GISAID_USERNAME`, like SC2; all
+paths and the `IRMA FLU-minion` assembly method already have defaults. Influenza's
+CSV format uses institutional lab IDs and has no account-name column, so the
+username is reported in the console without adding a column to the template.
+Older commands that omit the username remain supported.
 
 The full `source()` path locates the shared helpers even when the working directory
 is elsewhere. When running selected lines instead, the script also checks

@@ -5,7 +5,7 @@ sc2_gisaid_defaults <- function() list(
   fasta = NULL,
   lab_lookup = "N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender_GISAID.csv",
   output_dir = "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/4-GISAIDsubmisjon",
-  prefix = NULL, assembly_method = NULL,
+  prefix = NULL, assembly_method = "ARTIC 1.6.2",
   sequencing_technology = "Oxford Nanopore - GridION",
   authors = "Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; Knutsen, MF")
 sc2_gisaid_columns <- c("submitter", "fn", "covv_virus_name", "covv_type", "covv_passage",

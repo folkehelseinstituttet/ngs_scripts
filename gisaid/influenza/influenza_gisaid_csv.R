@@ -1,13 +1,24 @@
 # CSV-based influenza GISAID submission.
-# Usage: Rscript influenza_gisaid_csv.R RUNID [master.csv] [lab_lookup.csv] [output_dir]
+# Usage: Rscript influenza_gisaid_csv.R RUNID USER [master.csv] [lab_lookup.csv] [output_dir]
 # FASTA files must be in the same directory as master.csv. Headers must have
 # NGS_LW_ID and segment, e.g. >2820073-INFA|01-HA-H1N1.
 # The output uses master Key in the submission headers.
-# In the R console, set gisaid_args <- c("RUNID", ...) before source().
+# In the R console, set gisaid_args <- c("RUNID", "USER", ...) before source().
 args <- if (exists("gisaid_args", inherits = FALSE)) gisaid_args else commandArgs(trailingOnly = TRUE)
 
 if (!is.character(args) || length(args) < 1 || anyNA(args) || !nzchar(trimws(args[1]))) {
-  stop('Missing RunID. Use Rscript with RUNID, or set gisaid_args <- c("RUNID") before source().')
+  stop('Missing RunID. Use Rscript with RUNID USER, or set gisaid_args <- c("RUNID", "USER") before source().')
+}
+
+# Accept the same RUNID USER command as SC2. The influenza CSV template uses
+# the institutional lab ID, rather than an account-name column. Preserve the
+# older RUNID [master.csv] [lab_lookup.csv] [output_dir] invocation too.
+submitter <- NULL
+if (length(args) >= 2L && !grepl("[/\\\\]|\\.csv$", args[2L], ignore.case = TRUE) && !file.exists(args[2L])) {
+  submitter <- trimws(args[2L])
+  if (!nzchar(submitter)) stop("GISAID username must be nonempty.")
+  args <- args[-2L]
+  message("Preparing influenza submission for GISAID user: ", submitter)
 }
 
 # Assign the arguments to variables
@@ -16,7 +27,7 @@ SID <- args[1]  # RunID from argument
 master_path <- if (length(args) >= 2) args[2] else
   "N:/Virologi/NGS/1-NGS-Analyser/2-Utvikling/Seksjons for Influensa og andre luftveisvirus - NGS analysis database/data/INF/master.csv"
 if (!file.exists(master_path)) stop("Master CSV not found: ", master_path)
-if (length(args) > 4) stop("Expected RUNID [master.csv] [lab_lookup.csv] [output_dir].")
+if (length(args) > 4) stop("Expected RUNID USER [master.csv] [lab_lookup.csv] [output_dir].")
 lab_path <- if (length(args) >= 3) args[3] else
   "N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender_GISAID.csv"
 submission_dir <- if (length(args) >= 4) args[4] else
