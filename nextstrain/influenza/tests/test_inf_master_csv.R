@@ -90,5 +90,59 @@ stopifnot(grepl("matches multiple master rows", err, fixed = TRUE))
 writeLines(c(">SEQ1|HA", "ACGT", ">SEQ1|01-HA-H1N1", "ACGT"), fasta_path)
 err <- tryCatch(read_sequences(fasta_path, samples), error = function(e) conditionMessage(e))
 stopifnot(grepl("Multiple FASTA records", err, fixed = TRUE))
+
+# Older R-only readers omit original_rows. Recovery must preserve original aliases
+# despite review edits, and retain unapproved rows for ambiguity detection.
+compat_dir <- file.path(test_dir, "older-reader")
+dir.create(compat_dir)
+dir.create(file.path(compat_dir, "reviews"))
+compat_master <- master[1:2, , drop = FALSE]
+compat_master$Sequence_ID <- c("ARCHIVE1", "ARCHIVE2")
+compat_path <- file.path(compat_dir, "master.csv")
+write.table(compat_master, compat_path, sep = ";", row.names = FALSE, na = "", fileEncoding = "UTF-8")
+config$edit_columns <- list("Sequence_ID")
+writeLines(gisaid_json(config), file.path(compat_dir, "config.json"), useBytes = TRUE)
+event <- jsonlite::fromJSON(file.path(test_dir, "reviews/review1.json"), simplifyVector = FALSE)
+event$result_hash <- gisaid_fingerprint(as.list(compat_master[1, , drop = FALSE]),
+                                       gisaid_sort(names(compat_master)), "NGS_LW_ID")
+event$review$overrides <- list(Sequence_ID = "edited-alias")
+writeLines(gisaid_json(event), file.path(compat_dir, "reviews/review1.json"), useBytes = TRUE)
+compat_fasta <- file.path(compat_dir, "master.fasta")
+writeLines(c(">ARCHIVE1|01-HA-H1N1", "ACGT", ">ARCHIVE2|01-HA-H3N2", "CCCC"), compat_fasta)
+current_reader <- read_approved_master
+modern_master <- read_master(compat_path)
+read_approved_master <- function(master, pathogen) {
+  snapshot <- current_reader(master, pathogen)
+  snapshot$original_rows <- NULL
+  snapshot
+}
+legacy_master <- read_master(compat_path)
+stopifnot(identical(legacy_master, modern_master),
+          legacy_master$sequence_id == "edited-alias",
+          identical(attr(legacy_master, "original_rows")$sequence_id, c("ARCHIVE1", "ARCHIVE2")))
+legacy_samples <- prepare_metadata(legacy_master, lab)
+legacy_sequences <- read_sequences(compat_fasta, legacy_samples, attr(legacy_master, "original_rows"))
+stopifnot(nrow(legacy_sequences) == 1L, legacy_sequences$owner == 1L,
+          legacy_sequences$sequence == "ACGT")
+compat_master$Sequence_ID[2] <- "ARCHIVE1"
+write.table(compat_master, compat_path, sep = ";", row.names = FALSE, na = "", fileEncoding = "UTF-8")
+ambiguous_master <- read_master(compat_path)
+err <- tryCatch(read_sequences(compat_fasta, prepare_metadata(ambiguous_master, lab),
+                               attr(ambiguous_master, "original_rows")), error = function(e) conditionMessage(e))
+stopifnot(grepl("matches multiple master rows", err, fixed = TRUE))
+# A change between approval and recovery must stop before creating outputs.
+read_approved_master <- function(master, pathogen) {
+  snapshot <- current_reader(master, pathogen)
+  snapshot$original_rows <- NULL
+  cat("\n", file = master, append = TRUE)
+  snapshot
+}
+compat_output <- file.path(compat_dir, "output")
+compat_staging <- file.path(compat_dir, "staging")
+err <- tryCatch(main(c("--master", compat_path, "--fasta", compat_fasta, "--lab", lab_path,
+                       "--output", compat_output, "--staging", compat_staging)), error = function(e) conditionMessage(e))
+stopifnot(grepl("changed during export", err, fixed = TRUE),
+          !dir.exists(compat_output), !dir.exists(compat_staging))
+read_approved_master <- current_reader
 unlink(test_dir, recursive = TRUE)
 cat("Nextstrain master CSV integration checks passed", if (!real_xlsx) "(Excel writer substituted; packages not installed)" else "with real XLSX files", "\n")

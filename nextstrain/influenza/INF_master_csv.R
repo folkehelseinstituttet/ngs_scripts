@@ -58,6 +58,31 @@ parse_options <- function(args) {
   opts
 }
 
+read_original_master <- function(snapshot, path) {
+  original <- snapshot$original_rows
+  if (is.null(original)) {
+    # Older R-only readers omit original_rows. Recover every original alias,
+    # including unapproved rows, from the same snapshot used for approval.
+    raw <- gisaid_read_snapshot(path)
+    if (!identical(raw$token, snapshot$token)) {
+      stop("Master or reviews changed during export; regenerate the submission. No submission was written.", call. = FALSE)
+    }
+    cfg <- gisaid_config(raw$config, "INF")
+    original <- gisaid_parse_csv(raw$csv, cfg$csv_delimiter)$rows
+    keys <- vapply(seq_len(nrow(original)), function(i) {
+      gisaid_key(as.list(original[i, , drop = FALSE]), cfg$key_columns)
+    }, character(1))
+    if (!identical(keys, snapshot$identities$review_key)) {
+      stop("Original master rows do not match the Sequence Review identities.", call. = FALSE)
+    }
+  }
+  if (!is.data.frame(original) || nrow(original) != nrow(snapshot$identities) ||
+      anyDuplicated(tolower(names(original)))) {
+    stop("Invalid original master rows from Sequence Review reader: ", nextstrain_approval_helper, call. = FALSE)
+  }
+  original
+}
+
 read_master <- function(path) {
   if (!file.exists(path)) stop("Master CSV not found: ", path)
   snapshot <- read_approved_master(path, "INF")
@@ -69,8 +94,7 @@ read_master <- function(path) {
   missing <- setdiff(required, names(x))
   if (length(missing)) stop("Missing master CSV columns: ", paste(missing, collapse = ", "))
   x$nextstrain_review_key <- vapply(snapshot$approvals, `[[`, character(1), "key")
-  original <- snapshot$original_rows
-  if (!is.data.frame(original)) stop("Update gisaid/shared/approval.R together with the Nextstrain scripts; original master rows are required for FASTA matching.", call. = FALSE)
+  original <- read_original_master(snapshot, path)
   names(original) <- tolower(names(original))
   original$nextstrain_review_key <- snapshot$identities$review_key
   attr(x, "original_rows") <- original
