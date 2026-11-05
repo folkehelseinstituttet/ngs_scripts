@@ -232,44 +232,32 @@ def test_approval_R_adapter_preserves_text_and_current_approved_rows(tmp_path):
     review(master, rows[0], 'current')
     script = tmp_path / 'test.R'
     script.write_text('args <- commandArgs(TRUE)\nsource(args[1])\n'
-                      'data <- read_approved_master(args[2], args[3], "INF")\n'
+                      'data <- read_approved_master(args[3], "INF")\n'
                       'stopifnot(nrow(data$rows) == 1, data$rows$Prove_LW_ID == "000",\n'
                       'data$rows$Prove_Innsender_ID == "001", nrow(data$identities) == 2)\n'
-                      'approval_command(args[2], args[3], "INF", "--expect-token", data$token)\n')
+                      'assert_approved_master(args[3], "INF", data$token)\n')
     result = subprocess.run(['Rscript', str(script), str(GISAID / 'shared/approval.R'), str(HELPER), str(master)],
                             capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
-    assert 'Sequence Review approval filter:' in result.stdout
+    assert 'Sequence Review approval filter:' in result.stderr
 
 
-@pytest.mark.parametrize('failure', ['config', 'reviews', 'missing-node', 'helper-output'])
+@pytest.mark.parametrize('failure', ['config', 'reviews'])
 def test_approval_R_adapter_reports_failure_reason(tmp_path, failure):
     master, _ = make_dataset(tmp_path, 'INF')
-    helper = HELPER
-    env = dict(os.environ)
-    if failure in {'config', 'reviews'}:
-        missing = master.with_name('config.json' if failure == 'config' else 'reviews')
-        if missing.is_dir():
-            missing.rmdir()
-        else:
-            missing.unlink()
-        expected = ['Approval filter failed:', 'ENOENT', missing.name, 'exit status 1']
-    elif failure == 'missing-node':
-        env['GISAID_NODE'] = str(tmp_path / 'missing node.exe')
-        expected = ['Node.js executable not found:', 'GISAID_NODE']
+    missing = master.with_name('config.json' if failure == 'config' else 'reviews')
+    if missing.is_dir():
+        missing.rmdir()
     else:
-        helper = tmp_path / 'failing helper.cjs'
-        helper.write_text('console.log("stdout diagnostic"); console.error("stderr diagnostic"); process.exitCode = 23;')
-        expected = ['stdout diagnostic', 'stderr diagnostic', 'exit status 23']
+        missing.unlink()
     script = tmp_path / 'test.R'
     script.write_text('args <- commandArgs(TRUE)\nsource(args[1])\n'
-                      'read_approved_master(args[2], args[3], "INF")\n')
-    result = subprocess.run(['Rscript', str(script), str(GISAID / 'shared/approval.R'), str(helper), str(master)],
-                            capture_output=True, text=True, env=env, timeout=15)
+                      'read_approved_master(args[2], "INF")\n')
+    result = subprocess.run(['Rscript', str(script), str(GISAID / 'shared/approval.R'), str(master)],
+                            capture_output=True, text=True, timeout=15)
     assert result.returncode != 0
     assert 'no submission was written' in result.stderr
-    for text in expected:
-        assert text in result.stderr
+    assert missing.name in result.stderr
     assert not list(tmp_path.rglob('approved.csv'))
 
 
@@ -289,7 +277,7 @@ def r_exporter():
     if not shutil.which('Rscript'):
         pytest.skip('Rscript is required for the existing Flu exporter')
     check = subprocess.run(['Rscript', '-e',
-        'p <- c("readr", "dplyr", "tidyr", "tibble", "purrr", "stringr", "magrittr", "lubridate"); '
+        'p <- c("readr", "dplyr", "tidyr", "tibble", "purrr", "stringr", "magrittr", "lubridate", "jsonlite", "digest"); '
         'quit(status=if(all(vapply(p, requireNamespace, logical(1), quietly=TRUE))) 0 else 1)'],
         capture_output=True, text=True, env={**os.environ, 'TZ': 'UTC'})
     if check.returncode:

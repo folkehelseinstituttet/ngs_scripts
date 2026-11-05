@@ -1,14 +1,18 @@
 # SC2 GISAID exporter from master.csv
 
-`sc2_gisaid_csv.py` is the separate master-based exporter. It creates a submission
+`sc2_gisaid_csv.R` is the R-only master-based exporter. It creates a submission
 CSV, matching FASTA and audit manifest, without changing master/review files or
 submitting to GISAID. The existing database-based `sc2_gisaid.R` remains a legacy
 script; use this new entry point for the approval-filtered workflow.
 
-Requires Python 3.10+ and Node.js 18+. No third-party Python or npm packages are
-needed. Deploy the complete `ngs_scripts` checkout because shared CSV/FASTA
-readers and the approval reader are used. See the
-[approval rules and dataset layout](../shared/README.md).
+Requires R and the `jsonlite` and `digest` R packages. Node.js and Python are
+not required for this exporter. Install missing packages in the R console with
+`install.packages(c("jsonlite", "digest"))`. Deploy the complete `ngs_scripts`
+checkout. See the [approval rules and dataset layout](../shared/README.md).
+
+The existing `sc2_gisaid_csv.py` remains available for existing callers and
+requires Python 3.10+ and Node.js 18+. Both implementations apply the same
+approval, selection and validation rules and produce compatible audit manifests.
 
 ## Run
 
@@ -17,13 +21,25 @@ shared code relative to the script, independent of the current working directory
 The default master, lab and output locations below are already configured.
 
 ```powershell
-python "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/sars-cov-2/sc2_gisaid_csv.py" RUNID GISAID_USERNAME --assembly-method "Verified assembly method for this run"
+Rscript "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/sars-cov-2/sc2_gisaid_csv.R" RUNID GISAID_USERNAME --assembly-method "Verified assembly method for this run"
 ```
+
+In RStudio, set the same arguments before sourcing the full path:
+
+```r
+gisaid_args <- c("RUNID", "GISAID_USERNAME", "--assembly-method", "Verified assembly method for this run")
+source("N:/Virologi/NGS/tmp/ngs_scripts/gisaid/sars-cov-2/sc2_gisaid_csv.R", encoding = "UTF-8")
+```
+
+Optional flags use the same order as on the command line. Source-relative lookup,
+repository working directories, the standard N-drive checkout and an explicit
+`GISAID_SHARED_DIR` are supported, as for influenza. R uses the shared
+`approval.R` and `sars-cov-2/sc2_export.R` files; keep them with the entry script.
 
 For mounted/custom paths and a new local output prefix:
 
 ```bash
-python3 gisaid/sars-cov-2/sc2_gisaid_csv.py RUNID GISAID_USERNAME \
+Rscript gisaid/sars-cov-2/sc2_gisaid_csv.R RUNID GISAID_USERNAME \
   --master '/mounted/NGS analysis database/data/SC2/master.csv' \
   --lab-lookup '/mounted/Innsender_GISAID.csv' \
   --output-dir '/local/submission-review' --prefix 'SC2_RUNID' \
@@ -74,7 +90,7 @@ preserved. Isolate names use `hCoV-19/Norway/<Key without first four digits>/<ye
 for numeric keys with at least five digits; other keys retain the full key.
 Leading zeroes remain text. Collection dates must be valid ISO dates, county
 must be available and resulting virus names must be unique. Known county text
-damage is repaired in the output using the same shared function as master merges.
+damage is repaired in the output using the same county replacements as master merges.
 Gender accepts `Pasient_Kjnn` or `Pasient_Kjonn`. The CSV `fn` names the actual
 output FASTA, replacing the old `tmp` placeholder.
 

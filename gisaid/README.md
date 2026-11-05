@@ -3,7 +3,8 @@
 For the master-based workflow with required current approval in the Sequence
 Review solution, use the [SC2 exporter](sars-cov-2/README_CSV.md) or
 [INF exporter](influenza/README_CSV.md). Approval is an additional requirement;
-existing metadata and QC filters still apply. The database-based preparation
+existing metadata and QC filters still apply. Both submission exporters can run
+entirely in R, without installing Node.js or Python. The database-based preparation
 instructions below describe the legacy workflow and do not apply this gate.
 
 # Table of Contents

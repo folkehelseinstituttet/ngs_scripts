@@ -8,9 +8,17 @@ quoted in PowerShell.
 
 ## Prepare a submission
 
-Install Node.js 18+ and R packages `readr`, `dplyr`, `tidyr`, `tibble`, `purrr`,
-`stringr`, `magrittr` and `lubridate` (an existing `tidyverse` installation supplies
-the relevant packages), then run:
+Requires R packages `jsonlite`, `digest`, `readr`, `dplyr`, `tidyr`, `tibble`,
+`purrr`, `stringr`, `magrittr` and `lubridate`. This exporter runs entirely in R;
+Node.js and Python are not required. An existing `tidyverse` installation supplies
+most of the packages. Install any missing packages from the R console:
+
+```r
+install.packages(c("jsonlite", "digest", "readr", "dplyr", "tidyr", "tibble",
+                   "purrr", "stringr", "magrittr", "lubridate"))
+```
+
+Then run:
 
 ```powershell
 Rscript .\influenza\influenza_gisaid_csv.R "RUNID"
@@ -25,7 +33,7 @@ checkout there, keeping the folder name `ngs_scripts`. In the R/RStudio console:
 
 ```r
 gisaid_args <- c("RUNID")
-source("N:/Virologi/NGS/tmp/ngs_scripts/gisaid/influenza/influenza_gisaid_csv.R")
+source("N:/Virologi/NGS/tmp/ngs_scripts/gisaid/influenza/influenza_gisaid_csv.R", encoding = "UTF-8")
 # Optional paths use the same order as the command-line arguments:
 # gisaid_args <- c("RUNID", "C:/data/INF/master.csv", "C:/data/Innsender_GISAID.csv", "C:/submission-review")
 ```
@@ -38,7 +46,7 @@ and repository working-directory detection still support other checkouts. An
 explicit `GISAID_SHARED_DIR` overrides detection and must be valid. For another layout, set
 `Sys.setenv(GISAID_SHARED_DIR = "C:/path/to/ngs_scripts/gisaid/shared")` before
 running the code. Keep all shared files together. These launch methods still use
-the Node.js approval reader described below.
+the R approval reader described below.
 
 Only samples with a **current, conflict-free Approved decision in Sequence
 Review** are eligible. The exporter reads `config.json` and `reviews/` beside
@@ -46,8 +54,8 @@ the selected master. Missing approval storage fails; unreviewed, outdated,
 conflicting, rejected and follow-up decisions are excluded. There is no bypass.
 Current approved manual overrides are applied before the existing metadata and
 QC filters. A CSV `NGS_QC_Assessment` value alone does not establish approval.
-See the [shared approval rules](../shared/README.md), including legacy IDs and
-the `GISAID_NODE` executable override. Master and reviews remain read-only.
+See the [shared approval rules](../shared/README.md), including legacy IDs.
+Master and reviews remain read-only. `GISAID_NODE` is not used by the R exporter.
 
 The script reads FASTA files (`.fasta`, `.fa`, `.fna` or `.fas`) in the same
 folder as the master. The first `|`-delimited header field must match the master

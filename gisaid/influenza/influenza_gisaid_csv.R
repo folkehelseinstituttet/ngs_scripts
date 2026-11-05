@@ -25,7 +25,7 @@ locate_gisaid_shared <- function() {
   # Standard workstation checkout; also supports pasted/selected code in R.
   default_shared <- "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/shared"
   complete <- function(directory) all(file.exists(file.path(directory,
-    c("approval.R", "approved_master.cjs", "sequence_review_core.cjs"))))
+    "approval.R")))
   override <- Sys.getenv("GISAID_SHARED_DIR", unset = "")
   if (nzchar(override)) {
     if (!complete(override)) stop("GISAID_SHARED_DIR must contain the complete gisaid/shared directory.")
@@ -52,8 +52,7 @@ locate_gisaid_shared <- function() {
              'or set GISAID_SHARED_DIR to the complete shared directory.'))
 }
 shared_dir <- locate_gisaid_shared()
-source(file.path(shared_dir, "approval.R"))
-approval_helper <- file.path(shared_dir, "approved_master.cjs")
+source(file.path(shared_dir, "approval.R"), encoding = "UTF-8")
 
 library(lubridate)
 library(stringr)
@@ -115,7 +114,7 @@ Lab_ID <- readr::read_delim(
 
 # Require a current, conflict-free Approved review before existing metadata/QC filters.
 # This reads config.json and reviews/ beside master.csv, without modifying them.
-approved_snapshot <- read_approved_master(approval_helper, master_path, "INF")
+approved_snapshot <- read_approved_master(master_path, "INF")
 fludb <- tibble::as_tibble(approved_snapshot$rows, .name_repair = "minimal")
 required <- c("Key", "NGS_Run_ID", "NGS_Sekvens_Resultat", "GISAID_Kommentar",
   "Pasient_Fylke_Nr", "Pasient_Alder", "Prove_Tatt", "Pasient_Kjnn",
@@ -531,7 +530,7 @@ if (!nrow(filtered_seq)) stop("All matching FASTA segments were excluded by QC."
 if (any(!submission$Submitting_Sample_Id %in% filtered_seq$key)) {
   stop("At least one sample has no FASTA segment remaining after QC.")
 }
-approval_command(approval_helper, master_path, "INF", "--expect-token", approved_snapshot$token)
+assert_approved_master(master_path, "INF", approved_snapshot$token)
 write.csv(submission, output_path_csv, row.names = FALSE, fileEncoding = "UTF-8")
 fasta_lines <- unlist(lapply(seq_len(nrow(filtered_seq)), function(i) {
   c(paste0(">", filtered_seq$experiment[i], "|", filtered_seq$key[i]), filtered_seq$sequence[i])

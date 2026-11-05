@@ -17,15 +17,22 @@ data/INF/                    # or data/SC2/
 ```
 
 `config.json` and `reviews/` must come from the solution, beside the master being
-exported. They are never created or modified by the exporter. Node.js 18 or newer
-is required; set `GISAID_NODE` to its executable path if `node` is not on PATH.
-This reader uses local/mounted/UNC filesystem access; it does not fetch via SMB
-credentials, contact a server, or upload anything to GISAID.
+exported. They are never created or modified by the exporter. Both R submission
+exporters use `approval.R` directly and require the R packages `jsonlite` and
+`digest`; no Node.js or Python installation is needed:
 
-If the R approval check fails, its error includes the Node.js exit status and
-the reader's diagnostic output (for example, a missing `config.json` or
-unreadable `reviews/`). A missing Node.js executable has a separate error with
-instructions for `GISAID_NODE`. These failures do not write a submission.
+```r
+install.packages(c("jsonlite", "digest"))
+```
+
+This reader uses local/mounted/UNC filesystem access; it does not fetch via SMB
+credentials, contact a server, or upload anything to GISAID. R errors include the
+underlying cause, such as a missing `config.json` or unreadable `reviews/`.
+Failures do not write a submission.
+
+The existing Python SC2 exporter still uses the JavaScript reader and needs
+Node.js 18+; `GISAID_NODE` can point to its executable. The R exporters do not use
+that variable. Use `sc2_gisaid_csv.R` for the R-only SC2 workflow.
 
 The reader uses the same configuration, identifier, fingerprint and review-history
 rules as the solution. Only a single current history head with assessment exactly
@@ -62,14 +69,25 @@ SHA-256: fc07727236cf9798e84fe3730730aa98e663829fcdcdec95a38abe921a033e16
 ```
 
 `approved_master.cjs` adds read-only filesystem loading, approved-row selection,
-snapshot checks and machine-readable output. `approval.R` is the R adapter.
-No npm packages are required. If the solution's review format/policy changes,
-update the vendored reader deliberately and rerun the approval/export tests.
+snapshot checks and machine-readable output. It remains the JavaScript reference
+and the reader used by the existing Python SC2 exporter. No npm packages are required.
+
+`approval.R` independently implements these read-only rules in R, including
+JavaScript-compatible UTF-16 sorting, exact UTF-8 JSON row fingerprints, and the
+same byte-based master/config/review snapshot token. It validates the ISO 8601
+timestamps stored by Sequence Review. Tests compare both readers on synthetic
+Unicode, quoted CSV, approval histories, composite keys, legacy migration and
+invalid inputs. `read_approved_master(master, pathogen)` returns approved rows;
+`assert_approved_master(master, pathogen, token)` rechecks before writing.
+
+If the solution's review format/policy changes,
+update both readers deliberately and rerun the approval/export tests.
 
 ```bash
 pytest -q gisaid/tests
 ```
 
-The full Flu integration tests additionally need R and its documented exporter
-packages. Tests use synthetic rows, review events and short placeholder FASTA
-records. They never submit sequences or read production data.
+Tests require Python, Node.js (for the frozen reference/old Python exporter),
+and R with the documented exporter packages. Node.js is a test dependency only
+for the R workflows. Tests use synthetic rows, review events and short
+placeholder FASTA records. They never submit sequences or read production data.
