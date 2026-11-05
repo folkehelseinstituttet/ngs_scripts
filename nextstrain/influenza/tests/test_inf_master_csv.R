@@ -13,6 +13,20 @@ master <- data.frame(
   Prove_Kategori = c("", "", "Ref", "", ""), stringsAsFactors = FALSE)
 master_path <- file.path(test_dir, "master.csv")
 write.table(master, master_path, sep = ";", row.names = FALSE, na = "", fileEncoding = "UTF-8")
+# Reviews are required even when the metadata and sequences pass the old filters.
+config <- list(schema_version = 1L, pathogen = "INF", key_column = "NGS_LW_ID",
+  csv_delimiter = ";", review_options = list("Approved"), edit_columns = list(), default_columns = list())
+writeLines(gisaid_json(config), file.path(test_dir, "config.json"), useBytes = TRUE)
+dir.create(file.path(test_dir, "reviews"))
+for (i in seq_len(nrow(master))) {
+  row <- as.list(master[i, , drop = FALSE])
+  event <- list(format_version = 1L, id = paste0("review", i), pathogen = "INF", key = master$NGS_LW_ID[i],
+    result_hash = gisaid_fingerprint(row, gisaid_sort(names(master)), "NGS_LW_ID"),
+    created_at = "2026-11-05T12:00:00Z", supersedes = list(),
+    review = list(reviewer = "TEST", assessment = "Approved", comment = "",
+                  overrides = setNames(list(), character())))
+  writeLines(gisaid_json(event), file.path(test_dir, "reviews", paste0("review", i, ".json")), useBytes = TRUE)
+}
 fasta_path <- file.path(test_dir, "master.fasta")
 writeLines(c(
   ">SEQ1|01-HA-H1N1 description", "AC", "GT", ">SEQ1|02-NA-H1N1", "AAAC",

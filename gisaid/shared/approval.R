@@ -330,7 +330,7 @@ gisaid_load_approved_master <- function(master, pathogen) {
   identities <- as.data.frame(setNames(lapply(identity_headers, function(column) {
     if (column == "review_key") keys else if (column %in% parsed$headers) parsed$rows[[column]] else rep("", length(rows))
   }), identity_headers), stringsAsFactors = FALSE, check.names = FALSE)
-  list(headers = parsed$headers, rows = effective[selected, , drop = FALSE], identities = identities,
+  list(headers = parsed$headers, rows = effective[selected, , drop = FALSE], original_rows = parsed$rows, identities = identities,
        counts = counts, approvals = approvals, token = raw$token, master_sha256 = raw$master_sha256,
        identity_headers = identity_headers)
 }

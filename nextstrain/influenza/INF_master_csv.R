@@ -2,6 +2,35 @@
 # Prepare the same H1/H3/VIC inputs as INF.R from the FluSeq master archives.
 # Run Rscript INF_master_csv.R --help for input and output options.
 
+# Locate the R-only Sequence Review reader in the complete ngs_scripts checkout.
+nextstrain_approval_helper <- local({
+  source_files <- unlist(lapply(sys.frames(), function(frame) {
+    value <- get0("ofile", envir = frame, inherits = FALSE)
+    if (is.character(value)) value else character()
+  }), use.names = FALSE)
+  cli_files <- sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE))
+  scripts <- c(rev(source_files), cli_files)
+  scripts <- scripts[!is.na(scripts) & nzchar(scripts)]
+  override <- Sys.getenv("GISAID_SHARED_DIR", unset = "")
+  if (nzchar(override)) {
+    candidates <- file.path(override, "approval.R")
+  } else {
+    candidates <- c(file.path(dirname(scripts), "..", "..", "gisaid", "shared", "approval.R"),
+      file.path(getwd(), "gisaid", "shared", "approval.R"),
+      file.path(getwd(), "..", "gisaid", "shared", "approval.R"),
+      file.path(getwd(), "..", "..", "gisaid", "shared", "approval.R"),
+      "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/shared/approval.R")
+  }
+  available <- candidates[file.exists(candidates)]
+  if (!length(available)) stop("Cannot locate the R-only Sequence Review reader. Keep the complete ngs_scripts checkout, or set GISAID_SHARED_DIR to gisaid/shared.", call. = FALSE)
+  normalizePath(available[1L], winslash = "/", mustWork = TRUE)
+})
+source(nextstrain_approval_helper, encoding = "UTF-8")
+if (!identical(names(formals(read_approved_master)), c("master", "pathogen"))) {
+  stop("Outdated Sequence Review reader: ", nextstrain_approval_helper,
+       ". Update the complete checkout to the R-only version.", call. = FALSE)
+}
+
 default_master <- paste0("N:/Virologi/NGS/1-NGS-Analyser/2-Utvikling/",
   "Seksjons for Influensa og andre luftveisvirus - NGS analysis database/data/INF/master.csv")
 default_lab <- "N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender_GISAID.csv"
@@ -31,15 +60,21 @@ parse_options <- function(args) {
 
 read_master <- function(path) {
   if (!file.exists(path)) stop("Master CSV not found: ", path)
-  # Read all IDs as text, including literal NA and leading zeroes.
-  x <- read.csv(path, sep = ";", header = TRUE, colClasses = "character", na.strings = character(),
-                check.names = FALSE, fileEncoding = "UTF-8-BOM", stringsAsFactors = FALSE)
+  snapshot <- read_approved_master(path, "INF")
+  x <- snapshot$rows
   if (anyDuplicated(tolower(names(x)))) stop("Master CSV has duplicate column names.")
   names(x) <- tolower(names(x))
   required <- c("key", "ngs_sekvens_resultat", "pasient_fylke_nr", "prove_tatt",
                 "pasient_fylke_name", "prove_innsender_id", "prove_kategori")
   missing <- setdiff(required, names(x))
   if (length(missing)) stop("Missing master CSV columns: ", paste(missing, collapse = ", "))
+  x$nextstrain_review_key <- vapply(snapshot$approvals, `[[`, character(1), "key")
+  original <- snapshot$original_rows
+  if (!is.data.frame(original)) stop("Update gisaid/shared/approval.R together with the Nextstrain scripts; original master rows are required for FASTA matching.", call. = FALSE)
+  names(original) <- tolower(names(original))
+  original$nextstrain_review_key <- snapshot$identities$review_key
+  attr(x, "original_rows") <- original
+  attr(x, "review_snapshot_token") <- snapshot$token
   x
 }
 
@@ -147,16 +182,20 @@ prepare_metadata <- function(master, lab) {
   master[master$group != "", , drop = FALSE]
 }
 
-read_sequences <- function(path, samples) {
+read_sequences <- function(path, samples, identities = samples) {
   if (!file.exists(path)) stop("Master FASTA not found: ", path)
   # FASTA IDs use the original sequencing ID, not the specimen index.
-  columns <- intersect(c("ngs_lw_id", "sequence_id", "sequenceid", "sampleid", "originalname", "key", "prove_lw_id"), names(samples))
-  aliases <- unlist(lapply(columns, function(col) trimws(samples[[col]])), use.names = FALSE)
-  owners <- rep(seq_len(nrow(samples)), times = length(columns))
+  columns <- intersect(c("ngs_lw_id", "sequence_id", "sequenceid", "sampleid", "originalname", "key", "prove_lw_id"), names(identities))
+  aliases <- unlist(lapply(columns, function(col) trimws(identities[[col]])), use.names = FALSE)
+  row_owners <- if (identical(identities, samples)) seq_len(nrow(samples)) else
+    match(identities$nextstrain_review_key, samples$nextstrain_review_key)
+  owners <- rep(row_owners, times = length(columns))
+  identity_keys <- rep(seq_len(nrow(identities)), times = length(columns))
   valid <- !is.na(aliases) & nzchar(aliases) & !toupper(aliases) %in% c("NA", "N/A", "NONE", "NULL", "NAN", "-")
-  aliases <- aliases[valid]; owners <- owners[valid]
-  pairs <- unique(data.frame(alias = aliases, owner = owners, stringsAsFactors = FALSE))
+  aliases <- aliases[valid]; owners <- owners[valid]; identity_keys <- identity_keys[valid]
+  pairs <- unique(data.frame(alias = aliases, owner = owners, identity = identity_keys, stringsAsFactors = FALSE))
   duplicate_alias <- unique(pairs$alias[duplicated(pairs$alias)])
+  selected_aliases <- unique(pairs$alias[!is.na(pairs$owner)])
   lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
   if (length(lines)) lines[1] <- sub("^\ufeff", "", lines[1])
   lines <- trimws(lines)
@@ -170,7 +209,7 @@ read_sequences <- function(path, samples) {
   fields <- strsplit(tokens, "|", fixed = TRUE)
   ids <- vapply(fields, function(x) if (length(x)) x[1L] else "", character(1))
   match_rows <- match(ids, pairs$alias)
-  ambiguous <- ids %in% duplicate_alias
+  ambiguous <- ids %in% duplicate_alias & ids %in% selected_aliases
   records <- vector("list", length(headers))
   ignored <- 0L
   count <- 0L
@@ -178,7 +217,7 @@ read_sequences <- function(path, samples) {
     header <- header_text[i]
     if (ambiguous[i]) stop("FASTA identifier matches multiple master rows: ", ids[i])
     match_row <- match_rows[i]
-    if (is.na(match_row)) { ignored <- ignored + 1L; next }
+    if (is.na(match_row) || is.na(pairs$owner[match_row])) { ignored <- ignored + 1L; next }
     if (length(fields[[i]]) < 2L) stop("Matched FASTA header has no segment: ", header)
     segment <- toupper(sub("-.*$", "", sub("^[0-9]+-", "", fields[[i]][2L])))
     if (!segment %in% c("HA", "NA", "PB1", "PB2", "PA", "MP", "M", "NS", "NP")) {
@@ -227,9 +266,12 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
   opts <- parse_options(args)
   if (is.null(opts)) return(invisible(NULL))
   check_dependencies()
-  samples <- prepare_metadata(read_master(opts$master), read_lab_lookup(opts$lab))
+  master <- read_master(opts$master)
+  token <- attr(master, "review_snapshot_token")
+  samples <- prepare_metadata(master, read_lab_lookup(opts$lab))
   if (!nrow(samples)) stop("No H1N1, H3N2 or B/Victoria samples found in master CSV.")
-  sequences <- read_sequences(opts$fasta, samples)
+  sequences <- read_sequences(opts$fasta, samples, attr(master, "original_rows"))
+  assert_approved_master(opts$master, "INF", token)
   target <- file.path(opts$output, paste0(format(Sys.Date(), "%Y-%m-%d"), "_Nextstrain_Build"))
   for (group in c("H1", "H3", "VIC")) {
     dir <- file.path(target, group)
@@ -247,4 +289,4 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
   message("Nextstrain inputs written to ", target, " and copied to ", opts$staging)
 }
 
-if (sys.nframe() == 0L) main()
+if (sys.nframe() == 0L) main() else if (exists("nextstrain_args", inherits = FALSE)) main(nextstrain_args)

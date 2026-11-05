@@ -34,11 +34,35 @@ That directory should contain three directories (H1, H3 and VIC) which each shou
 `INF_master_csv.R` is an alternative to `INF.R`. It reads `master.csv` and
 `master.fasta` from the FluSeq master directory and uses the semicolon-delimited
 `Innsender_GISAID.csv` lookup in the GISAID directory. It requires the R package
-`writexl`. From the repository's `nextstrain/influenza` directory, run:
+`writexl`, plus `jsonlite` and `digest` for Sequence Review approval checks.
+It runs entirely in R, without Node.js or Python. From the repository's
+`nextstrain/influenza` directory, run:
 
 ```powershell
 & "C:\Program Files\R\R-4.3.0\bin\Rscript.exe" "INF_master_csv.R"
 ```
+
+In RStudio, from any working directory:
+
+```r
+install.packages(c("jsonlite", "digest", "writexl")) # once, if missing
+nextstrain_args <- character() # defaults; alternatively c("--master", "C:/data/INF/master.csv", ...)
+source("N:/Virologi/NGS/tmp/ngs_scripts/nextstrain/influenza/INF_master_csv.R", encoding = "UTF-8")
+```
+
+Keep the complete `ngs_scripts` checkout, including `gisaid/shared/approval.R`.
+The script locates it from the source path, repository working directories or the
+standard N-drive checkout. `GISAID_SHARED_DIR` can explicitly select another
+complete shared directory. It rejects the older Node-based helper.
+
+Only rows with a **current, conflict-free Approved decision** in Sequence Review
+are eligible. The R reader uses `config.json` and `reviews/` beside the selected
+master, applies approved manual overrides, and excludes unreviewed, outdated,
+conflicting, rejected and follow-up rows. A QC-assessment CSV cell does not
+replace a review. Missing or invalid review storage stops the export; there is
+no bypass. Approval is checked again before creating output or staging files.
+See the [shared approval rules](../gisaid/shared/README.md). The GISAID
+exporter's RunID and comment exclusions are not applied to Nextstrain inputs.
 
 It writes the same dated output directory and H1, H3 and VIC file names as
 `INF.R`: `metadata.xlsx`, `raw_sequences_ha.fasta`, and
@@ -61,13 +85,16 @@ uses the corresponding `GISAID_Id` as `Originating_Lab`. Missing matches or
 empty GISAID IDs use the existing default `3869` and are counted in the log.
 The script uses eligible H1N1, H3N2 and B/Victoria rows in the master, skips
 rows without a `Key`, and matches FASTA sample identifiers exactly against the
-master's sequencing and other sample IDs. Ambiguous matches and duplicate
+original master's sequencing and other sample IDs, before manual overrides.
+Ambiguity is checked against all master rows, including excluded samples. Ambiguous matches and duplicate
 sample/segment records stop the build. It reports records with no matching
 sample and eligible samples without a FASTA record. The master FASTA only
 contains sequences that have been added to that archive; older sequences may
 need to be added before the new files contain the same historical data as
 the previous workflow. The original source script's additional selection
 criteria are not bundled in this repository and cannot be verified here.
+`INF.R` and `INF_wholegenome.R` remain legacy SQL workflows and do not implement
+this approval gate; use `INF_master_csv.R` for approved master-based inputs.
 
 ### Build Nextstrain-tree (VM)
 
@@ -131,6 +158,11 @@ This will save the Nextstrain-tree files at N:\Virologi\NGS\1-NGS-Analyser\1-Rut
 All *json files can uploaded to https://auspice.us/ for analysis. 
 
 # SARS-CoV-2
+
+For approved, R-only master inputs use
+[`sars-cov-2/SC2_META.R`](sars-cov-2/README.md#approved-master-based-inputs-r-only).
+The BN workflow below is legacy and does not apply the Sequence Review approval gate.
+
 
 After files are created delete the `ngs_scripts` folder in `N:\Virologi\NGS\tmp`.TODO:
 - [X] Update (colors_norwaydivisions.tsv)[colors_norwaydivisions.tsv] with new counties.

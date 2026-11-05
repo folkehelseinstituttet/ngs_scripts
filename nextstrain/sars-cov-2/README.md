@@ -1,3 +1,59 @@
+# Approved master-based inputs (R only)
+
+`SC2_META.R` reads the SC2 `master.csv`, matching `master.fasta`, and the
+semicolon-delimited `Innsender_GISAID.csv` lookup. It requires R packages
+`jsonlite` and `digest`. It does not need Node.js, Python or a SQL connection.
+Keep the complete `ngs_scripts` checkout, including `gisaid/shared/approval.R`
+and `gisaid/sars-cov-2/sc2_export.R`.
+
+```powershell
+Rscript "N:/Virologi/NGS/tmp/ngs_scripts/nextstrain/sars-cov-2/SC2_META.R"
+# Optional minimum date and custom inputs/output:
+Rscript "N:/Virologi/NGS/tmp/ngs_scripts/nextstrain/sars-cov-2/SC2_META.R" --min-date "2025-01-01" --master "C:/data/SC2/master.csv" --lab "C:/data/Innsender_GISAID.csv" --output "C:/nextstrain-inputs"
+```
+
+In RStudio, from any working directory:
+
+```r
+install.packages(c("jsonlite", "digest")) # once, if missing
+nextstrain_args <- c("--min-date", "2025-01-01")
+source("N:/Virologi/NGS/tmp/ngs_scripts/nextstrain/sars-cov-2/SC2_META.R", encoding = "UTF-8")
+```
+
+Only **current, conflict-free Approved** Sequence Review decisions pass. The
+script reads `config.json` and `reviews/` beside the selected master and applies
+current approved overrides before the existing Nextstrain selection: collection
+date strictly after the minimum (default `2025-01-01`) and finite `NC_Coverage`
+at least `0.75`. Blank keys are skipped. The first positional date is also
+accepted for older command lines. No GISAID-specific run or comment filter is
+added to Nextstrain.
+
+Missing/invalid approval storage stops the export. Unreviewed, outdated,
+conflicting, rejected and follow-up samples are excluded. A CSV QC assessment
+alone is not approval. Master/review inputs are checked again before writing;
+master, configuration and review files remain read-only. See the
+[shared rules](../../gisaid/shared/README.md).
+
+The FASTA is matched exactly against original identifiers, including aliases
+of excluded master samples when checking ambiguity. Approved metadata overrides
+do not change FASTA identity matching. Every selected row must match one FASTA
+record, and duplicate isolate names fail. The original naming convention
+`hCoV-19/Norway/<last four Key characters>/<year>` and metadata column order are
+retained; metadata and FASTA include exactly the same selected samples.
+
+Default files are `nextstrain_metadata_YYYY-MM-DD.tsv` and
+`nextstrain_fasta<week>-<year>.fasta` under the existing
+`N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/4-Nextstrain`
+directory. Existing files with those names are overwritten. `--fasta` selects
+an archive other than `master.fasta` beside the master. The lookup supplies
+originating lab names; `GISAID_Isolate_ID` supplies accessions when available.
+Shared code is found from the full source path, repository working directories
+or the standard N-drive checkout; `GISAID_SHARED_DIR` can override the shared
+location.
+
+The BN/tree-building instructions below describe the legacy workflow and do
+not apply the master-based approval gate.
+
 
 TODO:
 - [X] Update (colors_norwaydivisions.tsv)[colors_norwaydivisions.tsv] with new counties.

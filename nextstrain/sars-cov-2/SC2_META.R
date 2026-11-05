@@ -1,297 +1,138 @@
-# Capture command-line arguments
-args <- commandArgs(trailingOnly = TRUE)
-
-# Assign the arguments to variables
-#SID <- args[1] #RunID from argument
-min_date <- args[1]
-min_date <- "2025-01-01"
-
-
-
-source("N:/Virologi/Influensa/ARoh/Scripts/Color palettes.R ")
-source("N:/Virologi/Influensa/RARI/2526/BN SC2 25-26.R")
-
-library(lubridate)
-library(tidyverse)
-library(writexl)
-library(stringr)
-library(stringi)
-library(tsibble)
-library(officer)
-library(magrittr)
-library(dplyr)
-library(tidyr)
-library(tibble)
-library(openxlsx)
-library(readxl)
-library(base64enc)
-library(purrr)
-
-
-# Define metadata
-passage <- "Clinical Specimen"
-host <- "Human"
-Location <- "Norway"
-sub_lab <- "Norwegian Institute of Public Health, Department of Virology"
-address <- "P.O.Box 222 Skoyen, 0213 Oslo, Norway"
-authors <- "Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; , Knutsen MF"
-GISAIDnr <- 3869  # Converting directly to numeric
-Sequencing_Technology <- "Oxford Nanopore - GridION"
-Assembly_Method <- "IRMA CoV-minion-long-reads"
-Sequencing_Strategy <- "Targeted-amplification "
-
-# Read Lab_ID data
-Lab_ID <- read_excel("N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender Laboratory.xlsx")
-
-source("N:/Virologi/Influensa/RARI/2526/BN SC2 25-26.R")
-
-# Repair Norwegian letters decoded as Windows-1252 or Latin-1 during SQL import.
-# Unicode escapes keep this helper independent of the script file's encoding.
-repair_norwegian_text <- function(x) {
-  x <- enc2utf8(x)
-  replacements <- c(
-    "\u00c3\u00a6" = "\u00e6", # ae
-    "\u00c3\u00b8" = "\u00f8", # o with stroke
-    "\u00c3\u00a5" = "\u00e5", # a with ring
-    "\u00c3\u2020" = "\u00c6", # uppercase ae (Windows-1252)
-    "\u00c3\u02dc" = "\u00d8", # uppercase o with stroke (Windows-1252)
-    "\u00c3\u2026" = "\u00c5", # uppercase a with ring (Windows-1252)
-    "\u00c3\u0086" = "\u00c6", # uppercase ae (Latin-1)
-    "\u00c3\u0098" = "\u00d8", # uppercase o with stroke (Latin-1)
-    "\u00c3\u0085" = "\u00c5"  # uppercase a with ring (Latin-1)
-  )
-  for (bad in names(replacements)) {
-    x <- gsub(bad, replacements[[bad]], x, fixed = TRUE)
+# Locate the R-only Sequence Review reader in the complete ngs_scripts checkout.
+nextstrain_approval_helper <- local({
+  source_files <- unlist(lapply(sys.frames(), function(frame) {
+    value <- get0("ofile", envir = frame, inherits = FALSE)
+    if (is.character(value)) value else character()
+  }), use.names = FALSE)
+  cli_files <- sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE))
+  scripts <- c(rev(source_files), cli_files)
+  scripts <- scripts[!is.na(scripts) & nzchar(scripts)]
+  override <- Sys.getenv("GISAID_SHARED_DIR", unset = "")
+  if (nzchar(override)) {
+    candidates <- file.path(override, "approval.R")
+  } else {
+    candidates <- c(file.path(dirname(scripts), "..", "..", "gisaid", "shared", "approval.R"),
+      file.path(getwd(), "gisaid", "shared", "approval.R"),
+      file.path(getwd(), "..", "gisaid", "shared", "approval.R"),
+      file.path(getwd(), "..", "..", "gisaid", "shared", "approval.R"),
+      "N:/Virologi/NGS/tmp/ngs_scripts/gisaid/shared/approval.R")
   }
-  x
+  available <- candidates[file.exists(candidates)]
+  if (!length(available)) stop("Cannot locate the R-only Sequence Review reader. Keep the complete ngs_scripts checkout, or set GISAID_SHARED_DIR to gisaid/shared.", call. = FALSE)
+  normalizePath(available[1L], winslash = "/", mustWork = TRUE)
+})
+source(nextstrain_approval_helper, encoding = "UTF-8")
+if (!identical(names(formals(read_approved_master)), c("master", "pathogen"))) {
+  stop("Outdated Sequence Review reader: ", nextstrain_approval_helper,
+       ". Update the complete checkout to the R-only version.", call. = FALSE)
 }
 
-sarsdb <- sarsdb %>%
-  mutate(across(where(is.character), repair_norwegian_text))
+# Approved master-based SC2 Nextstrain inputs. No SQL connection or Node.js.
+# Rscript SC2_META.R [--min-date YYYY-MM-DD] [--master master.csv] [--fasta master.fasta]
+#                       [--lab Innsender_GISAID.csv] [--output directory]
+source(file.path(dirname(nextstrain_approval_helper), "..", "sars-cov-2", "sc2_export.R"), encoding = "UTF-8")
 
-lab_lookup_table <- tribble(
-  ~`Lab code`, ~`Lab`, ~`Lab_address`,
-  "FHI-SMLV",	"Norwegian Institute of Public Health, Department of Virology",	"P.O.Box 222 Skoyen, 0213 Oslo, Norway",
-  "Sykehuset ??stfold HF Kalnes",	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
-  "KALNES-MEDMIKR",	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
-  "MOLLEBYEN-LS",	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
-  "KALNES-MIKR",	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
-  "KALNES-MIKRGENINF",	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
-  "Sykehuset ??stfold HF",	"Ostfold Hospital Trust - Kalnes, Centre for Laboratory Medicine, Section for gene technology and infection serology", "P.O.Box 300, N-1714 Graalum, Norway",
-  "AHUS-MIKR",	"Akershus University Hospital, Department for Microbiology and Infectious Disease Control",	"P.O.Box 1000, N-1478 Loerenskog, Norway",
-  "ULLEV-MIKRVIR",	"Oslo University Hospital, Department of Microbiology",	"P.O.Box 4956 Nydalen, N-0424 Oslo, Norway",
-  "BANKG??RDEN LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "BJ??LSEN LEGESENTER AS",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "FAGERNES LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "FORSAND LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "FURST-MIKRSER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "GILDESK??L LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "GJERDRUM LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "GRATANGEN LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "GRINI M??LLE LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "HELSETORGET LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "H??VDINGG??RDEN LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "ILADALEN LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "LEGENE I GR??NLANDSLEIRET",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "LEGENE P?? BRYGGEN",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "LILLESAND LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "OVERHALLA LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "PRESTFOSS LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "R??STAD LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "SIO HELSE BLINDERN",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "SJ??GATA MEDICAL",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "SOLVANG LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "STABEKK LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "STANGE LEGESENTER",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "STAVERN LEGEKONTOR",	"Furst Medical Laboratory",	"Soeren Bulls vei 25, N-1051 Oslo, Norway",
-  "LILLEH-MIKR",	"Innlandet Hospital Trust, Division Lillehammer, Department for Medical Microbiology", "P.O.Box 990, N-2629 Lillehammer, Norway",
-  "DRAM-MIKR",	"Medical Microbiology Unit, Department for Laboratory Medicine, Drammen Hospital, Vestre Viken Health Trust", "P.O.Box 800, N-3004 Drammen, Norway",
-  "TONSBERG-MIKR",	"Vestfold Hospital, Toensberg, Department of Microbiology",	"P.O.Box 2168, N-3103 Toensberg, Norway",
-  "SKIEN-MIKR",	"Unilabs Laboratory Medicine", "Leirvollen 19, N-3736 Skien, Norway",
-  "KRSAND-MIKR",	"Hospital of Southern Norway - Kristiansand, Department of Medical Microbiology",	"P.O.Box 416 Lundsiden, N-4604 Kristiansand, Norway",
-  "STAVANG-MIKR",	"Dept. of Medical Microbiology, Stavanger University Hospital, Helse Stavanger HF", "P.O.Box 8100, N-4068 Stavanger, Norway",
-  "HAUKE-MIKR",	"Haukeland University Hospital, Dept. of Microbiology",	"P.O.Box 1400, N-5021 Bergen, Norway",
-  "HAUKE-MIKRVIR",	"Haukeland University Hospital, Dept. of Microbiology",	"P.O.Box 1400, N-5021 Bergen, Norway",
-  "HAUGESU-MIKR",	"Haugesund Hospital, laboratory for Medical Microbiology", "P.O.Box 2170, N-5504 Haugesund, Norway",
-  "FORDE-MIKR",	"Foerde Hospital, Department of Microbiology", "P.O.Box 1000, N-6807 Foerde, Norway",
-  "MOLDE-MIKR",	"Department of Medical Microbiology - section Molde, Molde Hospital",	"Parkveien 84, N-6407 Molde, Norway",
-  "STOLAV-MIKR",	"Department of Medical Microbiology, St. Olavs hospital",	"P.O.box 3250 Torgarden, N-7006 Trondheim, Norway",
-  "LEVANG-MIKR",	"Levanger Hospital, laboratory for Medical Microbiology", "P.O.box 333, N-7601 Levanger, Norway",
-  "BODO-MIKR",	"Nordland Hospital - Bodo, Laboratory Department, Molecular Biology Unit", "P.O.Box 1480, N-8092 Bodo, Norway",
-  "TROMSO-MIKR",	"University Hospital of Northern Norway, Department for Microbiology and Infectious Disease Control",	"P.O.Box 56, N-9038 Tromsoe, Norway",
-  "BODO-MIKR",	NA, NA,
-  "AALESUND-MIKR",	"Department of medical microbiology, section Aalesund, Aalesund Hospital", "N-6026 Aalesund, Norway",
-  "BYGDELEGENE-RAKKESTAD",	NA, NA,
-  "ETNE LEGEKONTOR",	NA, NA,
-  "BAERUM-MIKR", "Department of Medical Microbiology, Baerum Hospital, Vestre Viken Health Trust", "P.O.Box 800, N-3004 Drammen, Norway",
-  "UNILABS-MIKR-SKIEN",	"Telemark Hospital Trust ??? Skien, Dept. of Medical Microbiology",	"P.O.Box 2900 Kj??rbekk, N-3710 Skien"
-) %>%
-  mutate(`Lab code` = as.character(`Lab code`))
-
-
-# Proceed with data filtering and selection
-sarsdb <- sarsdb %>%
-  filter(prove_tatt > min_date) %>%                      # Ensure SID is defined and matches the column
-  filter(nc_coverage >= 0.75) 
-
-# Use join to add the labs and addresses
-sarsdb <- sarsdb %>% 
-  left_join(lab_lookup_table,
-            by = c("prove_innsender_navn" = "Lab code")) 
-
-# Now select the required columns
-sarsdb <- sarsdb %>% select("key","prove_tatt","pasient_fylke_name","pasient_kjnn","prove_material", "pasient_alder", "prove_kategori","pasient_fylke_nr","prove_innsender_id",  
-                            "ngs_depth", "ngs_primer_vers", "nc_pangolin_long")
-
-# Data cleaning and manipulation
-sarsdb <- sarsdb %>% 
-  mutate(
-    Host_Gender = if_else(toupper(pasient_kjnn) %in% c("M", "F"), toupper(pasient_kjnn), NA_character_),
-    Year = lubridate::year(as.Date(prove_tatt)),
-    Uniq4 = stringr::str_sub(key, -4, -1),                     # last 4 digits
-    Isolate_Name = paste("hCoV-19", "Norway", Uniq4, Year, sep = "/"),
-    Specimen_Source = dplyr::case_when(
-      stringr::str_starts(prove_material, "NAPHSEKR") ~ "nasopharyngeal swab",
-      TRUE ~ ""
-    ),
-    Primer_vers = dplyr::case_when(
-      stringr::str_starts(ngs_primer_vers, "VM.3") ~ "Midnight version 3",
-      TRUE ~ NA_character_
-    )
-  )
-
-
-merged_df <- merge(sarsdb, Lab_ID, by.x = "prove_innsender_id", by.y = "Innsender nr", all.x = TRUE)
-
-# Replace NA and non-numeric values in GISAID_Nr column
-merged_df$GISAID_Nr <- ifelse(is.na(merged_df$GISAID_Nr) | is.na(merged_df$GISAID_Nr), GISAIDnr, merged_df$GISAID_Nr)
-
-# ---- NEXTSTRAIN METADATA TSV EXPORT ----
-library(dplyr)
-library(stringr)
-
-# safe getter
-get_col_vec <- function(df, name, default = NA_character_) {
-  if (name %in% names(df)) df[[name]] else rep(default, nrow(df))
+parse_options <- function(args) {
+  defaults <- sc2_gisaid_defaults()
+  opts <- list(master = defaults$master, fasta = NULL, lab = defaults$lab_lookup,
+    output = "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/4-Nextstrain",
+    min_date = "2025-01-01")
+  if (any(args %in% c("-h", "--help"))) {
+    cat("Usage: Rscript SC2_META.R [--min-date YYYY-MM-DD] [--master master.csv]\n",
+      "       [--fasta master.fasta] [--lab Innsender_GISAID.csv] [--output directory]\n",
+      "The first positional argument may also specify the minimum date.\n", sep = "")
+    return(NULL)
+  }
+  if (length(args) && !startsWith(args[1L], "--")) {
+    opts$min_date <- args[1L]
+    args <- args[-1L]
+  }
+  if (length(args) %% 2L) stop("Each option requires a value; use --help.", call. = FALSE)
+  used <- character()
+  if (length(args)) for (i in seq.int(1L, length(args), by = 2L)) {
+    name <- gsub("-", "_", sub("^--", "", args[i]), fixed = TRUE)
+    if (!startsWith(args[i], "--") || !name %in% names(opts) || name %in% used || !nzchar(args[i + 1L])) {
+      stop("Unknown or repeated option, or missing value: ", args[i], call. = FALSE)
+    }
+    opts[name] <- list(args[i + 1L]); used <- c(used, name)
+  }
+  date <- if (grepl("^\\d{4}-\\d{2}-\\d{2}$", opts$min_date)) suppressWarnings(as.Date(opts$min_date, "%Y-%m-%d")) else as.Date(NA)
+  if (is.na(date) || format(date, "%Y-%m-%d") != opts$min_date) stop("--min-date must be YYYY-MM-DD.", call. = FALSE)
+  if (is.null(opts$fasta)) opts$fasta <- file.path(dirname(opts$master), "master.fasta")
+  opts
 }
-`%||%` <- function(a,b) ifelse(is.na(a) | (is.character(a) & a==""), b, a)
-
-# sex per Nextstrain
-sex_vec <- dplyr::case_when(
-  sarsdb$Host_Gender %in% c("M","m") ~ "male",
-  sarsdb$Host_Gender %in% c("F","f") ~ "female",
-  TRUE ~ ""
-)
-
-# location (municipality) if available
-location_vec <- get_col_vec(sarsdb, "pasient_kommune_name", "")
-
-# purpose of sequencing
-pasient_status_vec <- get_col_vec(sarsdb, "pasient_status", NA_character_)
-purpose_vec <- dplyr::case_when(
-  sarsdb$prove_kategori == "P1_" ~ "Sentinel surveillance (ARI)",
-  sarsdb$prove_kategori == "P2_" & pasient_status_vec == "Poliklinisk" ~ "Non-sentinel surveillance (outpatient)",
-  pasient_status_vec == "Inneliggende" ~ "Non-sentinel surveillance (hospital)",
-  TRUE ~ ""
-)
-
-# try to pick a gisaid accession column if present
-epi_candidates <- c("EPI_ISL", "gisaid_epi_isl", "GISAID_EPI_ISL", "GISAID_accession", "GISAID_acc", "EPI_ISL_id", "GISAID_Nr")
-epi_col <- epi_candidates[ epi_candidates %in% names(merged_df) ]
-gisaid_epi_vec <- if (length(epi_col)) merged_df[[epi_col[1]]] else rep(NA_character_, nrow(merged_df))
-gisaid_epi_vec <- ifelse(!is.na(gisaid_epi_vec) & grepl("^EPI[_-]?ISL[_-]?\\d+$", as.character(gisaid_epi_vec), ignore.case = TRUE),
-                         as.character(gisaid_epi_vec), NA_character_)
-
-# optional: compute sequence length from filtered_seq
-length_df <- NULL
-if (exists("filtered_seq") && all(c("key","sequence") %in% names(filtered_seq))) {
-  length_df <- filtered_seq %>%
-    mutate(length = nchar(gsub("\\s+", "", sequence))) %>%
-    distinct(key, length)
+nextstrain_col <- function(x, name, default = "") {
+  if (name %in% names(x)) x[[name]] else rep(default, nrow(x))
 }
-
-ns_meta <- merged_df %>%
-  mutate(
-    strain  = sarsdb$Isolate_Name,                         # <??? key change
-    virus   = "SARS-CoV-2",
-    gisaid_epi_isl = gisaid_epi_vec,
-    date    = format(as.Date(sarsdb$prove_tatt), "%Y-%m-%d"),
-    region  = "Europe",
-    country = "Norway",
-    division = sarsdb$pasient_fylke_name %||% "",
-    location = location_vec,
-    region_exposure = "Europe",
-    country_exposure = "Norway",
-    division_exposure = sarsdb$pasient_fylke_name %||% "",
-    segment = "genome",
-    length = NA_integer_,
-    host = "Human",
-    age  = as.character(sarsdb$pasient_alder %||% NA_character_),
-    sex  = sex_vec,
-    pangolin_lineage = get_col_vec(sarsdb, "nc_pangolin_long", ""),
-    GISAID_clade     = get_col_vec(sarsdb, "GISAID_clade", ""),
-    originating_lab  = get_col_vec(sarsdb, "Lab", ""),
-    submitting_lab   = "Norwegian Institute of Public Health, Department of Virology",
-    authors          = authors,
-    url = "", title = "", paper_url = "",
-    date_submitted = "",
-    purpose_of_sequencing = purpose_vec
-  )
-
-if (!is.null(length_df)) {
-  ns_meta <- ns_meta %>% left_join(length_df, by = "key") %>%
-    mutate(length = dplyr::coalesce(.data$length.y, .data$length.x)) %>%
-    select(-dplyr::any_of(c("length.x","length.y")))
+prepare_sc2_nextstrain <- function(snapshot, records, labs, min_date) {
+  x <- snapshot$rows
+  if (anyDuplicated(tolower(names(x)))) stop("Master CSV has duplicate column names.", call. = FALSE)
+  names(x) <- tolower(names(x))
+  required <- c("key", "prove_tatt", "nc_coverage", "pasient_fylke_name", "prove_innsender_id")
+  sc2_require_columns(names(x), required, "SC2 master")
+  dates <- suppressWarnings(as.Date(x$prove_tatt, "%Y-%m-%d"))
+  coverage <- suppressWarnings(as.numeric(gsub(",", ".", x$nc_coverage, fixed = TRUE)))
+  selected <- which(!is.na(dates) & dates > as.Date(min_date) & is.finite(coverage) & coverage >= 0.75)
+  x <- x[selected, , drop = FALSE]
+  approvals <- snapshot$approvals[selected]
+  missing_key <- is.na(x$key) | !nzchar(trimws(x$key))
+  if (any(missing_key)) message("Skipping ", sum(missing_key), " eligible rows with no Key.")
+  x <- x[!missing_key, , drop = FALSE]; approvals <- approvals[!missing_key]
+  if (!nrow(x)) stop("No currently approved samples remain after Nextstrain date, coverage and Key filters.", call. = FALSE)
+  if (anyDuplicated(x$key)) stop("Eligible samples have duplicate Key values.", call. = FALSE)
+  sequences <- sc2_match_sequences(approvals, snapshot$identities, records)
+  names <- paste("hCoV-19", "Norway", substring(x$key, pmax(1L, nchar(x$key) - 3L)),
+                 format(as.Date(x$prove_tatt, "%Y-%m-%d"), "%Y"), sep = "/")
+  if (any(grepl("[[:space:]>]", names)) || anyDuplicated(names)) stop("Eligible samples have invalid or duplicate isolate names.", call. = FALSE)
+  gender <- toupper(nextstrain_col(x, if ("pasient_kjnn" %in% names(x)) "pasient_kjnn" else "pasient_kjonn"))
+  category <- nextstrain_col(x, "prove_kategori")
+  status <- nextstrain_col(x, "pasient_status")
+  purpose <- ifelse(category == "P1_", "Sentinel surveillance (ARI)",
+    ifelse(category == "P2_" & status == "Poliklinisk", "Non-sentinel surveillance (outpatient)",
+    ifelse(status == "Inneliggende", "Non-sentinel surveillance (hospital)", "")))
+  accession <- rep("", nrow(x))
+  for (column in intersect(c("gisaid_isolate_id", "epi_isl", "gisaid_epi_isl", "gisaid_accession", "gisaid_acc", "epi_isl_id"), names(x))) {
+    values <- x[[column]]
+    hit <- !nzchar(accession) & grepl("^EPI[_-]?ISL[_-]?\\d+$", values, ignore.case = TRUE)
+    accession[hit] <- values[hit]
+  }
+  division <- vapply(x$pasient_fylke_name, sc2_repair_county, character(1))
+  lab_names <- vapply(trimws(x$prove_innsender_id), function(code) {
+    lab <- if (nzchar(code)) labs[[code]] else NULL
+    if (is.null(lab)) "" else lab$name
+  }, character(1), USE.NAMES = FALSE)
+  ordered <- lapply(approvals, function(review) sequences[[review$key]])
+  metadata <- data.frame(strain = names, virus = "SARS-CoV-2", gisaid_epi_isl = accession,
+    date = format(as.Date(x$prove_tatt, "%Y-%m-%d"), "%Y-%m-%d"), region = "Europe", country = "Norway",
+    division = division, location = nextstrain_col(x, "pasient_kommune_name"), region_exposure = "Europe",
+    country_exposure = "Norway", division_exposure = division, segment = "genome",
+    length = vapply(ordered, function(record) nchar(record$sequence), integer(1)), host = "Human",
+    age = nextstrain_col(x, "pasient_alder"), sex = ifelse(gender == "M", "male", ifelse(gender == "F", "female", "")),
+    pangolin_lineage = nextstrain_col(x, "nc_pangolin_long"), GISAID_clade = nextstrain_col(x, "gisaid_clade"),
+    originating_lab = lab_names, submitting_lab = "Norwegian Institute of Public Health, Department of Virology",
+    authors = "Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; Knutsen, MF",
+    url = "", title = "", paper_url = "", date_submitted = "", purpose_of_sequencing = purpose,
+    stringsAsFactors = FALSE, check.names = FALSE)
+  fasta <- unlist(lapply(seq_along(ordered), function(i) c(paste0(">", names[i]), ordered[[i]]$sequence)), use.names = FALSE)
+  list(metadata = metadata, fasta = fasta)
 }
-
-ns_cols <- c(
-  "strain","virus","gisaid_epi_isl","date","region","country","division","location",
-  "region_exposure","country_exposure","division_exposure","segment","length",
-  "host","age","sex","pangolin_lineage","GISAID_clade","originating_lab",
-  "submitting_lab","authors","url","title","paper_url","date_submitted","purpose_of_sequencing"
-)
-for (mc in setdiff(ns_cols, names(ns_meta))) ns_meta[[mc]] <- NA_character_
-ns_meta <- ns_meta %>% select(dplyr::all_of(ns_cols))
-
-# Define the output file path and filename
-output_dir <- "N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/4-Nextstrain"
-
-ns_out_dir <- output_dir
-
-ns_out_file <- file.path(ns_out_dir, paste0("nextstrain_metadata_", format(Sys.Date(), "%Y-%m-%d"), ".tsv"))
-write.table(ns_meta, ns_out_file, sep = "\t", quote = TRUE, row.names = FALSE,
-            na = "", fileEncoding = "UTF-8")
-
-
-
-message("Nextstrain metadata written to: ", ns_out_file)
-
-
-# Create the output filename for the FASTA file
-output_filename_fasta <- paste0("nextstrain_fasta", format(Sys.Date(), "%U-%Y"), ".fasta")
-output_path_fasta <- file.path(output_dir, output_filename_fasta)
-
-# ---- FASTA HEADER FIX ----
-stopifnot(all(c("key","sequence") %in% names(filtered_seq)))
-
-# ensure key types match
-filtered_seq <- filtered_seq %>% mutate(key = as.character(key))
-name_map <- sarsdb %>% distinct(key, Isolate_Name)
-
-fasta_df <- filtered_seq %>%
-  left_join(name_map, by = "key")
-
-# warn if any names missing
-n_missing <- sum(is.na(fasta_df$Isolate_Name))
-if (n_missing > 0) warning(n_missing, " sequences missing Isolate_Name; check keys vs sarsdb")
-
-file_con <- file(output_path_fasta, open = "w")
-for (i in seq_len(nrow(fasta_df))) {
-  header <- fasta_df$Isolate_Name[i]
-  if (is.na(header) || header == "") header <- fasta_df$key[i]  # last-resort fallback
-  seqi <- fasta_df$sequence[i]
-  cat(">", header, "\n", seqi, "\n", file = file_con, sep = "")
+main <- function(args = commandArgs(trailingOnly = TRUE)) {
+  opts <- parse_options(args)
+  if (is.null(opts)) return(invisible(NULL))
+  snapshot <- read_approved_master(opts$master, "SC2")
+  fasta_bytes <- gisaid_read_bytes(opts$fasta)
+  lab_bytes <- gisaid_read_bytes(opts$lab)
+  prepared <- prepare_sc2_nextstrain(snapshot, sc2_read_fasta(fasta_bytes), sc2_lab_lookup(lab_bytes), opts$min_date)
+  assert_approved_master(opts$master, "SC2", snapshot$token)
+  if (!identical(gisaid_read_bytes(opts$fasta), fasta_bytes) || !identical(gisaid_read_bytes(opts$lab), lab_bytes)) {
+    stop("FASTA or lab lookup changed during export; retry.", call. = FALSE)
+  }
+  if (!dir.exists(opts$output) && !dir.create(opts$output, recursive = TRUE)) stop("Cannot create output directory.", call. = FALSE)
+  metadata_path <- file.path(opts$output, paste0("nextstrain_metadata_", format(Sys.Date(), "%Y-%m-%d"), ".tsv"))
+  fasta_path <- file.path(opts$output, paste0("nextstrain_fasta", format(Sys.Date(), "%U-%Y"), ".fasta"))
+  write.table(prepared$metadata, metadata_path, sep = "\t", quote = TRUE, row.names = FALSE, na = "", fileEncoding = "UTF-8")
+  writeLines(prepared$fasta, fasta_path, useBytes = TRUE)
+  message("Nextstrain metadata and FASTA written to: ", opts$output)
+  invisible(prepared)
 }
-close(file_con)
-
-# ---- END FASTA HEADER FIX ----
+if (sys.nframe() == 0L) main() else if (exists("nextstrain_args", inherits = FALSE)) main(nextstrain_args)

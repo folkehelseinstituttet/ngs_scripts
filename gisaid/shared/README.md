@@ -79,6 +79,11 @@ timestamps stored by Sequence Review. Tests compare both readers on synthetic
 Unicode, quoted CSV, approval histories, composite keys, legacy migration and
 invalid inputs. `read_approved_master(master, pathogen)` returns approved rows;
 `assert_approved_master(master, pathogen, token)` rechecks before writing.
+The R snapshot also includes `original_rows`, the full master before selection
+or overrides. Nextstrain's R input scripts use it to retain all original FASTA
+aliases and detect ambiguity with excluded samples. This field does not grant
+approval to excluded rows. Both Nextstrain scripts use these same R approval
+checks before their existing metadata filters and recheck before writing.
 
 If the solution's review format/policy changes,
 update both readers deliberately and rerun the approval/export tests.

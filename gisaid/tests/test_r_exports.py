@@ -13,6 +13,7 @@ from test_approved_exports import GISAID, approved, make_dataset, review, write_
 def r_approved(master, pathogen='SC2', token=None):
     code = ('a <- commandArgs(TRUE); source(a[1]); '
             's <- read_approved_master(a[2], a[3]); '
+            's$original_rows <- NULL; '
             's$headers <- as.list(s$headers); s$identity_headers <- as.list(s$identity_headers); '
             'cat(jsonlite::toJSON(s, auto_unbox=TRUE, dataframe="rows", null="null"))')
     if token:
