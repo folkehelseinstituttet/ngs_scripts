@@ -15,8 +15,8 @@ from sars_qc_report import build_report
 from merge_master_fasta import read_fasta
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'gisaid/sars-cov-2'))
-from sc2_gisaid_csv import approval, lab_lookup
+sys.path.insert(0, str(ROOT / 'gisaid/shared'))
+from sc2_metadata import approval, lab_lookup
 
 
 def validate(report, workflow, master=None, metadata=None, fasta=None, lab=None, reviews=False):

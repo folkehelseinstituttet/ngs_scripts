@@ -55,7 +55,7 @@ def test_wrapper_master_qc_export_and_accession_round_trip(run_env, tmp_path, ki
     assert checked.returncode == 0, checked.stderr
     assert json.loads(checked.stdout)['approval_counts']['approved'] == 1
     output = tmp_path / 'submission'
-    export = subprocess.run([sys.executable, str(ROOT / 'gisaid/sars-cov-2/sc2_gisaid_csv.py'), 'SART001', 'TEST',
+    export = subprocess.run([sys.executable, str(ROOT / 'gisaid/sars-cov-2/archive/sc2_gisaid_csv.py'), 'SART001', 'TEST',
                              '--master', str(master), '--lab-lookup', str(labs), '--output-dir', str(output),
                              '--prefix', 'synthetic', '--assembly-method', 'Synthetic method'], capture_output=True, text=True)
     assert export.returncode == 0, export.stderr

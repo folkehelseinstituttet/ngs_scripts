@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create SC2 GISAID metadata and matching FASTA from currently approved master rows."""
+"""Archived Python exporter; use ../sc2_gisaid_csv.R for the current R-only workflow."""
 
 import argparse
 from collections import Counter, defaultdict
@@ -16,14 +16,13 @@ import subprocess
 import sys
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / 'gisaid/shared'))
+from sc2_metadata import MASTER, approval, require, lab_lookup, isolate_name
 sys.path.insert(0, str(ROOT / 'fluseq/master_csv/bin'))
 from merge_master_csv import read_table, repair_metadata_text
 from merge_master_fasta import read_fasta
 
-APPROVAL_HELPER = ROOT / 'gisaid/shared/approved_master.cjs'
-MASTER = ('N:/Virologi/NGS/1-NGS-Analyser/2-Utvikling/'
-          'Seksjons for Influensa og andre luftveisvirus - NGS analysis database/data/SC2/master.csv')
 LABS = 'N:/Virologi/Influensa/ARoh/Influenza/GISAID/Innsender_GISAID.csv'
 OUTDIR = 'N:/Virologi/NGS/1-NGS-Analyser/1-Rutine/2-Resultater/SARS-CoV-2/4-GISAIDsubmisjon'
 AUTHORS = 'Bragstad, K; Hungnes, O; Madsen, MP; Rohringer, A; Riis, R; Knutsen, MF'
@@ -39,46 +38,12 @@ COLUMNS = ['submitter', 'fn', 'covv_virus_name', 'covv_type', 'covv_passage',
            'covv_treatment', 'covv_coverage', 'covv_sampling_strategy']
 
 
-def approval(master, token=None):
-    command = [os.environ.get('GISAID_NODE', 'node'), str(APPROVAL_HELPER),
-               '--master', str(master), '--pathogen', 'SC2']
-    if token:
-        command += ['--expect-token', token]
-    result = subprocess.run(command, capture_output=True, text=True, encoding='utf-8', timeout=120)
-    if result.returncode:
-        raise ValueError(result.stderr.strip() or 'Sequence Review approval check failed')
-    return None if token else json.loads(result.stdout)
-
-
-def require(headers, required, label):
-    missing = set(required) - set(headers)
-    if missing:
-        raise ValueError(f'{label}: missing columns: ' + ', '.join(sorted(missing)))
-
-
 def coverage_ok(value):
     try:
         number = float(value.strip().replace(',', '.'))
     except ValueError:
         return False
     return math.isfinite(number) and 0.75 <= number <= 1
-
-
-def lab_lookup(path):
-    headers, rows = read_table(path)
-    require(headers, ['Innsender_nr', 'Innsender_navn'], 'Lab lookup')
-    labs = {}
-    for row in rows:
-        code = row['Innsender_nr'].strip()
-        if not code:
-            continue
-        if code in labs:
-            raise ValueError('Lab lookup contains duplicate Innsender_nr values')
-        addresses = {row.get(name, '').strip() for name in ('Innsender_adresse', 'Lab_address')} - {''}
-        if len(addresses) > 1:
-            raise ValueError('Lab lookup has conflicting address columns')
-        labs[code] = (row['Innsender_navn'].strip(), next(iter(addresses), ''))
-    return labs
 
 
 def match_sequences(selected, identities, records):
@@ -100,17 +65,6 @@ def match_sequences(selected, identities, records):
     if any(len(matches[key]) != 1 for key in wanted):
         raise ValueError('Each eligible sample must match exactly one FASTA record; missing or ambiguous matches found')
     return {key: matches[key][0] for key in wanted}
-
-
-def isolate_name(key, collection_date):
-    try:
-        collected = date.fromisoformat(collection_date.strip())
-    except ValueError as error:
-        raise ValueError('Eligible samples need a valid ISO Prove_Tatt date (YYYY-MM-DD)') from error
-    unique = key[4:] if re.fullmatch(r'[0-9]{5,}', key) else key
-    if not unique or re.search(r'[\s/>]', unique):
-        raise ValueError('Eligible Key cannot form an unambiguous FASTA submission name')
-    return f'hCoV-19/Norway/{unique}/{collected.year}'
 
 
 def metadata_row(row, lab, args, fasta_name):

@@ -14,8 +14,8 @@ import shutil
 import sys
 import tempfile
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sc2_gisaid_csv import MASTER, isolate_name
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'shared'))
+from sc2_metadata import MASTER, isolate_name
 from merge_master_csv import read_table, write_table, digest, master_lock, backup_suffix
 
 ID = 'GISAID_Isolate_ID'

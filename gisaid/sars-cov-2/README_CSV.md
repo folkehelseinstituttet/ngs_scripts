@@ -2,17 +2,17 @@
 
 `sc2_gisaid_csv.R` is the R-only master-based exporter. It creates a submission
 CSV, matching FASTA and audit manifest, without changing master/review files or
-submitting to GISAID. The existing database-based `sc2_gisaid.R` remains a legacy
-script; use this new entry point for the approval-filtered workflow.
+submitting to GISAID. The previous database-based exporter is in
+[archive/sc2_gisaid.R](archive/sc2_gisaid.R).
 
 Requires R and the `jsonlite` and `digest` R packages. Node.js and Python are
 not required for this exporter. Install missing packages in the R console with
 `install.packages(c("jsonlite", "digest"))`. Deploy the complete `ngs_scripts`
 checkout. See the [approval rules and dataset layout](../shared/README.md).
 
-The existing `sc2_gisaid_csv.py` remains available for existing callers and
-requires Python 3.10+ and Node.js 18+. Both implementations apply the same
-approval, selection and validation rules and produce compatible audit manifests.
+The previous Python exporter is retained in
+[archive/sc2_gisaid_csv.py](archive/sc2_gisaid_csv.py) for reference and comparison
+tests. It requires Python and Node.js; the current R exporter does not use it.
 
 ## Run
 
@@ -50,7 +50,7 @@ The assembly method records the software used to generate the consensus sequence
 it does not run assembly. It defaults to `ARTIC 1.6.2`, matching the ARTIC version
 declared by the current SC2 pipeline checkout. For historical runs or externally
 assembled FASTAs, use `--assembly-method "Actual software and version"` to record
-their original method. The Python alternative uses the same default and override.
+their original method. The archived Python reference uses the same default and override.
 The technology defaults to the legacy `Oxford Nanopore - GridION`; override
 `--sequencing-technology` for other runs. `--authors` overrides the legacy author
 list. Check these values against the run before preparing a submission.

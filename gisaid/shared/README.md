@@ -30,7 +30,8 @@ credentials, contact a server, or upload anything to GISAID. R errors include th
 underlying cause, such as a missing `config.json` or unreadable `reviews/`.
 Failures do not write a submission.
 
-The existing Python SC2 exporter still uses the JavaScript reader and needs
+The archived [Python SC2 exporter](../sars-cov-2/archive/sc2_gisaid_csv.py)
+uses the JavaScript reader and needs
 Node.js 18+; `GISAID_NODE` can point to its executable. The R exporters do not use
 that variable. Use `sc2_gisaid_csv.R` for the R-only SC2 workflow.
 
@@ -70,7 +71,7 @@ SHA-256: fc07727236cf9798e84fe3730730aa98e663829fcdcdec95a38abe921a033e16
 
 `approved_master.cjs` adds read-only filesystem loading, approved-row selection,
 snapshot checks and machine-readable output. It remains the JavaScript reference
-and the reader used by the existing Python SC2 exporter. No npm packages are required.
+and the reader used by the archived Python SC2 exporter. No npm packages are required.
 
 `approval.R` independently implements these read-only rules in R, including
 JavaScript-compatible UTF-16 sorting, exact UTF-8 JSON row fingerprints, and the
@@ -96,3 +97,8 @@ Tests require Python, Node.js (for the frozen reference/old Python exporter),
 and R with the documented exporter packages. Node.js is a test dependency only
 for the R workflows. Tests use synthetic rows, review events and short
 placeholder FASTA records. They never submit sequences or read production data.
+
+`sc2_metadata.py` contains the Python metadata helpers used by the accession
+importer, deployment validator and archived Python exporter. These utilities
+remain independent of the archived entry script. The routine R exporters do
+not load this Python module.

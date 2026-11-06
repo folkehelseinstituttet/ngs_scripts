@@ -111,7 +111,7 @@ the samplesheet `$TMP_DIR/<RUN>.csv` (`--local-samplesheet` overrides it).
 
 ### GISAID export from the master
 
-Use [sc2_gisaid_csv.py](../gisaid/sars-cov-2/sc2_gisaid_csv.py) to prepare the
+Use the R-only [sc2_gisaid_csv.R](../gisaid/sars-cov-2/sc2_gisaid_csv.R) to prepare the
 separate submission CSV and matching FASTA. Both SC2 and INF master-based
 exporters now require a current `Approved` decision from the solution, in addition
 to their existing metadata/QC filters. They read the solution's `config.json`

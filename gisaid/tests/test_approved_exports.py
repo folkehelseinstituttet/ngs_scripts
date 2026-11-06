@@ -14,7 +14,8 @@ import pytest
 
 GISAID = Path(__file__).resolve().parents[1]
 HELPER = GISAID / 'shared/approved_master.cjs'
-SC2 = GISAID / 'sars-cov-2/sc2_gisaid_csv.py'
+# The archived Python exporter remains an independent reference for R parity.
+SC2 = GISAID / 'sars-cov-2/archive/sc2_gisaid_csv.py'
 INF = GISAID / 'influenza/influenza_gisaid_csv.R'
 spec = importlib.util.spec_from_file_location('sc2_export', SC2)
 sc2_export = importlib.util.module_from_spec(spec)

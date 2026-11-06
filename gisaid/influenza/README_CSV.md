@@ -1,6 +1,7 @@
 # Influenza GISAID scripts for master.csv
 
-The original SQL-based `influenza_gisaid.R` is unchanged. The new scripts use
+The previous SQL exporter is in [archive/influenza_gisaid.R](archive/influenza_gisaid.R).
+The current scripts use
 `master.csv` by default from
 `N:/Virologi/NGS/1-NGS-Analyser/2-Utvikling/Seksjons for Influensa og andre luftveisvirus - NGS analysis database/data/INF/`.
 Pass a different master path where shown below. Paths containing spaces must be
