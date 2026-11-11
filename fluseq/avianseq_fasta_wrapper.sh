@@ -4,6 +4,7 @@ set -euo pipefail
 shopt -s nullglob
 
 export NXF_SYNTAX_PARSER="${NXF_SYNTAX_PARSER:-v1}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Maintained by: Rasmus Kopperud Riis (rasmuskopperud.riis@fhi.no)
 # Version: dev
@@ -22,9 +23,11 @@ usage() {
     echo "  -v, --validation  Use the validation upload destination (e.g., VER); NOT a dry run"
     echo "  -b, --source      Specify source (e.g., bn)"
     echo "  -g, --branch      Specify pipeline branch/tag to use (default: master)"
+    echo "  -M, --skip-master Skip master CSV and FASTA updates"
+    echo "  Master updates default to enabled; configure with AVIANSEQ_ variables (see master_csv/README.md)."
     echo ""
     echo "Options with values accept both --option VALUE and --option=VALUE."
-    echo "Validation mode uploads report CSVs and skips only the full-results upload."
+    echo "Validation mode uploads report CSVs, but skips full-results uploads and master updates."
     exit "${1:-1}"
 }
 
@@ -36,16 +39,18 @@ YEAR=""
 VALIDATION_FLAG=""
 SOURCE=""
 PIPELINE_BRANCH="master"
+export AVIANSEQ_MASTER_UPDATE="${AVIANSEQ_MASTER_UPDATE:-true}"
 
 while (( $# )); do
     # Normalize long options with '=' and short options with attached values.
     case "$1" in
-        --help=*) echo "ERROR: --help does not take a value." >&2; usage ;;
+        --help=*|--skip-master=*) echo "ERROR: ${1%%=*} does not take a value." >&2; usage ;;
         --*=*) set -- "${1%%=*}" "${1#*=}" "${@:2}" ;;
         -[rasyvbg]?*) set -- "${1:0:2}" "${1:2}" "${@:2}" ;;
     esac
     case "$1" in
         -h|--help) usage 0 ;;
+        -M|--skip-master) export AVIANSEQ_MASTER_UPDATE=false; shift ;;
         -r|--run|-a|--agens|-s|--season|-y|--year|-v|--validation|-b|--source|-g|--branch)
             if (( $# < 2 )) || [[ -z "$2" || "$2" == -* ]]; then
                 echo "ERROR: $1 requires a non-empty value." >&2
@@ -103,6 +108,12 @@ if [ -e "$HOME/$RUN" ] || [ -L "$HOME/$RUN" ]; then
     exit 1
 fi
 
+# Check archive configuration before downloads or analysis. Human FLUSEQ_ settings
+# are deliberately independent of the avian destination and metadata.
+MASTER_CSV_TOOLS="${AVIANSEQ_MASTER_TOOLS:-$SCRIPT_DIR/master_csv}"
+python3 "$MASTER_CSV_TOOLS/bin/update_master_csv.py" \
+    --profile avian --workflow fasta --validation "$VALIDATION_FLAG" --check-config
+
 # Hold this lock for the entire invocation, including shared-file updates.
 # Other programs must use the same lock to participate in this protection.
 TMP_DIR=/mnt/tempdata/fasta_fluseq
@@ -140,7 +151,7 @@ echo "Season: $SEASON"
 echo "Year: $YEAR"
 echo "Validation Flag: $VALIDATION_FLAG"
 if [ -n "$VALIDATION_FLAG" ]; then
-    echo "Validation mode: report CSVs WILL be uploaded; the full-results upload is skipped."
+    echo "Validation mode: report CSVs WILL be uploaded; full-results uploads and master updates are skipped."
 fi
 echo "Source: $SOURCE"
 echo "Pipeline branch: $PIPELINE_BRANCH"
@@ -363,7 +374,14 @@ lcd "$HOME/out_fluseq/${RUN}/reporthuman/"
 mput *.csv
 EOF
 
+# Merge only the completed run report, after successful result uploads.
+python3 "$MASTER_CSV_TOOLS/bin/update_master_csv.py" \
+    --profile avian --workflow fasta --validation "$VALIDATION_FLAG" \
+    --report "$HOME/out_fluseq/${RUN}/reporthuman/${RUN}.csv" \
+    --fasta "$HOME/out_fluseq/${RUN}/reporthuman/${RUN}.fasta"
+
 ## Clean up
 nextflow clean -f
-rm -rf $HOME/out_fluseq/$RUN
-rm -rf $TMP_DIR
+# Keep archived reports for retries and later metadata imports. Keep the lock
+# inode in TMP_DIR, so another invocation cannot bypass a held lock.
+rm -rf -- "$SAMPLEDIR"

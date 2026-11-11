@@ -63,6 +63,21 @@ organises records by sample, assesses sequence completeness, generates
 classifications and annotations, and combines results into reports. It does not
 assemble consensus sequences from raw reads.
 
+## CSVmaster archives
+
+The FASTA wrapper now updates `master.csv` and `master.fasta` automatically in
+the analysis database's `data\INF-AVIAN` directory after successful result
+uploads. It uses independent `AVIANSEQ_` settings and discovers `metadata.csv`,
+`metadata.xls`, or `metadata.xlsx` beside the master. Missing or ambiguous
+metadata stops the update; archived results remain available for retry.
+
+Until the metadata file is available, add `-M` / `--skip-master` to skip both
+archive updates. Validation runs also skip them. The actual metadata columns
+and sample-ID mapping still need confirmation. Excel imports require optional
+Python dependencies, and `master.csv` must already exist.
+
+See [avian archive configuration and retry instructions](master_csv/README.md#avian-fasta-wrapper).
+
 ## Software requirements
 
 The current wrapper depends on:

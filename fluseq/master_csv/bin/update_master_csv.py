@@ -65,8 +65,8 @@ class SMB:
         try:
             self.get(remote, local)
         except SMBError as error:
-            # Only this exact status permits initializing a new FASTA. A missing
-            # directory, access denial or network failure is never an empty master.
+            # Only this exact status means an optional file is absent. A missing
+            # directory, access denial or network failure must remain an error.
             if error.statuses and set(error.statuses) == {"NT_STATUS_OBJECT_NAME_NOT_FOUND"}:
                 return False
             raise
@@ -89,7 +89,8 @@ class SMB:
 
 
 def configuration(environ, validation="", *, prefix="FLUSEQ", master_share=MASTER_SHARE,
-                  master_directory=MASTER_DIR, metadata_name="NGS_PREP_INF_report.csv"):
+                  master_directory=MASTER_DIR, metadata_name="NGS_PREP_INF_report.csv",
+                  metadata_candidates=()):
     def setting(name, default=None):
         return environ.get(f"{prefix}_{name}", default)
 
@@ -111,6 +112,7 @@ def configuration(environ, validation="", *, prefix="FLUSEQ", master_share=MASTE
         raise MergeError(f"{prefix}_MASTER_NONEMPTY_REPORT must be true or false")
     master_name = setting("MASTER_SMB_NAME", "master.csv")
     metadata_name = setting("METADATA_SMB_NAME", metadata_name)
+    metadata_names = (metadata_name,) if setting("METADATA_SMB_NAME") else (metadata_candidates or (metadata_name,))
     for name in (master_name, metadata_name):
         smb_quote(name)
         if "/" in name or "\\" in name or name in {".", ".."}:
@@ -122,7 +124,11 @@ def configuration(environ, validation="", *, prefix="FLUSEQ", master_share=MASTE
     metadata_share = setting("METADATA_SMB_SHARE") or None
     # Until a separate export location is configured, read metadata beside the master.
     if master and not metadata and not metadata_share:
-        metadata = str(Path(master).with_name(metadata_name))
+        candidates = [Path(master).with_name(name) for name in metadata_names]
+        if len(candidates) > 1:
+            metadata = str(select_metadata([path for path in candidates if path.is_file()], prefix))
+        else:
+            metadata = str(candidates[0])
     auth = setting("MASTER_SMB_AUTH", "/home/ngs/.smbcreds")
     metadata_auth = setting("METADATA_SMB_AUTH", auth)
     for label, path in (("master", master), ("metadata", metadata)):
@@ -146,9 +152,56 @@ def configuration(environ, validation="", *, prefix="FLUSEQ", master_share=MASTE
         ),
         "master_name": master_name,
         "metadata_name": metadata_name,
+        "metadata_names": metadata_names,
+        "metadata_sheet": setting("METADATA_SHEET") or None,
+        "prefix": prefix,
         "nonempty_report": nonempty == "true",
     }
     return config, None
+
+
+def profile_configuration(environ, validation="", profile="human"):
+    if profile == "avian":
+        return configuration(
+            environ, validation, prefix="AVIANSEQ", master_directory=MASTER_DIR + "-AVIAN",
+            metadata_name="metadata.csv", metadata_candidates=("metadata.csv", "metadata.xls", "metadata.xlsx"),
+        )
+    return configuration(environ, validation)
+
+
+def select_metadata(paths, prefix):
+    if not paths:
+        raise MergeError("No metadata file found (metadata.csv, metadata.xls or metadata.xlsx); "
+                         f"provide metadata or set {prefix}_METADATA_CSV / {prefix}_METADATA_SMB_NAME")
+    if len(paths) > 1:
+        raise MergeError(f"Multiple metadata files found; select one with {prefix}_METADATA_CSV "
+                         f"or {prefix}_METADATA_SMB_NAME")
+    return paths[0]
+
+
+def local_metadata(config, directory):
+    metadata = config["metadata"]
+    if metadata is None:
+        download_dir = directory / "metadata-input"
+        download_dir.mkdir()
+        names = config.get("metadata_names", (config["metadata_name"],))
+        remote = config["metadata_smb"]
+        if len(names) == 1:
+            metadata = download_dir / names[0]
+            remote.get(names[0], metadata)
+        else:
+            found = []
+            for name in names:
+                path = download_dir / name
+                if remote.get_if_exists(name, path):
+                    found.append(path)
+            metadata = select_metadata(found, config.get("prefix", "AVIANSEQ"))
+    if Path(metadata).suffix.lower() in {".xls", ".xlsx"}:
+        from read_metadata import read_excel_metadata
+        table = read_excel_metadata(metadata, config.get("metadata_sheet"))
+        metadata = directory / "normalized-metadata.csv"
+        write_table(metadata, *table)
+    return metadata
 
 
 def update(config, report, workflow, qc_output=None, qc_options=None, fasta=None, *, table_merger=None):
@@ -170,10 +223,7 @@ def update(config, report, workflow, qc_output=None, qc_options=None, fasta=None
 
     with tempfile.TemporaryDirectory(prefix="fluseq-master-") as directory:
         directory = Path(directory)
-        metadata = config["metadata"]
-        if metadata is None:
-            metadata = directory / "metadata.csv"
-            config["metadata_smb"].get(config["metadata_name"], metadata)
+        metadata = local_metadata(config, directory)
         if config["master"] is not None:
             stats = merge_files(
                 config["master"], metadata, report, workflow, nonempty_report=config["nonempty_report"],
@@ -218,12 +268,11 @@ def check_identifiers(config, report=None, output=None, workflow="fastq"):
         if Path(output).resolve() in protected:
             raise MergeError("Identifier report must be separate from master, metadata and run report")
     with tempfile.TemporaryDirectory(prefix="fluseq-identifier-audit-") as directory:
-        paths = {}
-        for kind in ("master", "metadata"):
-            paths[kind] = config[kind]
-            if paths[kind] is None:
-                paths[kind] = Path(directory) / (kind + ".csv")
-                config[kind + "_smb"].get(config[kind + "_name"], paths[kind])
+        paths = {"metadata": local_metadata(config, Path(directory))}
+        paths["master"] = config["master"]
+        if paths["master"] is None:
+            paths["master"] = Path(directory) / "master.csv"
+            config["master_smb"].get(config["master_name"], paths["master"])
         conflicts = find_conflicts(read_table(paths["master"]), read_table(paths["metadata"]),
                                    read_table(report) if report else None, workflow)
         if output:
@@ -236,6 +285,8 @@ def main():
     parser.add_argument("--report", type=Path)
     parser.add_argument("--fasta", type=Path, help="Merge this run's multi-FASTA into master.fasta beside master.csv")
     parser.add_argument("--workflow", required=True, choices=("fastq", "fasta"))
+    parser.add_argument("--profile", choices=("human", "avian"), default="human",
+                        help="Select FLUSEQ_/INF or AVIANSEQ_/INF-AVIAN configuration")
     parser.add_argument("--validation", default="")
     parser.add_argument("--check-config", action="store_true", help="Validate local configuration before starting analysis")
     parser.add_argument("--check-identifiers", action="store_true", help="Read-only audit of conflicting sequencing identifiers")
@@ -247,6 +298,8 @@ def main():
     parser.add_argument("--qc-smb-auth", default="/home/ngs/.smbcreds")
     args = parser.parse_args()
     try:
+        if args.profile == "avian" and args.workflow != "fasta":
+            raise MergeError("The avian profile currently supports --workflow fasta only")
         if args.identifier_report and not args.check_identifiers:
             raise MergeError("--identifier-report requires --check-identifiers")
         if args.check_identifiers and (args.check_config or args.fasta or args.qc_output or args.qc_smb_share or args.qc_smb_dir):
@@ -258,10 +311,11 @@ def main():
                 raise MergeError("QC coverage threshold must be greater than 0 and at most 100")
             if args.qc_output.suffix.lower() != ".html":
                 raise MergeError("QC output must use an .html filename")
-        config, reason = configuration(os.environ, args.validation)
+        config, reason = profile_configuration(os.environ, args.validation, args.profile)
         if args.check_identifiers:
             if config is None:
-                raise MergeError(f"Identifier check needs configured input paths: {reason}; set FLUSEQ_MASTER_UPDATE=true")
+                prefix = "AVIANSEQ" if args.profile == "avian" else "FLUSEQ"
+                raise MergeError(f"Identifier check needs configured input paths: {reason}; set {prefix}_MASTER_UPDATE=true")
             conflicts = check_identifiers(config, args.report, args.identifier_report, args.workflow)
             sequences = {row["Sequence_ID"] for row in conflicts}
             relevant = {row["Sequence_ID"] for row in conflicts if row["in_current_report"] == "yes"}

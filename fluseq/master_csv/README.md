@@ -3,7 +3,9 @@
 `bin/merge_master_csv.py` merges a completed human FASTQ or FASTA report and the
 LabWare export into an existing master CSV. It requires Python 3.8 or newer and
 uses only the standard library. `bin/update_master_csv.py` is the wrapper entry
-point and supports mounted files and `smbclient` transfers.
+point and supports mounted files and `smbclient` transfers. Its `--profile avian`
+mode also archives completed avian FASTA reports; Excel metadata requires the
+optional dependencies described below.
 
 The merge is a wrapper post-processing step, after Nextflow and the existing
 result uploads succeed. It is outside Nextflow's cache: each invocation reads the
@@ -121,6 +123,119 @@ Omit `--output` to update the master with a timestamped backup. Use
 header `Prove_LW_ID` (the legacy `Key` header is also accepted); missing files are
 rejected to avoid creating a new database after a download/path error.
 
+## One-time historical backfill in R
+
+`bin/backfill_master_once.R` combines an existing master, `NGS_PREP_INF_report.csv`,
+and a historical CSV whose columns already use the master names (for example,
+`NGS_Coverage_HA`, rather than raw pipeline column `Coverage-HA`). It uses base R
+only and can run in RStudio on Windows or with `Rscript`.
+
+The existing master supplies **the exact output header and column order**,
+including the later metadata and pipeline columns. It can contain existing rows
+or just its header. Required header columns are `Key`, `Prove_LW_ID`, and
+`Master_Index_Source`. All three input files remain unchanged; output must be a
+new filename in an existing directory.
+
+In RStudio, source the script and supply your actual file paths:
+
+```r
+source("C:/path/to/backfill_master_once.R", encoding = "UTF-8")
+
+backfill_master(
+  master   = "N:/path/to/INF/master.csv",
+  metadata = "N:/path/to/INF/NGS_PREP_INF_report.csv",
+  results  = "C:/path/to/historical_results.csv",
+  output   = "C:/path/to/master.backfill.csv"
+)
+```
+
+Or use the command line:
+
+```bash
+Rscript master_csv/bin/backfill_master_once.R \
+  --master /path/to/master.csv \
+  --metadata /path/to/NGS_PREP_INF_report.csv \
+  --results /path/to/historical_results.csv \
+  --output /path/to/master.backfill.csv
+```
+
+The one-time import follows these rules:
+
+- Keep identifiers, dates, numeric-looking fields and all other cells as text.
+  Preserve leading zeros and column names containing spaces.
+- Match exact `Prove_LW_ID`, using sequencing IDs and legacy `Key` matches when
+  the specimen ID is unavailable. Map metadata `RekvNr` to `Key` and metadata
+  `Key` to `Metadata_Key`, applying the existing metadata spelling aliases.
+- Use sequencing IDs as marked provisional indexes only when no specimen match
+  is available. Repair existing missing/provisional indexes using metadata.
+- For new rows, combine nonblank metadata with nonblank historical results;
+  historical values take precedence where both supply a value. No new row is
+  created for a sample found only in metadata.
+- **By default, preserve populated existing master cells and fill only gaps.**
+  This prevents an older partial export from replacing newer results. For the
+  usual nonempty-import precedence (existing master, metadata, then historical
+  results), explicitly use `overwrite_existing = TRUE` in R or
+  `--overwrite-existing` on the command line. Blank inputs never erase values.
+- Write unavailable fields as empty cells. Do not manufacture `NA`: literal
+  `NA`, `None` and `0` in nonidentifier fields are retained as data, as in the
+  normal merge. Identifier placeholders are handled by the existing rules.
+- Stop on duplicate specimen indexes, conflicting identifiers, conflicting
+  mapped columns, or input columns absent from the master header. Extend a copy
+  of the master header if necessary; columns are never silently dropped.
+- Apply the known county/PCR text repairs. Output is semicolon-separated UTF-8
+  with BOM and CSV quoting. UTF-8, Windows-1252 and BOM-marked UTF-16 inputs are
+  detected automatically; `encoding` / `--encoding` can override this for all
+  inputs.
+
+To retain reviewed historical records that have only a name in `Key`, enable
+`allow_name_fallback = TRUE` in `backfill_master()` or `--allow-name-fallback`
+on the command line. After the usual metadata/identifier matching, an otherwise
+unresolved name-only row is retained using its exact name as `SequenceID` and
+the provisional `Prove_LW_ID`, marked `Master_Index_Source=Sequence_ID`.
+`Key` stays unchanged and `NGS_LW_ID` stays blank. For example,
+`B/TOKYO/EIS13-175/2025` is preserved in full, with no generated or shortened name.
+The master header must include `SequenceID` (the supplied full master header
+already does). This uses the existing sequencing-fallback rules, so future
+Python imports can preserve the row and resolve its index if matching metadata
+later supplies a specimen ID. The R importer can also repair existing name-only
+master rows when this option is enabled; metadata-only records are still not
+created. Duplicate names, ambiguous matches and collisions with another
+record's sequencing ID remain errors. Rows with no usable identifier or name
+still fail. The option is off by default.
+
+To choose one historical result when several records resolve to the same
+`Prove_LW_ID`, use `duplicate_results = "first"` in R or
+`--duplicate-results first` on the command line. This retains the first complete
+record in the historical CSV for each resolved ID and skips later ones. Use
+`"last"` to retain the last record instead; neither policy infers which result
+is newest or combines fields across duplicate historical records. Selection
+happens after metadata matching and name fallback, including for named records
+such as `B/TOKYO/EIS13-175/2025`. The source CSV is unchanged, and the summary
+reports how many duplicate records were skipped. Duplicate checks on the
+existing master and metadata remain strict. The default `"error"` policy stops
+and reports the CSV record numbers of the first duplicate group.
+
+The script reports row counts, unmatched historical rows, and the count of
+differing populated cells preserved (or overwritten with the explicit option).
+The output is a **complete replacement candidate**, including existing rows,
+not an append-only batch. Review it and back up the current master before
+replacing that file; do not append the preview to the existing master. No FASTA
+archive or shared database is updated by the script. Tests use synthetic data;
+your actual exports still need to be checked by running the preview.
+
+If an input fails the CSV field-count check, use the same sourced R script to
+inspect its structure without printing cell contents:
+
+```r
+diagnose_csv("backlog.csv")
+```
+
+This reports the detected separator, expected field count, and a table of
+inconsistent record-ending physical lines. Quoted multiline fields and empty
+physical lines are accounted for. Inspect extra/missing separators and quoting
+at those locations in a copy of the export; the importer does not pad or discard
+malformed records. An unterminated quoted field is rejected explicitly.
+
 ## Wrapper configuration
 
 The updated `ngs_scripts/fluseq/fluseq_wrapper.sh` and
@@ -195,6 +310,88 @@ contains `bin/report_qc_html.py`, `bin/qc_metrics.py` and
 directory must contain these reporting files as well. The HTML renderer extends
 the initial renderer in `nf-core-fluseq`; this bundled version is run after the
 master merge so the qPCR comparison includes newly imported metadata.
+
+## Avian FASTA wrapper
+
+`avianseq_fasta_wrapper.sh` enables both archive updates by default, after the
+existing result uploads. It passes `--profile avian --workflow fasta` and the
+completed `reporthuman/<RUN>.csv` and `reporthuman/<RUN>.fasta` to the same updater
+as the human wrappers. Existing backup, locking, identifier-conflict checks, and
+verified SMB uploads apply. It retains `$HOME/out_fluseq/<RUN>` for retries and
+later metadata imports. A failed merge stops cleanup.
+
+The default destination is:
+
+```text
+N:\Virologi\NGS\1-NGS-Analyser\2-Utvikling\Seksjons for Influensa og andre luftveisvirus - NGS analysis database\data\INF-AVIAN
+```
+
+The SMB share is `//pos1-fhi-svm01.fhi.no/styrt`; the directory is the human
+default with `INF` replaced by `INF-AVIAN`. Output files are `master.csv` and
+`master.fasta`. The directory and `master.csv` must already exist; a header-only
+CSV containing `Prove_LW_ID` is supported. A missing FASTA is created on the
+first nonempty update.
+
+Avian configuration uses **`AVIANSEQ_`**, independently of inherited `FLUSEQ_`
+variables. All master/metadata settings in the table above have an equivalent
+`AVIANSEQ_` name, with these differences:
+
+| Setting | Avian behavior |
+| --- | --- |
+| `AVIANSEQ_MASTER_UPDATE` | `true` in the wrapper, `auto` for standalone invocations |
+| `AVIANSEQ_MASTER_SMB_DIR` | Defaults to the `INF-AVIAN` directory above |
+| `AVIANSEQ_METADATA_CSV` | Explicit local/mounted metadata path; accepts CSV, XLS or XLSX despite the historical variable suffix |
+| `AVIANSEQ_METADATA_SMB_NAME` | Explicit filename; otherwise discover `metadata.csv`, `metadata.xls`, or `metadata.xlsx` beside the master or in the configured metadata SMB location |
+| `AVIANSEQ_METADATA_SHEET` | Worksheet name; required when an Excel workbook contains multiple worksheets |
+| `AVIANSEQ_MASTER_TOOLS` | Wrapper directory's `master_csv` subdirectory |
+
+Discovery requires exactly one matching file. Missing files and multiple matches
+fail rather than selecting an arbitrary export. An explicit metadata filename or
+path disables discovery. Network/access failures are errors, not missing files.
+The avian profile never defaults to `NGS_PREP_INF_report.csv`.
+
+While metadata is unavailable, use `-M` / `--skip-master` or
+`AVIANSEQ_MASTER_UPDATE=false` to run without either master update. Validation
+runs always skip both. Configuration preflight checks mounted paths before
+analysis; SMB metadata availability is checked at merge time, just as for the
+human wrapper. Once metadata is available, retry from the retained report files:
+
+```bash
+AVIANSEQ_MASTER_UPDATE=true \
+python3 /home/ngs/ngs_scripts/fluseq/master_csv/bin/update_master_csv.py \
+  --profile avian --workflow fasta \
+  --report /home/ngs/out_fluseq/RUNNAME/reporthuman/RUNNAME.csv \
+  --fasta /home/ngs/out_fluseq/RUNNAME/reporthuman/RUNNAME.fasta
+```
+
+The existing identifier contract is provisional until the actual metadata export
+can be checked: use `Prove_LW_ID` for specimen IDs and/or a recognized sequencing
+ID column (`NGS_LW_ID`, `Sequence_ID`, `SequenceID`, `SampleID`). Report
+`OriginalName` / `SampleID` must match the identifiers under the rules above.
+Unknown metadata and report columns are retained. No new avian column aliases
+are guessed. Replaying a report after metadata arrives enriches its existing
+rows; it does not import unrelated metadata-only samples.
+
+CSV imports need no extra packages. For Excel, install the optional requirements
+in the Python environment used both for preflight and for the merge:
+
+```bash
+python3 -m pip install -r /home/ngs/ngs_scripts/fluseq/master_csv/requirements-excel.txt
+```
+
+XLS uses [xlrd](https://xlrd.readthedocs.io/en/stable/api.html); XLSX uses
+[openpyxl](https://openpyxl.readthedocs.io/en/3.1/api/openpyxl.reader.excel.html).
+Excel headers must occupy the first row. Store identifier columns as **text** to
+preserve leading zeros; numeric identifier cells are rejected. Other numeric
+cells become text and date/time cells use ISO formatting. Supply values-only
+exports: XLSX formulas and Excel error cells are rejected; XLS reads cached
+formula results. Multiple worksheets require explicit selection. Neither reader
+modifies the source workbook.
+
+Local tests use synthetic data. Production acceptance still requires the actual
+metadata schema, confirmation of the completed avian report paths/identifiers,
+and an ngs4 run with access to the destination share. These changes do not deploy
+the tools or create files on the N: drive.
 
 ## Master FASTA
 
