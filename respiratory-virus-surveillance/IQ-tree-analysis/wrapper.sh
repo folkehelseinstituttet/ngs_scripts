@@ -79,6 +79,7 @@ lcd $TMP_DIR
 mget H1
 mget H3
 mget VIC
+mget H5
 EOF
 
 # --- Activate analysis environment ---
