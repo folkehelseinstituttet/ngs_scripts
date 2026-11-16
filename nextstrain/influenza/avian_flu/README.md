@@ -1,3 +1,52 @@
+# HA-only wrapper: H5N1 and H5N5
+
+`wrapper_avian_ha.sh` builds separate H5N1 and H5N5 HA datasets from an
+already prepared metadata TSV and HA FASTA. Both subtypes must have matching
+records dated 2024 or later; subsequent workflow filters also apply.
+
+```bash
+# Download the prepared TSV and HA FASTA from the existing SMB source and build:
+bash wrapper_avian_ha.sh
+# Or supply the prepared files locally:
+bash wrapper_avian_ha.sh --prepare-only metadata.tsv sequences_ha.fasta
+bash wrapper_avian_ha.sh --dry-run metadata.tsv sequences_ha.fasta
+bash wrapper_avian_ha.sh metadata.tsv sequences_ha.fasta
+```
+
+With no input paths, the wrapper downloads exactly `metadata.tsv` and
+`sequences_ha.fasta` from
+`//pos1-fhi-svm01.fhi.no/styrt/Virologi/NGS/tmp/avianflu_nextstrain`, using
+`~/.smbcreds`. This is the whole-genome wrapper's source folder, but the HA
+wrapper requires the prepared TSV and HA-only FASTA, not Excel or multi-segment
+inputs. Override `SMB_HOST`, `SMB_SOURCE`, or `SMB_AUTH` when needed.
+
+`PROJECT_DIR` defaults to `~/avian_project`. The wrapper expects its upstream
+checkout in `$PROJECT_DIR/avian-flu` and clones it if absent. Existing checkouts
+are not updated. Set `PROJECT_DIR` to change that base folder, or set `AVIAN_REPO`
+separately. These settings do not move files.
+Each run is saved under `RUN_ROOT` (default `~/avianflu_ha_runs`).
+
+The default Conda environment is `AVIAN_HA`; it must satisfy the version
+requirements of the chosen upstream checkout. Set `CONDA_ENV=''` to use the
+active environment instead. The checkout inspected during development requires
+Augur 34.1.2 or newer.
+
+On a machine with the existing `SNAKEMAKE` environment (including MAFFT and
+IQ-TREE), create the separate HA environment once:
+
+```bash
+conda create --name AVIAN_HA --clone SNAKEMAKE --yes
+conda run --name AVIAN_HA python -m pip install 'nextstrain-augur==34.1.2'
+```
+
+`--prepare-only` uses standard-library Python and does not require this environment.
+
+Outputs are `auspice/avian-flu_h5n1_ha_local.json` and
+`auspice/avian-flu_h5n5_ha_local.json` within the run directory. `--smb` downloads
+the two input files; `--upload` uploads both JSON files after a successful build.
+H5N5 uses upstream H5Nx HA resources; the upstream workflow does not add clade
+labels for the `h5n5` build name.
+
 # Nextstrain H5N1 Whole-Genome Wrapper
 
 This README explains how to set up and run the **Nextstrain H5N1 whole-genome wrapper** (`wrapper_avian_full_genome.sh`) to perform a full avian-flu build, including:

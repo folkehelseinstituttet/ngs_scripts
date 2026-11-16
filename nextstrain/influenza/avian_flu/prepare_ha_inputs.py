@@ -48,7 +48,7 @@ def prepare(metadata, fasta, output):
         raise ValueError(f"{len(unmatched)} HA FASTA identifiers lack metadata; examples: {sorted(unmatched)[:3]}")
 
     # Keep every existing field, particularly the already-separated geography.
-    # Retain subtype for Auspice and add the field used by the H5N1 query.
+    # Retain subtype for Auspice and add the field used by the subtype queries.
     for name in ("virus_subtype", "gisaid_clade", "genoflu"):
         if name not in columns:
             columns.append(name)
@@ -66,10 +66,13 @@ def prepare(metadata, fasta, output):
             row["date"] = "XXXX-XX-XX"
 
     ha_ids = set(fasta_ids)
-    h5n1 = [row for row in rows if row["virus_subtype"] == "H5N1" and row["strain"] in ha_ids]
-    eligible = sum(bool(re.match(r"\d{4}", row["date"])) and int(row["date"][:4]) >= 2024 for row in h5n1)
-    if not eligible:
-        raise ValueError("No matched H5N1 HA records dated 2024 or later")
+    summaries = []
+    for subtype in ("H5N1", "H5N5"):
+        matched = [row for row in rows if row["virus_subtype"] == subtype and row["strain"] in ha_ids]
+        eligible = sum(bool(re.match(r"\d{4}", row["date"])) and int(row["date"][:4]) >= 2024 for row in matched)
+        if not eligible:
+            raise ValueError(f"No matched {subtype} HA records dated 2024 or later")
+        summaries.append(f"Matched {subtype} HA: {len(matched)}; dated 2024 onward: {eligible} before other build filters")
     output.mkdir(parents=True, exist_ok=True)
     if metadata.resolve() == (output / "metadata.tsv").resolve() or fasta.resolve() == (output / "sequences_ha.fasta").resolve():
         raise ValueError("Output directory must differ from the source input directory")
@@ -80,7 +83,8 @@ def prepare(metadata, fasta, output):
     shutil.copyfile(fasta, output / "sequences_ha.fasta")
     print(f"Metadata: {len(rows)} unique strains; HA FASTA: {len(fasta_ids)} matching identifiers")
     print(f"Subtypes: {dict(Counter(row['virus_subtype'] for row in rows))}")
-    print(f"Matched H5N1 HA: {len(h5n1)}; dated 2024 onward: {eligible} before other build filters")
+    for summary in summaries:
+        print(summary)
     print("Existing geographic columns preserved; unknown values standardized to 'unknown'.")
 
 
