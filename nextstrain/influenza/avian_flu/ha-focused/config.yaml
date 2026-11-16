@@ -1,0 +1,49 @@
+# Local GISAID TSV and pre-split HA FASTA; no other segments are required.
+builds:
+  - subtype: h5n1
+    segment: ha
+    time: local
+target_patterns: "auspice/avian-flu_{subtype}_{segment}_{time}.json"
+inputs:
+  - name: local
+    metadata: local_data/metadata.tsv
+    sequences:
+      ha: local_data/sequences_ha.fasta
+same_strains_per_segment: false
+reference: config/h5n1/reference_h5n1_{segment}.gb
+auspice_config: config/h5n1/auspice_config_h5n1.json
+lat_longs: config/h5n1/lat_longs_h5n1.tsv
+include_strains: config/local-ha/empty.txt
+dropped_strains: config/local-ha/empty.txt
+clades_file: clade-labeling/h5n1-clades.tsv
+description: config/h5n1/description.md
+subtype_query:
+  "h5n1/*/*": "virus_subtype == 'H5N1'"
+filter:
+  target_sequences_per_tree: 10000
+  min_length: 1600
+  min_date: 2024
+  group_by: false
+  exclude_where: host=laboratoryderived host=ferret host=unknown host=other host=host gisaid_clade=3C.2
+refine:
+  coalescent: const
+  date_inference: marginal
+  clock_filter_iqd: false
+  root: false
+  clock_rates:
+    "*/ha/*": [0.00455, 0.00211]
+ancestral:
+  inference: joint
+  root_seq: false
+traits:
+  columns: region country
+  sampling_bias_correction: false
+  confidence: true
+colors:
+  hardcoded: config/h5n1/colors_h5n1.tsv
+  ordering: config/h5n1/color_ordering.tsv
+  schemes: config/shared/color_schemes.tsv
+  duplications:
+    "*/*/*": []
+export:
+  title: Local influenza A/H5N1 HA analysis
