@@ -2,7 +2,8 @@
 set -euo pipefail # Exit on error, unset variables, and pipefail
 
 usage() {
-    echo "Usage: $0 [--local] [--test] --mode <sanger|wgs> <batch_name> <year>"
+    echo "Usage: $0 [--local] [--test] [-v|--version <tag|branch>] --mode <sanger|wgs> <batch_name> <year>"
+    echo "  -v, --version  Optional: version (tag/branch) of hav_seq (hav_wrapper.sh) to run (default: latest on the default branch)"
     echo "  --local   Run locally instead of on the server (default: server)"
     echo "  --test    Do not modify the database (2PA.fa) on the N drive; write 2PA_test_<date_time>.fa instead"
 }
@@ -53,10 +54,14 @@ YEAR=""
 
 POSITIONAL=()
 TEST_MODE=0
+VERSION=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --mode)
       MODE="${2:?--mode requires a value (sanger or wgs)}"
+      shift 2 ;;
+    -v|--version)
+      VERSION="${2:?--version requires a value (tag or branch of hav_seq)}"
       shift 2 ;;
     --local)
       shift ;;
@@ -90,6 +95,7 @@ echo Environment: "$ENVIRONMENT"
 echo Mode: "$MODE"
 echo Batch name: "$BATCH_NAME"
 echo Year: "$YEAR"
+echo hav_seq version: "${VERSION:-latest}"
 
 export MODE="$MODE"
 export BATCH_NAME="$BATCH_NAME"
@@ -151,6 +157,7 @@ export HAV_SEQ_REPO_URL="https://github.com/folkehelseinstituttet/hav_seq.git"
 
 if [[ "$ENVIRONMENT" == "local" ]]; then
     set_status "Local mode: skipping pull/clone of ngs_scripts and hav_seq"
+    [[ -n "$VERSION" ]] && echo "WARNING: --version is ignored in local mode (using $HAV_SEQ_REPO as is)" >&2
     if [ ! -d "$HAV_SEQ_REPO" ]; then
         echo "ERROR: hav_seq not found at $HAV_SEQ_REPO. Set HAV_SEQ_REPO to your local copy." >&2
         exit 1
@@ -169,13 +176,31 @@ else
 
     set_status "Ensuring local copy of hav_seq (pull/clone)"
     if [ -d "$HAV_SEQ_REPO" ]; then
-        echo "Directory 'hav_seq' exists. Pulling latest changes..."
+        echo "Directory 'hav_seq' exists. Fetching latest changes..."
         cd "$HAV_SEQ_REPO"
-        git pull
+        git fetch --tags --force origin
     else
         echo "Directory 'hav_seq' does not exist. Cloning repository..."
         git clone "$HAV_SEQ_REPO_URL" "$HAV_SEQ_REPO"
+        cd "$HAV_SEQ_REPO"
     fi
+
+    if [[ -n "$VERSION" ]]; then
+        set_status "Checking out hav_seq version $VERSION"
+        git checkout "$VERSION"
+        # Branches should follow the remote; tags are detached and need no pull
+        if git show-ref --verify --quiet "refs/remotes/origin/$VERSION"; then
+            git merge --ff-only "origin/$VERSION"
+        fi
+    else
+        # Default: latest commit on the remote default branch
+        DEFAULT_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##' || true)
+        DEFAULT_BRANCH="${DEFAULT_BRANCH:-main}"
+        set_status "Using latest hav_seq ($DEFAULT_BRANCH)"
+        git checkout "$DEFAULT_BRANCH"
+        git merge --ff-only "origin/$DEFAULT_BRANCH"
+    fi
+    set_status "hav_seq is at $(git describe --tags --always)"
 fi
 
 
