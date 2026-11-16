@@ -49,7 +49,7 @@ CONDA_ENV="viral-phylo-iqtree-treetime"
 #   13-IQtree/H1/{metadata.*,*.fasta}
 #   13-IQtree/H3/{metadata.*,*.fasta}
 #   13-IQtree/VIC/{metadata.*,*.fasta}
-INPUT_GROUPS=(H1 H3 VIC)
+INPUT_GROUPS=(H1 H5 H3 VIC)
 declare -a PROCESSED_INPUTS=()
 
 # --- Ensure clean local working directories exist ---
