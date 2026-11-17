@@ -2,7 +2,7 @@ library(odbc)
 library(tidyverse)
 library(lubridate)
 
-# Script version 1.2
+# Script version 1.3
 
 ## ==================================================
 ## Validate required environment variables
@@ -92,6 +92,7 @@ samples <- tbl(con, "SAMPLE_VIEW") %>%
          "X_GENDER", 
          "BIRTH_DATE", 
          "X_MEDICAL_REVIEW",
+         "X_CUSTOMER_SAMPLE_ID",
          "X_SPECIMEN_SOURCE",
          "SAMPLE_TYPE") %>% 
   collect()
@@ -104,6 +105,12 @@ test <- tbl(con, "TEST_VIEW") %>%
   select("TEST_NUMBER", "SAMPLE_NUMBER", "ANALYSIS", "X_TECH_REVIEW") %>% 
   filter(X_TECH_REVIEW == "X" | X_TECH_REVIEW == "R") %>% # R = Rejected, X = Cancelled
   collect()
+
+# Hente kundens referansenummer fra ORDERS_VIEW. Ligger på ordren, ikke prøven, og kobles via ORDER_NUM
+orders <- tbl(con, "ORDERS_VIEW") %>% 
+  select("ORDER_NUM", "X_CUSTOMER_REF_NR") %>% 
+  collect() %>% 
+  distinct()
 
 # Hente ut region info
 region <- tbl(con, "REGION_VIEW") %>% 
@@ -159,6 +166,10 @@ gas_pk_res_long <- results_cleaned %>%
 gas_pk_res_long_metadata <- gas_pk_res_long %>% 
   left_join(samples_cleaned, by =c("SAMPLE_NUMBER" = "SAMPLE_NUMBER"))
 
+# Koble på ordreinfo
+gas_pk_res_long_metadata <- gas_pk_res_long_metadata %>% 
+  left_join(orders, by = "ORDER_NUM")
+
 # Then connect region info
 gas_pk_res_long_metadata_region <- gas_pk_res_long_metadata %>% 
   left_join(region, by = c("X_ZIPCODE" = "ZIPCODE"))
@@ -179,9 +190,11 @@ final <- gas_pk_res_long_metadata_region %>%
   select(
     X_AGENS,
     SAMPLE_NUMBER,
+    X_CUSTOMER_SAMPLE_ID,
     RESULT_NUMBER,
     TEST_NUMBER,
     ORDER_NUM,
+    X_CUSTOMER_REF_NR,
     ANALYSIS,
     NAME,
     ENTRY,
