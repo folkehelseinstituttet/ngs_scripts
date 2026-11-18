@@ -7,7 +7,7 @@ uploads the results. See the `hav_seq` README.md for details about the analysis 
 ## Usage
 
 ```bash
-./wrapper.sh [--local] [--test] [-v|--version <tag|branch>] --mode <sanger|wgs> <batch_name> <year>
+./wrapper.sh [--local] [--test] [--accept-old-hav-uttrekk] [-v|--version <tag|branch>] --mode <sanger|wgs> <batch_name> <year>
 ```
 
 | Option | Description |
@@ -17,6 +17,7 @@ uploads the results. See the `hav_seq` README.md for details about the analysis 
 | `-v`, `--version` | Tag or branch of `hav_seq` to run. Default: latest commit on the default branch |
 | `--test` | Do not modify the database `2PA.fa` on the N: drive; write `2PA_test_<date_time>.fa` instead |
 | `--local` | Run locally (`~/ngs_local`) instead of on the server. Skips pull/clone and ignores `--version` |
+| `--accept-old-hav-uttrekk` | Accept `HAV_lw_uttrekk.tsv` even if it is not dated today. This can cause metadata to be missing for some or all requests |
 
 ## What wrapper.sh does
 
@@ -25,7 +26,7 @@ uploads the results. See the `hav_seq` README.md for details about the analysis 
 3. Updates local copies of `ngs_scripts` and `hav_seq` (clone or pull), and checks out the requested `hav_seq` version (default: latest).
 4. Copies from the N: drive (`Virologi/Hepatitt/Hepatitt A/HAV genteknologi/`, via `smbclient`):
    - fasta files from `<year>/<batch_name>/Fasta`
-   - `HAV_lw_uttrekk.tsv` (LabWare extract). The script stops if the file is not dated today.
+   - `HAV_lw_uttrekk.tsv` (LabWare extract) from `//pos1-fhi-svm01.fhi.no/Dataanalayse/Prod/FromSecure/LW_Datauttrekk`. The script stops if the file is not dated today unless `--accept-old-hav-uttrekk` is specified. Using an old file can cause metadata to be missing for some requests.
    - `Requests.xlsx`
    - the database `2PA.fa`
 5. Runs `hav_seq/scripts/hav_wrapper.sh` with the chosen mode, `--test` flag, batch name and year.

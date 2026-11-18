@@ -2,10 +2,11 @@
 set -euo pipefail # Exit on error, unset variables, and pipefail
 
 usage() {
-    echo "Usage: $0 [--local] [--test] [-v|--version <tag|branch>] --mode <sanger|wgs> <batch_name> <year>"
+    echo "Usage: $0 [--local] [--test] [--accept-old-hav-uttrekk] [-v|--version <tag|branch>] --mode <sanger|wgs> <batch_name> <year>"
     echo "  -v, --version  Optional: version (tag/branch) of hav_seq (hav_wrapper.sh) to run (default: latest on the default branch)"
     echo "  --local   Run locally instead of on the server (default: server)"
     echo "  --test    Do not modify the database (2PA.fa) on the N drive; write 2PA_test_<date_time>.fa instead"
+    echo "  --accept-old-hav-uttrekk  Accept HAV_lw_uttrekk.tsv even if it is not dated today"
 }
 
 # ── Environment selection (server is default) ────────────────────────────────
@@ -54,6 +55,7 @@ YEAR=""
 
 POSITIONAL=()
 TEST_MODE=0
+ACCEPT_OLD_HAV_UTTREKK=0
 VERSION=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -67,6 +69,8 @@ while [[ $# -gt 0 ]]; do
       shift ;;
     --test)
       TEST_MODE=1; shift ;;
+    --accept-old-hav-uttrekk)
+      ACCEPT_OLD_HAV_UTTREKK=1; shift ;;
     --help)
       usage; exit 0 ;;
      -*)
@@ -106,13 +110,16 @@ export YEAR="$YEAR"
 export TMP_DIR="$BASE_DIR/hav_input" # Fasta, lokal database
 export SMB_AUTH="$OUT_BASE/.smbcreds"
 export SMB_HOST=//pos1-fhi-svm01.fhi.no/styrt
+export SMB_HOST_INPUT=//pos1-fhi-svm01.fhi.no/Dataanalayse
+export SMB_INPUT="Prod/FromSecure/LW_Datauttrekk"
 export SMB_DIR="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/${YEAR}/${BATCH_NAME}"
 export SMB_DIR_DATASET="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/"
-export SMB_DIR_METADATA="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Databaser/Metadata"
 export SMB_DIR_METAREQUEST="Virologi/Hepatitt/Hepatitt A/HAV genteknologi/Requests"
 
 echo "SMB_DIR: $SMB_DIR"
 echo "SMB_DIR_DATASET: $SMB_DIR_DATASET"
+echo "SMB_HOST_INPUT: $SMB_HOST_INPUT"
+echo "SMB_INPUT: $SMB_INPUT"
 
 # Ensure $TMP_DIR exists and is clean
 if [ -d "$TMP_DIR" ]; then
@@ -218,13 +225,13 @@ set_status "Fasta copy complete. Files are in $TMP_DIR/Fasta"
 LW_FILENAME="HAV_lw_uttrekk.tsv"
 LW_FILE="$TMP_DIR/$LW_FILENAME"
 
-set_status "Checking modification date for $LW_FILENAME on the N drive"
+set_status "Checking modification date for $LW_FILENAME on $SMB_HOST_INPUT/$SMB_INPUT"
 
 # Read metadata from the original file on the SMB share.
 LW_INFO=$(
-    smbclient "$SMB_HOST" \
+    smbclient "$SMB_HOST_INPUT" \
         -A "$SMB_AUTH" \
-        -D "$SMB_DIR_METADATA" \
+        -D "$SMB_INPUT" \
         -c "allinfo $LW_FILENAME"
 )
 
@@ -239,7 +246,7 @@ WRITE_TIME=$(
 )
 
 if [[ -z "$WRITE_TIME" ]]; then
-    echo "ERROR: Could not read write_time for $LW_FILENAME from the N drive." >&2
+    echo "ERROR: Could not read write_time for $LW_FILENAME from $SMB_HOST_INPUT/$SMB_INPUT." >&2
     echo "Output from smbclient allinfo:" >&2
     printf '%s\n' "$LW_INFO" >&2
     exit 1
@@ -258,20 +265,33 @@ echo "File date: $FILE_DATE"
 echo "Today's date: $TODAY"
 
 if [[ "$FILE_DATE" != "$TODAY" ]]; then
-    echo "ERROR: $LW_FILENAME on the N drive is not from today." >&2
-    echo "File date: $FILE_DATE" >&2
-    echo "Today's date: $TODAY" >&2
-    echo 'Kopier dagens LabWare-uttrekk "HAV_lw_uttrekk.tsv" fra V:\Prod\FromSecure\LW_Datauttrekk til N:\Virologi\Hepatitt\Hepatitt A\HAV genteknologi\Databaser\Metadata' >&2
-    exit 1
+    if [[ "$ACCEPT_OLD_HAV_UTTREKK" -eq 1 ]]; then
+        echo "WARNING: $LW_FILENAME in $SMB_INPUT is not from today. Continuing because --accept-old-hav-uttrekk was specified." >&2
+        echo "WARNING: Using an old HAV_lw_uttrekk.tsv can mean that metadata is missing for some or all requests." >&2
+        echo "File date: $FILE_DATE" >&2
+        echo "Today's date: $TODAY" >&2
+    else
+        echo "ERROR: $LW_FILENAME in $SMB_INPUT is not from today." >&2
+        echo "File date: $FILE_DATE" >&2
+        echo "Today's date: $TODAY" >&2
+        echo 'Kontroller at dagens LabWare-uttrekk "HAV_lw_uttrekk.tsv" ligger i V:\Prod\FromSecure\LW_Datauttrekk.' >&2
+        echo "Alternativt kan du kjøre med gammel fil ved å legge til --accept-old-hav-uttrekk." >&2
+        echo "ADVARSEL: Dette kan føre til at metadata mangler for noen forespørsler." >&2
+        exit 1
+    fi
 fi
 
-set_status "Verified that $LW_FILENAME on the N drive is dated today ($TODAY)"
+if [[ "$ACCEPT_OLD_HAV_UTTREKK" -eq 1 && "$FILE_DATE" != "$TODAY" ]]; then
+    set_status "Accepted old $LW_FILENAME with date $FILE_DATE (--accept-old-hav-uttrekk)"
+else
+    set_status "Verified that $LW_FILENAME in $SMB_INPUT is dated today ($TODAY)"
+fi
 
-set_status "Copying $LW_FILENAME from the N drive (SMB_DIR=$SMB_DIR_METADATA)"
+set_status "Copying $LW_FILENAME from $SMB_HOST_INPUT/$SMB_INPUT"
 
-smbclient "$SMB_HOST" \
+smbclient "$SMB_HOST_INPUT" \
     -A "$SMB_AUTH" \
-    -D "$SMB_DIR_METADATA" <<EOF
+    -D "$SMB_INPUT" <<EOF
 lcd "$TMP_DIR"
 get $LW_FILENAME
 EOF
