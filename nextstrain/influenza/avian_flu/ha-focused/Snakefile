@@ -1,0 +1,2 @@
+include: "../rules/config.smk"
+include: "../rules/main.smk"
