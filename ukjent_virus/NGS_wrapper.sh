@@ -73,7 +73,7 @@ usage() {
     echo "Usage: $SCRIPT_NAME [OPTIONS]"
     echo "Options:"
     echo "  -h, --help        Display this help message"
-    echo "  -r, --run         Specify the run name (e.g. NGS_SEQ-20260210-01)"
+    echo "  -r, --run         Specify the run name (e.g. NGS_SEQ-YYYYMMDD-NN)"
     echo "  -a, --agens       Specify agens subfolder on the N-drive (e.g. UkjentVirus)"
     echo "  -y, --year        Specify the year (e.g. 2026)"
     echo "  -d, --db          EsViritu database alias (default: v3_2_4)"
@@ -425,8 +425,11 @@ echo "Samplesheet created: $FINAL_SAMPLESHEET"
 
 activate_nextflow
 
-# 1. Set the version (switch back to 'main' once development is complete and merged)
-VERSION="Assembly_v2"
+# 1. Pipeline version: a release tag (v<manifest.version in nextflow.config>).
+#    Production runs only tagged releases; see CHANGELOG.md. To release, bump
+#    manifest.version, tag the commit, push the tag, then change VERSION here.
+VERSION="v0.1.1"
+set_status "Pipeline version: $VERSION"
 
 # 2. Tell Nextflow to refresh the code from GitHub
 nextflow pull alexanderhes/Ukjent_virus -r $VERSION || {
